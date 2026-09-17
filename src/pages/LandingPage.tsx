@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { TrainMark, TrackMark, CargoMark, StaffMark, FogMark, FragileMark, MedalMark } from "../components/TrainMark";
+import { TrainMark, TrackMark, CargoMark, StaffMark, FogMark, FragileMark, MedalMark, TrophyMark } from "../components/TrainMark";
 import { RailSchematic } from "../components/RailSchematic";
 import { SplitFlap } from "../components/SplitFlap";
 import { SteamEffect } from "../components/SteamEffect";
@@ -32,9 +32,9 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { n: "01 — Fonder", title: "Créez votre compagnie", body: "Nom, couleur de livrée — posez vos premiers rails." },
-  { n: "02 — Développer", title: "Construisez votre réseau", body: "Tracez vos lignes, achetez du matériel, recrutez votre personnel." },
-  { n: "03 — Dominer", title: "Optimisez et grimpez", body: "Soignez votre réputation, devancez la concurrence au classement." },
+  { n: "01", label: "Fonder", title: "Créez votre compagnie", body: "Nom, couleur de livrée — posez vos premiers rails.", icon: <TrainMark size={22} /> },
+  { n: "02", label: "Développer", title: "Construisez votre réseau", body: "Tracez vos lignes, achetez du matériel, recrutez votre personnel.", icon: <TrackMark size={22} /> },
+  { n: "03", label: "Dominer", title: "Optimisez et grimpez", body: "Soignez votre réputation, devancez la concurrence au classement.", icon: <TrophyMark size={22} /> },
 ];
 
 export default function LandingPage() {
@@ -77,6 +77,7 @@ export default function LandingPage() {
             <a href="#fonctionnalites" className="hover:text-offwhite transition-colors">Fonctionnalités</a>
             <a href="#offres" className="hover:text-offwhite transition-colors">Offres</a>
             <a href="#comment" className="hover:text-offwhite transition-colors">Comment jouer</a>
+            <a href="#developpeur" className="hover:text-offwhite transition-colors">Développeur</a>
           </nav>
           <div className="flex items-center gap-3">
             <button
@@ -174,11 +175,23 @@ export default function LandingPage() {
               De la fondation de votre compagnie à la domination du classement, la progression suit une vraie logique.
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-line border border-line">
+          <div className="relative grid grid-cols-1 md:grid-cols-3 gap-5">
+            {/* ligne de progression reliant les trois étapes, visible seulement en desktop */}
+            <div className="hidden md:block absolute top-[27px] left-[8.3%] right-[8.3%] h-px bg-gradient-to-r from-cobalt via-cobalt/60 to-cobalt/20" />
+
             {STEPS.map((s) => (
-              <div key={s.n} className="p-6 bg-navy-900">
-                <div className="font-mono2 text-xs text-amber-dim mb-3">{s.n}</div>
-                <h3 className="font-body text-sm text-offwhite font-semibold mb-1.5">{s.title}</h3>
+              <div
+                key={s.n}
+                className="relative bg-navy-900 border border-line border-t-2 border-t-cobalt p-6 transition-all duration-200 hover:border-t-amber hover:-translate-y-1 hover:shadow-[0_12px_24px_-8px_rgba(0,0,0,0.5)]"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="relative z-10 w-9 h-9 rounded-full bg-navy-950 border border-cobalt/50 flex items-center justify-center font-mono2 text-xs text-cobalt shrink-0">
+                    {s.n}
+                  </span>
+                  <span className="text-cobalt">{s.icon}</span>
+                </div>
+                <div className="font-mono2 text-[11px] text-amber-dim uppercase tracking-wide mb-2">{s.label}</div>
+                <h3 className="font-body text-base text-offwhite font-semibold mb-1.5">{s.title}</h3>
                 <p className="text-xs text-slate2 font-body leading-relaxed">{s.body}</p>
               </div>
             ))}
@@ -234,6 +247,41 @@ export default function LandingPage() {
               <button disabled className="w-full border border-line text-slate2 text-sm font-semibold uppercase tracking-wide py-3 cursor-not-allowed">
                 Bientôt disponible
               </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ===== À propos du développeur ===== */}
+      <section id="developpeur" className="py-16 md:py-20 border-b border-line">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr_1.3fr] gap-10 items-start">
+            <div>
+              <span className="inline-block font-mono2 text-[11px] uppercase tracking-wide text-amber-dim border border-amber-dim/40 px-2 py-1 mb-4">
+                Projet solo
+              </span>
+              <h2 className="font-display text-2xl md:text-3xl mb-3">Derrière ce projet</h2>
+              <p className="text-sm text-slate2 font-body leading-relaxed">
+                Réseau est développé de A à Z par <span className="text-offwhite font-semibold">Skylaize</span> — de la simulation
+                de trains en tâche de fond jusqu'au moindre pixel de l'interface. Pas de template, pas de kit tout fait :
+                chaque écran, chaque animation et chaque effet visuel ont été codés à la main pour ce projet précis.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {[
+                { label: "Panneau à palettes", body: "Chaque chiffre bascule en rotation 3D, en CSS pur." },
+                { label: "Fumée en canvas", body: "Un vrai système de particules HTML5, image par image." },
+                { label: "Carte animée", body: "Lignes courbes, flux directionnel, gares qui pulsent." },
+                { label: "Météo vivante", body: "L'interface entière réagit à la simulation en cours." },
+                { label: "React + TypeScript", body: "Frontend typé de bout en bout, sans raccourci." },
+                { label: "Node + PostgreSQL", body: "Backend et simulation tournant en continu, même hors ligne." },
+              ].map((f) => (
+                <div key={f.label} className="border border-line p-3.5 bg-navy-900">
+                  <div className="font-body text-xs text-offwhite font-semibold mb-1">{f.label}</div>
+                  <p className="text-[11px] text-slate2 font-body leading-snug">{f.body}</p>
+                </div>
+              ))}
             </div>
           </div>
         </div>
