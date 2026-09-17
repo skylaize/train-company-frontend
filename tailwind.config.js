@@ -4,32 +4,26 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Fond principal et cartes : charbon chaud profond (pas de bleu-noir froid)
         navy: {
-          950: "#18140f",
-          900: "#221c15",
-          800: "#2d2519",
-          700: "#4a3f2e",
+          950: "#0b0f19",
+          900: "#111827",
+          800: "#1f2937",
+          700: "#374151",
         },
-        // Séparateurs, feutrés et chauds
-        line: "#4a3f2e",
-        // Ochre/laiton discret pour la trésorerie et les accents chauds
+        line: "#1e293b",
         amber: {
-          DEFAULT: "#c99a3e",
-          dim: "#7a5f28",
+          DEFAULT: "#f59e0b",
+          dim: "#b45309",
         },
-        // Bleu acier feutré pour les accents interactifs (pas de cyan vif)
         cobalt: {
-          DEFAULT: "#4f7fa3",
-          dim: "#324f66",
+          DEFAULT: "#38bdf8",
+          dim: "#0284c7",
         },
-        // Blanc cassé chaud pour la lisibilité du texte
-        offwhite: "#ece4d3",
-        slate2: "#a3947a",
-        // Statuts, désaturés pour rester dans la palette chaude
+        offwhite: "#f8fafc",
+        slate2: "#94a3b8",
         rail: {
-          red: "#a8483a",
-          green: "#5c8a68",
+          red: "#ef4444",
+          green: "#10b981",
         },
       },
       fontFamily: {
