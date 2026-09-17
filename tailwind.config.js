@@ -4,32 +4,32 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Fond principal et cartes (remplace le marron par un bleu nuit/charbon très profond)
+        // Fond principal et cartes : charbon chaud profond (pas de bleu-noir froid)
         navy: {
-          950: "#0b0f19",
-          900: "#111827",
-          800: "#1f2937",
-          700: "#374151",
+          950: "#18140f",
+          900: "#221c15",
+          800: "#2d2519",
+          700: "#4a3f2e",
         },
-        // Séparateurs neutres
-        line: "#1e293b",
-        // Ambre/Orange vif et néon (au lieu du jaune délavé)
+        // Séparateurs, feutrés et chauds
+        line: "#4a3f2e",
+        // Ochre/laiton discret pour la trésorerie et les accents chauds
         amber: {
-          DEFAULT: "#f59e0b",
-          dim: "#b45309",
+          DEFAULT: "#c99a3e",
+          dim: "#7a5f28",
         },
-        // Bleu/Cyan pour les accents secondaires
+        // Bleu acier feutré pour les accents interactifs (pas de cyan vif)
         cobalt: {
-          DEFAULT: "#38bdf8",
-          dim: "#0284c7",
+          DEFAULT: "#4f7fa3",
+          dim: "#324f66",
         },
-        // Blanc très pur pour la lisibilité du texte (au lieu du beige)
-        offwhite: "#f8fafc",
-        slate2: "#94a3b8",
-        // Statuts
+        // Blanc cassé chaud pour la lisibilité du texte
+        offwhite: "#ece4d3",
+        slate2: "#a3947a",
+        // Statuts, désaturés pour rester dans la palette chaude
         rail: {
-          red: "#ef4444",
-          green: "#10b981",
+          red: "#a8483a",
+          green: "#5c8a68",
         },
       },
       fontFamily: {
