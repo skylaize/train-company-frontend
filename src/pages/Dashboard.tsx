@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, FogMark, SunMark, SnowMark, LockMark, FragileMark } from "../components/TrainMark";
+import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, FogMark, SunMark, SnowMark, LockMark, FragileMark, RankMark, AnnounceMark } from "../components/TrainMark";
 import { RailSchematic } from "../components/RailSchematic";
 import { Tutorial } from "../components/Tutorial";
 import { SplitFlap } from "../components/SplitFlap";
@@ -15,6 +15,7 @@ import { CURRENT_VERSION } from "../changelog";
 interface Train {
   id: string;
   name: string;
+  model: "STANDARD" | "EXPRESS" | "FRET_LOURD";
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
@@ -29,7 +30,7 @@ interface Weather {
 
 interface Staff {
   id: string;
-  role: "MECANICIEN" | "CHEF_DEPOT";
+  role: "MECANICIEN" | "CHEF_DEPOT" | "DIRECTEUR_COMMERCIAL";
   salaryPerTick: number;
 }
 
@@ -40,6 +41,24 @@ interface TodaySummary {
   lineTrips: number;
   freightDeliveries: number;
   incidents: number;
+}
+
+interface CareerRequirement {
+  label: string;
+  met: boolean;
+}
+
+interface CareerRank {
+  id: number;
+  name: string;
+  requirements: CareerRequirement[];
+  achieved: boolean;
+}
+
+interface CareerStatus {
+  currentRank: CareerRank;
+  nextRank: CareerRank | null;
+  ranks: CareerRank[];
 }
 
 interface DailyChallenge {
@@ -89,6 +108,7 @@ interface Company {
   maxTrains: number;
   reputation: number;
   isPremium: boolean;
+  tutorialSeen: boolean;
 }
 
 interface Contract {
@@ -99,6 +119,7 @@ interface Contract {
   durationMinutes: number;
   reward: number;
   risky: boolean;
+  insured: boolean;
   status: "DISPONIBLE" | "EN_COURS" | "LIVREE";
   expiresAt?: string | null;
   train?: { id: string; name: string; progress: number } | null;
@@ -119,7 +140,7 @@ export default function Dashboard() {
   const [lines, setLines] = useState<Line[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"lignes" | "trains" | "fret" | "classement" | "historique" | "succes" | "carte" | "personnel" | "parametres">("trains");
+  const [view, setView] = useState<"lignes" | "trains" | "fret" | "classement" | "historique" | "succes" | "carte" | "personnel" | "parametres" | "carriere">("trains");
   const [now, setNow] = useState(new Date());
   const [market, setMarket] = useState<Contract[]>([]);
   const [myContracts, setMyContracts] = useState<Contract[]>([]);
@@ -130,6 +151,7 @@ export default function Dashboard() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
   const [todaySummary, setTodaySummary] = useState<TodaySummary | null>(null);
+  const [career, setCareer] = useState<CareerStatus | null>(null);
   const [staff, setStaff] = useState<Staff[]>([]);
   const [weather, setWeather] = useState<Weather | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -164,7 +186,7 @@ export default function Dashboard() {
     try {
       const { data: c } = await api.get("/company");
       setCompany(c);
-      const [{ data: l }, { data: t }, { data: mkt }, { data: mine }, { data: lb }, { data: inc }, { data: tx }, { data: ach }, { data: dc }, { data: st }, { data: wx }, { data: sum }] = await Promise.all([
+      const [{ data: l }, { data: t }, { data: mkt }, { data: mine }, { data: lb }, { data: inc }, { data: tx }, { data: ach }, { data: dc }, { data: st }, { data: wx }, { data: sum }, { data: car }] = await Promise.all([
         api.get("/lines"),
         api.get("/trains"),
         api.get("/contracts/market"),
@@ -177,12 +199,14 @@ export default function Dashboard() {
         api.get("/staff/mine"),
         api.get("/weather/current"),
         api.get("/summary/today"),
+        api.get("/career/mine"),
       ]);
       setLines(l);
       setMarket(mkt);
       setLeaderboard(lb);
       setTransactions(tx);
       setTodaySummary(sum);
+      setCareer(car);
 
       // notifie un changement de météo réseau
       setWeather((prev) => {
@@ -274,24 +298,28 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    if (company && !localStorage.getItem(`tutorial-seen-${company.id}`)) {
+    if (company && !company.tutorialSeen) {
       setShowTutorial(true);
     }
   }, [company]);
 
-  function dismissTutorial() {
-    if (company) {
-      localStorage.setItem(`tutorial-seen-${company.id}`, "true");
-      // un nouveau joueur n'a connu aucune version précédente : on le considère à jour d'emblée
-      localStorage.setItem("last-seen-version", CURRENT_VERSION);
-    }
+  async function dismissTutorial() {
     setShowTutorial(false);
+    if (company) {
+      try {
+        await api.patch("/company", { tutorialSeen: true });
+        // un nouveau joueur n'a connu aucune version précédente : on le considère à jour d'emblée
+        localStorage.setItem("last-seen-version", CURRENT_VERSION);
+        loadAll();
+      } catch {
+        // pas grave si ça échoue ponctuellement, le tutoriel réapparaîtra simplement à la prochaine visite
+      }
+    }
   }
 
   useEffect(() => {
     if (!company) return;
-    const tutorialSeen = localStorage.getItem(`tutorial-seen-${company.id}`);
-    if (tutorialSeen && localStorage.getItem("last-seen-version") !== CURRENT_VERSION) {
+    if (company.tutorialSeen && localStorage.getItem("last-seen-version") !== CURRENT_VERSION) {
       setShowWhatsNew(true);
     }
   }, [company]);
@@ -351,7 +379,9 @@ export default function Dashboard() {
             </span>
             <span className="font-display text-base md:text-xl leading-tight truncate">{company.name}</span>
           </div>
-          <div className="hidden md:block text-[11px] text-slate2 font-body uppercase tracking-[0.14em]">Console d'exploitation</div>
+          <div className="hidden md:block text-[11px] text-amber font-body uppercase tracking-[0.14em]">
+            {career ? career.currentRank.name : "Console d'exploitation"}
+          </div>
         </button>
 
         <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-visible">
@@ -363,6 +393,7 @@ export default function Dashboard() {
             <SidebarItem icon={<TrophyMark size={14} />} label="Classement" count={leaderboard.companies.length} active={view === "classement"} onClick={() => setView("classement")} dataTutorial="nav-classement" />
             <SidebarItem icon={<LedgerMark size={14} />} label="Historique" count={transactions.length} active={view === "historique"} onClick={() => setView("historique")} />
             <SidebarItem icon={<MedalMark size={14} />} label="Succès" count={achievements.filter((a) => a.unlocked).length} active={view === "succes"} onClick={() => setView("succes")} />
+            <SidebarItem icon={<RankMark size={14} />} label="Carrière" active={view === "carriere"} onClick={() => setView("carriere")} />
           <SidebarItem icon={<StaffMark size={14} />} label="Personnel" count={staff.length} active={view === "personnel"} onClick={() => setView("personnel")} />
           <SidebarItem icon={<GearMark size={14} />} label="Paramètres" active={view === "parametres"} onClick={() => setView("parametres")} />
           </nav>
@@ -448,6 +479,7 @@ export default function Dashboard() {
           <div key={view} className="view-transition">
             <PageHeader view={view} company={company} />
             {view === "trains" && todaySummary && <TodaySummaryCard summary={todaySummary} />}
+            {view === "trains" && import.meta.env.VITE_ADS_ENABLED === "true" && <AdWatchCard onChange={loadAll} />}
             {view === "trains" && <TrainsSection trains={trains} lines={lines} incidents={incidents} company={company} staff={staff} onChange={loadAll} onOpenCatalog={() => setShowCatalog(true)} />}
             {view === "lignes" && <LinesSection lines={lines} onChange={loadAll} />}
             {view === "fret" && (
@@ -467,8 +499,11 @@ export default function Dashboard() {
             {view === "succes" && (
               <AchievementsSection achievements={achievements} />
             )}
+            {view === "carriere" && career && (
+              <CareerSection career={career} />
+            )}
             {view === "carte" && (
-              <NetworkMap lines={lines} trains={trains} />
+              <NetworkMap lines={lines} trains={trains} contracts={myContracts} />
             )}
             {view === "personnel" && (
               <StaffSection staff={staff} isPremium={company.isPremium} onChange={loadAll} />
@@ -491,9 +526,10 @@ const PAGE_COPY = {
   carte: { title: "Carte du réseau", subtitle: "Vos lignes et vos trains, positionnés en temps réel." },
   personnel: { title: "Personnel", subtitle: "Recrutez du personnel pour améliorer votre exploitation." },
   parametres: { title: "Paramètres", subtitle: "Gérez votre compte." },
+  carriere: { title: "Carrière", subtitle: "Votre progression, grade après grade." },
 };
 
-function PageHeader({ view, company }: { view: "trains" | "lignes" | "fret" | "classement" | "historique" | "succes" | "carte" | "personnel" | "parametres"; company: Company }) {
+function PageHeader({ view, company }: { view: "trains" | "lignes" | "fret" | "classement" | "historique" | "succes" | "carte" | "personnel" | "parametres" | "carriere"; company: Company }) {
   const copy = PAGE_COPY[view];
   return (
     <div className="mb-8 flex items-end justify-between gap-6 flex-wrap">
@@ -533,6 +569,64 @@ function TodaySummaryCard({ summary }: { summary: TodaySummary }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function AdWatchCard({ onChange }: { onChange: () => void }) {
+  const [status, setStatus] = useState<{ watchedToday: number; remaining: number; maxPerDay: number; rewardPerAd: number } | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const { showToast, showComposter } = useToast();
+
+  useEffect(() => {
+    api.get("/ads/status").then(({ data }) => setStatus(data)).catch(() => {});
+  }, []);
+
+  async function watchAd() {
+    setPlaying(true);
+    try {
+      // ==========================================================================
+      // ESPACE RÉSERVÉ pour le vrai script publicitaire (ex. AppLixir, AdinPlay...).
+      // À remplacer par l'appel réel du SDK une fois un compte créé chez un réseau
+      // publicitaire compatible web. Le principe à respecter impérativement :
+      // n'appeler /ads/claim QUE dans le callback "publicité terminée avec succès"
+      // du SDK — jamais si elle est fermée en avance, en erreur, ou non chargée.
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      // ==========================================================================
+
+      const { data } = await api.post("/ads/claim");
+      showToast(`+${data.reward} pi. — merci d'avoir regardé la publicité`);
+      showComposter("Publicité regardée");
+      const { data: newStatus } = await api.get("/ads/status");
+      setStatus(newStatus);
+      onChange();
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || "Erreur", "error");
+    } finally {
+      setPlaying(false);
+    }
+  }
+
+  if (!status) return null;
+
+  return (
+    <div className="border border-line mb-6 p-4 flex items-center justify-between gap-4 flex-wrap">
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <AnnounceMark size={15} className="text-cobalt shrink-0" />
+          <span className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em]">Regarder une publicité</span>
+        </div>
+        <p className="text-xs text-slate2 font-body">
+          +{status.rewardPerAd} pi. par publicité, jusqu'à {status.maxPerDay} par jour — {status.watchedToday}/{status.maxPerDay} aujourd'hui
+        </p>
+      </div>
+      <button
+        onClick={watchAd}
+        disabled={playing || status.remaining === 0}
+        className="text-xs font-mono2 uppercase text-cobalt border border-cobalt/40 px-3 py-2 hover:bg-cobalt/10 transition-colors disabled:opacity-50 shrink-0"
+      >
+        {playing ? "Lecture…" : status.remaining === 0 ? "Revenez demain" : `Regarder (+${status.rewardPerAd} pi.)`}
+      </button>
     </div>
   );
 }
@@ -711,6 +805,7 @@ function StatCell({ label, value, color, accent, flap }: { label: string; value:
 
 function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onLogout: () => void }) {
   const [name, setName] = useState("");
+  const [referralCode, setReferralCode] = useState(() => new URLSearchParams(window.location.search).get("ref") ?? "");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
@@ -720,7 +815,7 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
     setError(null);
     setSubmitting(true);
     try {
-      await api.post("/company", { name });
+      await api.post("/company", { name, referralCode: referralCode.trim() || undefined });
       showToast(`Compagnie "${name}" fondée`);
       onCreated();
     } catch (err: any) {
@@ -743,6 +838,18 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
           onChange={(e) => setName(e.target.value)}
           required
         />
+        <div>
+          <input
+            className="w-full bg-transparent border border-line px-3 py-2.5 text-sm font-mono2 uppercase tracking-wide focus:outline-none focus:border-cobalt"
+            placeholder="Code de parrainage (optionnel)"
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+            maxLength={6}
+          />
+          {referralCode && (
+            <p className="text-[11px] text-amber font-body mt-1.5">+100 pi. de bonus de bienvenue si le code est valide</p>
+          )}
+        </div>
         {error && <p className="text-rail-red text-sm">{error}</p>}
         <button
           disabled={submitting}
@@ -1023,7 +1130,7 @@ function TrainsSection({
   const [renameValue, setRenameValue] = useState("");
   const { showToast, showComposter } = useToast();
   const hasChefDepot = staff.some((s) => s.role === "CHEF_DEPOT");
-  const repairCostPerPoint = hasChefDepot ? (company.isPremium ? 1 : 2) : 3;
+  const repairCostPerPoint = hasChefDepot ? (company.isPremium ? 0.5 : 1) : 2;
 
   const atCapacity = trains.length >= company.maxTrains;
   const expandCost = company.maxTrains * 200;
@@ -1114,6 +1221,7 @@ function TrainsSection({
         <thead>
           <tr className="text-left text-[11px] text-slate2 font-body uppercase tracking-[0.14em] border-b border-line">
             <th className="py-2.5 font-normal">Rame</th>
+            <th className="py-2.5 font-normal">Modèle</th>
             <th className="py-2.5 font-normal">Statut</th>
             <th className="py-2.5 font-normal">Ligne</th>
             <th className="py-2.5 font-normal w-28">Usure</th>
@@ -1123,7 +1231,7 @@ function TrainsSection({
         <tbody>
           {trains.length === 0 && (
             <tr>
-              <td colSpan={5} className="py-10">
+              <td colSpan={6} className="py-10">
                 <div className="flex flex-col items-center gap-2 text-slate2">
                   <div className="w-32 h-px border-t border-dashed border-line" />
                   <TrainMark size={18} className="opacity-40" />
@@ -1154,6 +1262,11 @@ function TrainsSection({
                   </button>
                 )}
               </td>
+              <td className="py-3.5">
+                <span className={`text-xs font-mono2 uppercase ${t.model === "STANDARD" ? "text-slate2" : "text-amber"}`}>
+                  {t.model === "EXPRESS" ? "Express" : t.model === "FRET_LOURD" ? "Fret Lourd" : "Standard"}
+                </span>
+              </td>
               <td className={`py-3.5 font-body ${t.status === "EN_ROUTE" ? "text-rail-green" : t.status === "MAINTENANCE" ? "text-rail-red" : "text-slate2"}`}>
                 <span className="flex items-center gap-1.5">
                   <span
@@ -1170,7 +1283,7 @@ function TrainsSection({
                     onClick={() => repair(t.id)}
                     className="text-xs font-mono2 text-rail-red uppercase border border-rail-red/40 px-2 py-1 hover:bg-rail-red/10 transition-colors"
                   >
-                    Réparer ({t.wear * repairCostPerPoint} pi.)
+                    Réparer ({Math.ceil(t.wear * repairCostPerPoint)} pi.)
                   </button>
                 ) : t.line ? (
                   <span className="flex items-center gap-2">
@@ -1253,6 +1366,7 @@ function FreightSection({
   onChange: () => void;
 }) {
   const { showToast } = useToast();
+  const [insuredSelections, setInsuredSelections] = useState<Record<string, boolean>>({});
 
   const freeTrains = trains.filter((t) => t.status === "IDLE" && !t.line && t.wear < 100);
   const activeContracts = myContracts.filter((c) => c.status === "EN_COURS");
@@ -1260,8 +1374,10 @@ function FreightSection({
 
   async function accept(contractId: string, trainId: string) {
     try {
-      await api.post("/contracts/accept", { contractId, trainId });
-      showToast("Contrat accepté, la livraison est en route");
+      await api.post("/contracts/accept", { contractId, trainId, insured: !!insuredSelections[contractId] });
+      showToast(
+        insuredSelections[contractId] ? "Contrat accepté et assuré, la livraison est en route" : "Contrat accepté, la livraison est en route"
+      );
       onChange();
     } catch (err: any) {
       showToast(err?.response?.data?.error || "Erreur lors de l'acceptation du contrat", "error");
@@ -1320,12 +1436,25 @@ function FreightSection({
                   {freeTrains.length === 0 ? (
                     <span className="text-xs font-mono2 text-slate2 uppercase">Aucun train libre</span>
                   ) : (
-                    <AssignDropdown
-                      placeholder="Accepter"
-                      triggerClassName="text-cobalt border-cobalt/40 hover:bg-cobalt/10"
-                      options={freeTrains.map((t) => ({ id: t.id, label: t.name }))}
-                      onSelect={(trainId) => accept(c.id, trainId)}
-                    />
+                    <div className="flex flex-col gap-1.5 items-start">
+                      {c.risky && (
+                        <label className="flex items-center gap-1.5 text-[11px] font-mono2 text-slate2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={!!insuredSelections[c.id]}
+                            onChange={(e) => setInsuredSelections((prev) => ({ ...prev, [c.id]: e.target.checked }))}
+                            className="accent-cobalt"
+                          />
+                          Assurer (+{Math.round(c.reward * 0.15)} pi.)
+                        </label>
+                      )}
+                      <AssignDropdown
+                        placeholder="Accepter"
+                        triggerClassName="text-cobalt border-cobalt/40 hover:bg-cobalt/10"
+                        options={freeTrains.map((t) => ({ id: t.id, label: t.name }))}
+                        onSelect={(trainId) => accept(c.id, trainId)}
+                      />
+                    </div>
                   )}
                 </td>
               </tr>
@@ -1341,53 +1470,45 @@ function FreightSection({
 
       <div>
         <h2 className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em] mb-3">Livraisons en cours</h2>
-        <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-      <table className="w-full text-sm min-w-[560px]">
-          <thead>
-            <tr className="text-left text-[11px] text-slate2 font-body uppercase tracking-[0.14em] border-b border-line">
-              <th className="py-2.5 font-normal">Marchandise</th>
-              <th className="py-2.5 font-normal">Train</th>
-              <th className="py-2.5 font-normal w-32">Progression</th>
-            </tr>
-          </thead>
-          <tbody>
-            {activeContracts.length === 0 && (
-              <tr><td colSpan={3} className="py-6 text-center text-slate2 font-body">Aucune livraison en cours.</td></tr>
-            )}
+        {activeContracts.length === 0 ? (
+          <p className="py-6 text-center text-slate2 font-body text-sm border border-line">Aucune livraison en cours.</p>
+        ) : (
+          <div className="space-y-2">
             {activeContracts.map((c) => (
-              <tr key={c.id} className="border-b border-line last:border-0">
-                <td className="py-3.5 font-body">{c.cargoType} — <span className="font-mono2 text-slate2">{c.originStation} → {c.destinationStation}</span></td>
-                <td className="py-3.5 text-slate2 font-body">{c.train?.name}</td>
-                <td className="py-3.5">
-                  <div className="relative h-3 flex items-center">
-                    <div className="w-full h-1 bg-navy-900 border border-line">
-                      <div className="h-full bg-rail-green transition-all duration-700 ease-out" style={{ width: `${c.train?.progress ?? 0}%` }} />
-                    </div>
-                    <CargoMark size={11} className="absolute -translate-x-1/2 text-rail-green transition-all duration-700 ease-out" style={{ left: `${c.train?.progress ?? 0}%` }} />
+              <div key={c.id} className="border border-line p-3.5">
+                <div className="flex items-start justify-between gap-3 mb-2.5 flex-wrap">
+                  <span className="font-body text-sm">
+                    {c.cargoType}
+                    <span className="block md:inline md:ml-1.5 font-mono2 text-slate2 text-xs">{c.originStation} → {c.destinationStation}</span>
+                    {c.insured && (
+                      <span className="ml-1.5 text-[10px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-1.5 py-0.5">Assuré</span>
+                    )}
+                  </span>
+                  <span className="text-xs text-slate2 font-body shrink-0">{c.train?.name}</span>
+                </div>
+                <div className="relative h-3 flex items-center">
+                  <div className="w-full h-1 bg-navy-900 border border-line">
+                    <div className="h-full bg-rail-green transition-all duration-700 ease-out" style={{ width: `${c.train?.progress ?? 0}%` }} />
                   </div>
-                </td>
-              </tr>
+                  <CargoMark size={11} className="absolute -translate-x-1/2 text-rail-green transition-all duration-700 ease-out" style={{ left: `${c.train?.progress ?? 0}%` }} />
+                </div>
+              </div>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </div>
+        )}
       </div>
 
       {deliveredContracts.length > 0 && (
         <div>
           <h2 className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em] mb-3">Dernières livraisons</h2>
-          <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-      <table className="w-full text-sm min-w-[560px]">
-            <tbody>
-              {deliveredContracts.map((c) => (
-                <tr key={c.id} className="border-b border-line last:border-0 text-slate2">
-                  <td className="py-2.5 font-body">{c.cargoType} — <span className="font-mono2">{c.originStation} → {c.destinationStation}</span></td>
-                  <td className="py-2.5 text-right text-rail-green font-mono2">+{c.reward} pi.</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-      </div>
+          <div className="space-y-1">
+            {deliveredContracts.map((c) => (
+              <div key={c.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-line last:border-0 text-slate2 flex-wrap">
+                <span className="font-body text-sm">{c.cargoType} — <span className="font-mono2 text-xs">{c.originStation} → {c.destinationStation}</span></span>
+                <span className="text-rail-green font-mono2 text-sm shrink-0">+{c.reward} pi.</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -1666,6 +1787,8 @@ const TYPE_LABEL: Record<string, string> = {
   DEFI_QUOTIDIEN: "Défi quotidien",
   REVENU_LIGNE: "Recette voyageurs",
   PERSONNEL: "Personnel",
+  PARRAINAGE: "Parrainage",
+  PUBLICITE: "Publicité",
 };
 
 function BalanceChart({ transactions, currentBalance }: { transactions: Transaction[]; currentBalance: number }) {
@@ -1772,6 +1895,64 @@ function TransactionsSection({ transactions, currentBalance }: { transactions: T
   );
 }
 
+function CareerSection({ career }: { career: CareerStatus }) {
+  return (
+    <div>
+      {/* grade actuel, en évidence */}
+      <div className="border border-line border-t-2 border-t-amber p-6 mb-8">
+        <div className="flex items-center gap-3 mb-1">
+          <RankMark size={24} className="text-amber shrink-0" />
+          <span className="font-display text-2xl">{career.currentRank.name}</span>
+        </div>
+        <p className="text-xs text-slate2 font-body">
+          {career.nextRank
+            ? `Prochain grade : ${career.nextRank.name}`
+            : "Vous avez atteint le grade le plus élevé — félicitations."}
+        </p>
+      </div>
+
+      {/* chemin complet, avec le grade actuel mis en avant */}
+      <div className="space-y-3">
+        {career.ranks.map((rank) => {
+          const isCurrent = rank.id === career.currentRank.id;
+          const isFuture = rank.id > career.currentRank.id;
+          return (
+            <div
+              key={rank.id}
+              className={`border p-4 ${isCurrent ? "border-amber/50 bg-amber/5" : isFuture ? "border-line opacity-70" : "border-line"}`}
+            >
+              <div className="flex items-center gap-2.5 mb-2">
+                <RankMark size={16} className={rank.achieved ? "text-amber" : "text-slate2"} />
+                <span className={`font-body text-sm font-semibold ${rank.achieved ? "text-offwhite" : "text-slate2"}`}>{rank.name}</span>
+                {isCurrent && (
+                  <span className="text-[10px] font-mono2 uppercase text-amber border border-amber/40 px-1.5 py-0.5 ml-auto shrink-0">
+                    Grade actuel
+                  </span>
+                )}
+                {rank.achieved && !isCurrent && (
+                  <span className="text-[10px] font-mono2 uppercase text-rail-green ml-auto shrink-0">Franchi</span>
+                )}
+              </div>
+              {rank.requirements.length === 0 ? (
+                <p className="text-xs text-slate2 font-body pl-[26px]">Grade de départ, aucune condition requise.</p>
+              ) : (
+                <ul className="space-y-1 pl-[26px]">
+                  {rank.requirements.map((req, i) => (
+                    <li key={i} className={`text-xs font-body flex items-center gap-2 ${req.met ? "text-slate2" : "text-offwhite"}`}>
+                      <span className={req.met ? "text-rail-green" : "text-line"}>{req.met ? "✓" : "—"}</span>
+                      {req.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function AchievementsSection({ achievements }: { achievements: Achievement[] }) {
   const unlockedCount = achievements.filter((a) => a.unlocked).length;
 
@@ -1834,13 +2015,18 @@ const STATION_COORDS: Record<string, { x: number; y: number }> = {
 
 const LINE_PALETTE = ["#4f7fa3", "#c99a3e", "#5c8a68", "#a8483a", "#8a6ba3", "#c97a3e"];
 
-function NetworkMap({ lines, trains }: { lines: Line[]; trains: Train[] }) {
-  const usedStations = new Set(lines.flatMap((l) => [l.departureStation, l.arrivalStation]));
-  const activeStations = new Set(
-    trains
+function NetworkMap({ lines, trains, contracts }: { lines: Line[]; trains: Train[]; contracts: Contract[] }) {
+  const activeFreight = contracts.filter((c) => c.status === "EN_COURS" && c.train);
+  const usedStations = new Set([
+    ...lines.flatMap((l) => [l.departureStation, l.arrivalStation]),
+    ...activeFreight.flatMap((c) => [c.originStation, c.destinationStation]),
+  ]);
+  const activeStations = new Set([
+    ...trains
       .filter((t) => t.status === "EN_ROUTE" && t.line)
-      .flatMap((t) => [t.line!.departureStation, t.line!.arrivalStation])
-  );
+      .flatMap((t) => [t.line!.departureStation, t.line!.arrivalStation]),
+    ...activeFreight.flatMap((c) => [c.originStation, c.destinationStation]),
+  ]);
   const enRouteCount = trains.filter((t) => t.status === "EN_ROUTE").length;
 
   return (
@@ -1849,6 +2035,7 @@ function NetworkMap({ lines, trains }: { lines: Line[]; trains: Train[] }) {
       <div className="flex items-center gap-6 px-4 py-2.5 border-b border-line font-mono2 text-[11px] text-slate2 uppercase tracking-wide">
         <span className="text-cobalt">{lines.length} ligne{lines.length !== 1 ? "s" : ""}</span>
         <span className="text-rail-green">{enRouteCount} train{enRouteCount !== 1 ? "s" : ""} en circulation</span>
+        <span className="text-amber">{activeFreight.length} fret{activeFreight.length !== 1 ? "s" : ""} en cours</span>
         <span>{usedStations.size} gare{usedStations.size !== 1 ? "s" : ""} desservie{usedStations.size !== 1 ? "s" : ""}</span>
       </div>
 
@@ -1901,6 +2088,26 @@ function NetworkMap({ lines, trains }: { lines: Line[]; trains: Train[] }) {
             );
           })}
 
+          {/* trajets de fret actifs : ligne pointillée ambre, distincte des lignes voyageurs */}
+          {activeFreight.map((c) => {
+            const from = STATION_COORDS[c.originStation];
+            const to = STATION_COORDS[c.destinationStation];
+            if (!from || !to) return null;
+            const path = `M ${from.x},${from.y} L ${to.x},${to.y}`;
+            return (
+              <path
+                key={c.id}
+                d={path}
+                fill="none"
+                stroke="#c99a3e"
+                strokeWidth="1.6"
+                strokeDasharray="2 5"
+                strokeLinecap="round"
+                opacity="0.8"
+              />
+            );
+          })}
+
           {/* gares : discrètes si non desservies, marquées si utilisées, pulsées si un train y transite actuellement */}
           {Object.entries(STATION_COORDS).map(([name, pos]) => {
             const active = usedStations.has(name);
@@ -1942,6 +2149,22 @@ function NetworkMap({ lines, trains }: { lines: Line[]; trains: Train[] }) {
               </g>
             );
           })}
+
+          {/* cargaisons en transit, positionnées selon la progression réelle du train assigné */}
+          {activeFreight.map((c) => {
+            const from = STATION_COORDS[c.originStation];
+            const to = STATION_COORDS[c.destinationStation];
+            if (!from || !to) return null;
+            const ratio = (c.train?.progress ?? 0) / 100;
+            const x = from.x + (to.x - from.x) * ratio;
+            const y = from.y + (to.y - from.y) * ratio;
+            return (
+              <g key={c.id} style={{ transition: "transform 0.7s ease-out" }} transform={`translate(${x},${y})`}>
+                <rect x="-5" y="-5" width="10" height="10" fill="#18140f" stroke="#c99a3e" strokeWidth="1.5" />
+                <rect x="-2.5" y="-2.5" width="5" height="5" fill="#c99a3e" />
+              </g>
+            );
+          })}
         </svg>
       </div>
 
@@ -1951,6 +2174,7 @@ function NetworkMap({ lines, trains }: { lines: Line[]; trains: Train[] }) {
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-offwhite border border-cobalt" /> Gare desservie</span>
         <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-line" /> Gare disponible</span>
         <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full border border-rail-green bg-navy-950" /> Train en circulation</span>
+        <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 border-t border-dashed border-amber" /> Trajet de fret</span>
       </div>
 
       {lines.length === 0 && (
@@ -2110,6 +2334,27 @@ function SettingsSection({ company, onChange }: { company: Company; onChange: ()
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [referral, setReferral] = useState<{
+    code: string;
+    wasReferred: boolean;
+    totalReferred: number;
+    rewardsGranted: number;
+    pendingRewards: number;
+    referrals: { name: string; rewarded: boolean }[];
+  } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    api.get("/referral/mine").then(({ data }) => setReferral(data)).catch(() => {});
+  }, []);
+
+  function copyReferralLink() {
+    if (!referral) return;
+    const link = `${window.location.origin}/?ref=${referral.code}`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   async function submitPasswordChange(e: React.FormEvent) {
     e.preventDefault();
@@ -2188,6 +2433,45 @@ function SettingsSection({ company, onChange }: { company: Company; onChange: ()
           </button>
         </form>
       </div>
+
+      {referral && (
+        <div className="border-t border-line pt-6">
+          <h2 className="font-display text-xl mb-2">Parrainage</h2>
+          <p className="text-sm text-slate2 font-body mb-4">
+            Invitez des amis avec votre code : ils reçoivent 100 pi. de bienvenue, et vous recevez 150 pi. dès qu'ils
+            ont vraiment commencé à jouer (au moins un train et une ligne créés).
+          </p>
+
+          <div className="flex items-center gap-3 border border-line p-4 mb-4 flex-wrap">
+            <span className="font-mono2 text-lg text-amber tracking-[0.2em]">{referral.code}</span>
+            <button
+              onClick={copyReferralLink}
+              className="ml-auto text-xs font-mono2 uppercase text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors"
+            >
+              {copied ? "Copié !" : "Copier le lien"}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-3 divide-x divide-line border border-line mb-4">
+            <div className="px-3 py-3 text-center">
+              <div className="font-mono2 text-lg text-offwhite">{referral.totalReferred}</div>
+              <div className="text-[10px] text-slate2 font-body uppercase tracking-wide mt-1">Amis invités</div>
+            </div>
+            <div className="px-3 py-3 text-center">
+              <div className="font-mono2 text-lg text-rail-green">{referral.rewardsGranted}</div>
+              <div className="text-[10px] text-slate2 font-body uppercase tracking-wide mt-1">Récompenses reçues</div>
+            </div>
+            <div className="px-3 py-3 text-center">
+              <div className="font-mono2 text-lg text-amber">{referral.pendingRewards}</div>
+              <div className="text-[10px] text-slate2 font-body uppercase tracking-wide mt-1">En attente</div>
+            </div>
+          </div>
+
+          {referral.wasReferred && (
+            <p className="text-xs text-slate2 font-body">Vous avez vous-même rejoint le réseau via un code de parrainage.</p>
+          )}
+        </div>
+      )}
 
       <div className="border-t border-line pt-6">
         <h2 className="font-display text-xl mb-2">Statut Premium</h2>

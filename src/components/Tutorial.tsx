@@ -21,10 +21,10 @@ const STEPS: Step[] = [
   },
   {
     view: "lignes",
-    target: "btn-new-line",
+    target: null,
     modalOpen: false,
     title: "Créez une ligne",
-    body: "Commencez ici : renseignez une gare de départ, une gare d'arrivée et une durée de trajet.",
+    body: "Cliquez sur \"+ Ligne\" en haut de cette page, puis renseignez une gare de départ, une gare d'arrivée et une durée de trajet.",
   },
   {
     view: "trains",
@@ -152,9 +152,14 @@ export function Tutorial({
   const placeBelow = spaceBelow > 220;
   const padding = 6;
 
+  // si la cible est déjà dans une fenêtre modale ouverte (ex. le catalogue), celle-ci a
+  // déjà son propre voile sombre — en ajouter un second empêcherait le bouton ciblé
+  // de vraiment ressortir, puisque le premier voile resterait entre lui et l'utilisateur
+  const dimOverlay = step.modalOpen ? "none" : "0 0 0 9999px rgba(8,13,23,0.82)";
+
   return (
     <div className="fixed inset-0 z-[60] pointer-events-none">
-      {/* voile sombre avec découpe lumineuse autour de la cible */}
+      {/* voile sombre avec découpe lumineuse autour de la cible (sauf si déjà dans une modale) */}
       <div
         className="absolute border-2 border-cobalt transition-all duration-300 ease-out pointer-events-none"
         style={{
@@ -162,7 +167,7 @@ export function Tutorial({
           left: rect.left - padding,
           width: rect.width + padding * 2,
           height: rect.height + padding * 2,
-          boxShadow: "0 0 0 9999px rgba(8,13,23,0.82)",
+          boxShadow: dimOverlay,
         }}
       />
       <div
