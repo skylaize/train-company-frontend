@@ -51,6 +51,8 @@ export const CHANGELOG: ChangelogEntry[] = [
       { type: "corrige", text: "Un « retard » ne retardait rien : la progression étant calculée depuis l'heure de départ, l'incident faisait même sauter l'usure du tour" },
       { type: "corrige", text: "Le marché garantit la présence de la marchandise réclamée par un ordre en cours : un ordre ne peut plus devenir infaisable sans votre faute" },
       { type: "corrige", text: "Une cargaison endommagée en route ne compte plus pour un ordre de mission" },
+      { type: "corrige", text: "Le fret n'usait pas les rames : une rame affectée à des livraisons roulait indéfiniment sans jamais tomber en panne, alors que le fret paie mieux qu'une ligne voyageurs. L'usure s'applique désormais des deux côtés, mécanicien et canicule compris" },
+      { type: "corrige", text: "Un retard sur le fret ne retardait rien non plus, et faisait sauter l'usure du tour. Il décale maintenant vraiment la livraison" },
       { type: "corrige", text: "Un faux compte ne rapporte plus de palier : seuls les filleuls ayant atteint le grade « Gestionnaire confirmé » comptent" },
       { type: "corrige", text: "La page d'accueil débordait horizontalement sur téléphone, et ses avantages Premium dataient du lancement" },
       { type: "corrige", text: "Classement et progression de parrainage sont mis en cache côté serveur, pour alléger la base de données" },

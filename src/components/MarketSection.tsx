@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
 
@@ -607,12 +607,24 @@ export function ConstructionPanel({ onChange }: { onChange: () => void }) {
     };
   }, []);
 
-  /* Le chantier terminé disparaît tout seul au rafraîchissement suivant : on
-     prévient le joueur au moment où il disparaît, pas avant. */
+  /* Annonce de fin de chantier.
+
+     L'horloge bat à la seconde pour animer le compte à rebours, et le chantier
+     ne disparaît de la base qu'au tour de simulation suivant — jusqu'à trente
+     secondes plus tard. Sans ce garde-fou, la condition « le chantier est
+     terminé » restait vraie à chaque battement et le joueur recevait trente
+     fois le même message.
+
+     On retient donc l'identifiant du chantier déjà annoncé : une annonce par
+     chantier, quoi qu'il arrive. */
+  const announcedRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!current) return;
-    const remaining = new Date(current.endsAt).getTime() - now;
-    if (remaining > 0) return;
+    if (announcedRef.current === current.id) return;
+    if (new Date(current.endsAt).getTime() - now > 0) return;
+
+    announcedRef.current = current.id;
     const label = current.label;
     load().then(() => showToast(`Chantier terminé : ${label}`));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -649,7 +661,10 @@ export function ConstructionPanel({ onChange }: { onChange: () => void }) {
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
             <span className="font-body text-[14px] text-offwhite">{current.label}</span>
             <span className="font-mono2 text-[11px] text-amber uppercase tracking-wide">
-              {formatDuration(remaining)} restant{remaining > 60_000 ? "es" : ""}
+              {/* « il reste 45 min » évite l'accord bancal de « restant(es) »
+                  selon qu'on affiche des heures ou des minutes, et le cas où le
+                  chantier est fini donnait « terminé restant ». */}
+              {remaining > 0 ? `il reste ${formatDuration(remaining)}` : "mise en service…"}
             </span>
           </div>
           <div className="h-1.5 bg-navy-800">
