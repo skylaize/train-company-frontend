@@ -446,7 +446,8 @@ function PremiumMarketTools({
       </div>
       <p className="text-[12.5px] text-slate2 font-body max-w-[60ch] mb-4">
         Alertes et ordres permanents. Ils ne donnent aucun meilleur prix : ils vous évitent de
-        surveiller le tableau vous-même.
+        surveiller le tableau vous-même. Activez les notifications dans les Paramètres et l'alerte
+        vous parvient même jeu fermé.
       </p>
 
       {!isPremium ? (

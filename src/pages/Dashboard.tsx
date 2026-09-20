@@ -4,6 +4,7 @@ import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { MarketSection, ConstructionPanel } from "../components/MarketSection";
+import { NotificationsPanel } from "../components/NotificationsPanel";
 
 /* Durée de chantier, en clair. Le joueur doit lire « 2 h 15 », pas « 2.25 ». */
 function formatBuildHours(hours: number) {
@@ -3682,6 +3683,8 @@ function SettingsSection({
       </div>
 
       <ThemePanel current={company.theme ?? readLocalTheme()} onChange={onChange} />
+
+      <NotificationsPanel />
 
       {referral && <ReferralPanel referral={referral} />}
 
