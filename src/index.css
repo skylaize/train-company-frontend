@@ -2,8 +2,111 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ============================================================
+   Thèmes.
+   Les couleurs sont stockées en canaux RVB séparés, pas en #hex :
+   c'est ce qui permet à Tailwind de garder les modificateurs
+   d'opacité (bg-cobalt/10) via rgb(var(--x) / <alpha-value>).
+   Résultat : basculer de thème ne demande de réécrire aucun composant.
+   ============================================================ */
+:root,
+:root[data-theme="sombre"] {
+  --c-navy-950: 11 15 25;
+  --c-navy-900: 17 24 39;
+  --c-navy-800: 31 41 55;
+  --c-navy-700: 55 65 81;
+  --c-line: 30 41 59;
+  --c-amber: 245 158 11;
+  --c-amber-dim: 180 83 9;
+  --c-cobalt: 56 189 248;
+  --c-cobalt-dim: 2 132 199;
+  --c-offwhite: 248 250 252;
+  --c-slate2: 148 163 184;
+  --c-rail-red: 239 68 68;
+  --c-rail-green: 16 185 129;
+  /* texte posé sur un aplat d'accent : reste clair dans les deux thèmes,
+     sinon « papier » donnerait de l'encre noire sur du vert wagon */
+  --c-onaccent: 248 250 252;
+
+  --font-display: "Bitter", serif;
+  --font-body: "Work Sans", sans-serif;
+  --font-mono2: "Space Mono", monospace;
+
+  /* le grain reste discret sur fond sombre, sinon il vire au bruit vidéo */
+  --grain-opacity: 0.05;
+}
+
+/* Thème papier : la direction du site vitrine, portée dans le jeu.
+   L'accent cyan devient le vert encre — sur crème, un cyan pur tourne au laiteux. */
+:root[data-theme="papier"] {
+  --c-navy-950: 233 228 215;
+  --c-navy-900: 242 238 227;
+  --c-navy-800: 226 220 203;
+  --c-navy-700: 207 199 178;
+  --c-line: 201 193 172;
+  --c-amber: 160 106 23;
+  --c-amber-dim: 124 82 17;
+  --c-cobalt: 31 92 77;
+  --c-cobalt-dim: 22 64 52;
+  --c-offwhite: 28 27 23;
+  --c-slate2: 107 102 86;
+  --c-rail-red: 163 59 44;
+  --c-rail-green: 31 92 77;
+  --c-onaccent: 250 247 240;
+
+  --font-display: "Instrument Serif", serif;
+  --font-body: "Barlow", sans-serif;
+  --font-mono2: "Barlow Condensed", sans-serif;
+
+  --grain-opacity: 0.32;
+}
+
+/* Instrument Serif n'a pas de gras : les graisses fortes du thème sombre
+   doivent retomber sur le romain, sinon le navigateur les graisse lui-même
+   et le rendu devient pâteux. */
+:root[data-theme="papier"] .font-display {
+  font-weight: 400 !important;
+  letter-spacing: -0.005em;
+}
+/* Barlow Condensed en libellé : un poil plus de corps pour compenser sa chasse étroite */
+:root[data-theme="papier"] .font-mono2 {
+  letter-spacing: 0.06em;
+}
+
+/* Teinte d'un donneur d'ordre : le serveur en envoie une par thème, c'est le
+   thème actif qui choisit. Les enfants lisent simplement var(--c). */
+.client-accent { --c: var(--cd); }
+:root[data-theme="papier"] .client-accent { --c: var(--cp); }
+
 html {
   scroll-behavior: smooth;
+}
+
+/* Grain : c'est lui qui enlève le rendu « généré ». Posé au-dessus de tout,
+   sans jamais intercepter le curseur. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  opacity: var(--grain-opacity);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+}
+/* la page vitrine gère son propre grain */
+body.lp-body::after {
+  content: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 .rail-bg {

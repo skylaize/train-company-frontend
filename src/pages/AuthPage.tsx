@@ -219,7 +219,7 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full bg-cobalt text-offwhite font-semibold py-2.5 text-sm uppercase tracking-wide hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-60 disabled:active:scale-100"
+              className="w-full bg-cobalt text-onaccent font-semibold py-2.5 text-sm uppercase tracking-wide hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-60 disabled:active:scale-100"
             >
               {submitting ? "Un instant…" : mode === "login" ? "Se connecter" : "Créer mon compte"}
             </button>

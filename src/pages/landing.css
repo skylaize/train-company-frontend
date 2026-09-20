@@ -205,10 +205,21 @@ body.lp-body {
 /* billets */
 .lp-tickets { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
 @media (max-width: 760px) { .lp-tickets { grid-template-columns: 1fr; } }
-.lp-tk { position: relative; background: var(--paper2); border: 1.5px solid var(--ink); }
+.lp-tk {
+  position: relative; background: var(--paper2); border: 1.5px solid var(--ink);
+  /* les deux billets n'ont pas le même nombre de lignes : la liste absorbe
+     l'écart pour que les deux boutons restent alignés en bas */
+  display: flex; flex-direction: column;
+  /* sans cela, le contenu insécable de l'en-tête élargit la colonne de grille
+     et fait déborder la page sur mobile */
+  min-width: 0;
+}
 .lp-tk-hd {
   position: relative; padding: 20px 24px 16px; border-bottom: 1px dashed var(--pline);
   display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  /* la classe et le prix ne se coupent plus en deux : s'ils ne tiennent pas
+     côte à côte, c'est la ligne entière qui passe dessous */
+  flex-wrap: wrap;
 }
 .lp-tk-hd::before, .lp-tk-hd::after {
   content: ""; position: absolute; bottom: 0; width: 17px; height: 17px;
@@ -220,21 +231,27 @@ body.lp-body {
 .lp-tk .cls {
   font-family: "Barlow Condensed", sans-serif; font-size: 13px; letter-spacing: 0.22em;
   text-transform: uppercase; color: var(--ink3);
+  /* « Première classe » se coupait en deux dès que le prix s'allongeait */
+  white-space: nowrap;
 }
 .lp-tk h3 { font-family: "Instrument Serif", serif; font-weight: 400; font-size: 30px; margin-top: 2px; }
 .lp-tk .px {
-  font-family: "Barlow Condensed", sans-serif; font-size: 26px; font-weight: 700;
+  font-family: "Barlow Condensed", sans-serif; font-size: 24px; font-weight: 700;
   text-align: right; line-height: 1.1; white-space: nowrap;
 }
 .lp-tk .px small {
   display: block; font-size: 12px; font-weight: 500; letter-spacing: 0.14em;
   text-transform: uppercase; color: var(--ink3);
 }
-.lp-tk ul { list-style: none; padding: 18px 24px 6px; margin: 0; }
+.lp-tk ul { list-style: none; padding: 18px 24px 6px; margin: 0; flex: 1; }
 .lp-tk li { display: flex; gap: 10px; padding: 6px 0; font-size: 15.5px; color: var(--ink2); }
 .lp-tk li b { color: var(--vert); font-weight: 600; flex-shrink: 0; }
 .lp-tk-ft { padding: 14px 24px 22px; }
 .lp-tk-ft .lp-btn { width: 100%; text-align: center; }
+.lp-tk-note {
+  margin: 10px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--ink3);
+  text-align: center; text-wrap: balance;
+}
 .lp-tk.prem { border-color: var(--vert); }
 .lp-tk.prem .cls { color: var(--vert); }
 .lp-tk.prem .lp-tk-hd::before, .lp-tk.prem .lp-tk-hd::after { border-color: var(--vert); }

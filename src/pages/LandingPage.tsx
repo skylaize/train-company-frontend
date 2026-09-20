@@ -412,8 +412,9 @@ export default function LandingPage() {
             <span className="n">— le réseau reste gratuit</span>
           </div>
           <p className="lp-sub">
-            Tout le jeu est accessible sans payer. L'offre Premium arrivera plus tard, pour les
-            compagnies qui veulent du matériel exclusif.
+            Tout le jeu est accessible sans payer, classements compris. Le Premium n'augmente ni vos
+            recettes ni vos rames : il donne du choix et supprime la corvée. Une compagnie gratuite
+            bien menée peut finir première.
           </p>
 
           <div className="lp-tickets">
@@ -426,11 +427,11 @@ export default function LandingPage() {
                 <div className="px">0 €<small>pour toujours</small></div>
               </div>
               <ul>
-                <li><b>·</b>Dépôt jusqu'à six rames</li>
-                <li><b>·</b>Lignes et fret sans limite</li>
-                <li><b>·</b>Mécanicien et chef de dépôt</li>
-                <li><b>·</b>Classement, succès, défi quotidien</li>
-                <li><b>·</b>Carte du réseau en direct</li>
+                <li><b>·</b>Dépôt sans plafond — chaque place coûte plus cher que la précédente</li>
+                <li><b>·</b>Toutes les rames et tout le personnel, débloqués au grade</li>
+                <li><b>·</b>Les quatre donneurs d'ordre et leur fidélité</li>
+                <li><b>·</b>Classements, 34 succès, défi quotidien</li>
+                <li><b>·</b>Carte du réseau, tracé à la souris, deux habillages</li>
               </ul>
               <div className="lp-tk-ft">
                 <button className="lp-btn ghost" onClick={() => navigate("/auth?mode=register")}>
@@ -445,19 +446,25 @@ export default function LandingPage() {
                   <span className="cls">Première classe</span>
                   <h3>Premium</h3>
                 </div>
-                <div className="px">—<small>bientôt</small></div>
+                <div className="px">dès 5,99 €<small>prix libre</small></div>
               </div>
               <ul>
-                <li><b>·</b>Rames Express — trajets 30 % plus rapides</li>
-                <li><b>·</b>Rames Fret Lourd — 25 % de recette en plus</li>
-                <li><b>·</b>Directeur commercial — 15 % sur tout</li>
-                <li><b>·</b>Entretien deux fois moins cher</li>
-                <li><b>·</b>Cargaisons fragiles deux fois plus sûres</li>
+                <li><b>·</b>Deux ordres par donneur d'ordre — vous choisissez lequel honorer</li>
+                <li><b>·</b>Marché de fret élargi à six contrats au lieu de quatre</li>
+                <li><b>·</b>Réparation automatique des rames en panne, à facture égale</li>
+                <li><b>·</b>−20 % sur chaque place de dépôt</li>
+                <li><b>·</b>Cargaisons fragiles deux fois moins exposées</li>
+                <li><b>·</b>Huit livrées réservées pour votre compagnie</li>
               </ul>
               <div className="lp-tk-ft">
-                <button className="lp-btn vert" disabled style={{ opacity: 0.85, cursor: "default" }}>
-                  Bientôt disponible
+                <button className="lp-btn vert" onClick={() => navigate("/auth?mode=register")}>
+                  Prendre ce billet
                 </button>
+                <p className="lp-tk-note">
+                  Vous fixez le montant au moment de payer, à partir de 5,99 € — au-delà, c'est un
+                  soutien au réseau, les avantages sont les mêmes. Paiement unique par carte via
+                  Stripe, depuis votre compagnie une fois créée : aucun abonnement, rien à résilier.
+                </p>
               </div>
             </div>
           </div>
