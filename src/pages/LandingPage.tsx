@@ -92,15 +92,15 @@ const VILLES = [
 
 const SYSTEMES = [
   { n: "01", t: "Le dépôt", s: "Matériel",
-    b: "Deux rames pour commencer, six au maximum. Chaque agrandissement coûte plus cher que le précédent." },
+    b: "Deux places pour commencer, aucun plafond. Chaque agrandissement est un chantier, plus long et plus cher que le précédent." },
   { n: "02", t: "Les lignes", s: "Exploitation",
-    b: "Dix-huit gares, à relier comme vous l'entendez. La durée du trajet détermine la recette." },
+    b: "Trente-huit gares, de Brest à Nice, à relier comme vous l'entendez. La durée du trajet détermine la recette." },
   { n: "03", t: "Le fret", s: "Commerce",
     b: "Des contrats qui expirent. Les cargaisons fragiles paient double, mais arrivent parfois en morceaux." },
   { n: "04", t: "L'usure", s: "Entretien",
-    b: "Chaque trajet fatigue le matériel. À cent pour cent d'usure, la rame reste au dépôt." },
+    b: "Chaque trajet fatigue le matériel. À cent pour cent, la rame est réparée d'office si la trésorerie suit — sinon elle reste au dépôt." },
   { n: "05", t: "Le personnel", s: "Effectif",
-    b: "Mécanicien, chef de dépôt, directeur commercial. Payés à chaque cycle, licenciés si les caisses sont vides." },
+    b: "Des employés nommés qui prennent de l'expérience et réclament leur augmentation. L'équipe doit grandir avec la flotte." },
   { n: "06", t: "La météo", s: "Aléas",
     b: "Brouillard, canicule, verglas. Chacun ralentit, use ou provoque des incidents sur tout le réseau." },
   { n: "07", t: "La réputation", s: "Image",
@@ -430,7 +430,7 @@ export default function LandingPage() {
                 <li><b>·</b>Dépôt sans plafond — chaque place coûte plus cher que la précédente</li>
                 <li><b>·</b>Toutes les rames et tout le personnel, débloqués au grade</li>
                 <li><b>·</b>Les quatre donneurs d'ordre et leur fidélité</li>
-                <li><b>·</b>Classements, 34 succès, défi quotidien</li>
+                <li><b>·</b>Classements, 55 succès, défi quotidien</li>
                 <li><b>·</b>Carte du réseau, tracé à la souris, deux habillages</li>
               </ul>
               <div className="lp-tk-ft">
@@ -449,9 +449,11 @@ export default function LandingPage() {
                 <div className="px">dès 5,99 €<small>prix libre</small></div>
               </div>
               <ul>
-                <li><b>·</b>Deux ordres par donneur d'ordre — vous choisissez lequel honorer</li>
-                <li><b>·</b>Marché de fret élargi à six contrats au lieu de quatre</li>
-                <li><b>·</b>Réparation automatique des rames en panne, à facture égale</li>
+                <li><b>·</b>Rentabilité de chaque ligne et de chaque rame, sur sept jours</li>
+                <li><b>·</b>Bilan de votre absence au retour, et résumé de la nuit chaque matin</li>
+                <li><b>·</b>File de chantiers : le suivant démarre seul, même la nuit</li>
+                <li><b>·</b>Deux ordres par donneur d'ordre et six contrats de fret au lieu de quatre</li>
+                <li><b>·</b>Alertes de cours et ordres permanents, même jeu fermé</li>
                 <li><b>·</b>−20 % sur chaque place de dépôt</li>
                 <li><b>·</b>Cargaisons fragiles deux fois moins exposées</li>
                 <li><b>·</b>Huit livrées réservées pour votre compagnie</li>

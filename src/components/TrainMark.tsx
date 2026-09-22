@@ -12,6 +12,17 @@ export function LedgerMark({ size = 20, className = "" }: { size?: number; class
   );
 }
 
+export function ChartMark({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 20h16" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <rect x="6" y="11" width="3" height="9" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="11" y="6" width="3" height="14" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="16" y="13" width="3" height="7" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
 export function MedalMark({ size = 20, className = "" }: { size?: number; className?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">

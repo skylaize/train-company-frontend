@@ -61,6 +61,45 @@
   --grain-opacity: 0.32;
 }
 
+/* Habillage « Plan 1935 » (boutique) : un plan d'ingénieur. Bleu de Prusse du
+   tirage, trait blanc à la craie, annotations au crayon jaune. L'accent devient
+   presque blanc, donc le texte posé dessus repasse en bleu profond. */
+:root[data-theme="plan"] {
+  --c-navy-950: 18 45 84;
+  --c-navy-900: 24 56 102;
+  --c-navy-800: 33 70 122;
+  --c-navy-700: 52 92 148;
+  --c-line: 78 118 170;
+  --c-amber: 244 208 111;
+  --c-amber-dim: 200 165 70;
+  --c-cobalt: 214 232 250;
+  --c-cobalt-dim: 170 200 232;
+  --c-offwhite: 238 244 251;
+  --c-slate2: 156 186 220;
+  --c-rail-red: 255 140 128;
+  --c-rail-green: 140 226 190;
+  --c-onaccent: 18 45 84;
+
+  --font-display: "Barlow Condensed", sans-serif;
+  --font-body: "Work Sans", sans-serif;
+  --font-mono2: "Space Mono", monospace;
+
+  --grain-opacity: 0.06;
+}
+
+/* le quadrillage du papier calque, très léger : il doit se deviner, pas se lire */
+:root[data-theme="plan"] body {
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+:root[data-theme="plan"] .font-display {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 600;
+}
+
 /* Instrument Serif n'a pas de gras : les graisses fortes du thème sombre
    doivent retomber sur le romain, sinon le navigateur les graisse lui-même
    et le rendu devient pâteux. */

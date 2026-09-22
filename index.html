@@ -13,6 +13,15 @@
   <meta property="og:type" content="website" />
   <meta name="theme-color" content="#e9e4d7" />
 
+  <!-- Application installable : c'est la condition des notifications sur iPhone
+       (iOS 16.4+ ne les accepte que depuis un site ajouté à l'écran d'accueil). -->
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="/icone-192.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Réseau" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="Réseau — Gérez votre compagnie ferroviaire" />
   <meta name="twitter:description" content="Lignes, fret, personnel, météo — un réseau qui vit, même hors ligne." />

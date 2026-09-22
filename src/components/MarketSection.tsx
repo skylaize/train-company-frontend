@@ -58,6 +58,8 @@ export interface ConstructionInfo {
   cost: number;
   startedAt: string;
   endsAt: string;
+  queued?: boolean;
+  durationMs?: number;
 }
 
 interface Alert {
@@ -580,6 +582,9 @@ function PremiumMarketTools({
    ============================================================ */
 export function ConstructionPanel({ onChange }: { onChange: () => void }) {
   const [current, setCurrent] = useState<ConstructionInfo | null>(null);
+  const [queued, setQueued] = useState<ConstructionInfo | null>(null);
+  const [canQueue, setCanQueue] = useState(false);
+  const [isPremium, setIsPremium] = useState(false);
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [balance, setBalance] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -590,6 +595,9 @@ export function ConstructionPanel({ onChange }: { onChange: () => void }) {
     try {
       const { data } = await api.get("/constructions");
       setCurrent(data.current ?? null);
+      setQueued(data.queued ?? null);
+      setCanQueue(Boolean(data.canQueue));
+      setIsPremium(Boolean(data.isPremium));
       setQuotes(data.quotes ?? []);
       setBalance(data.balance ?? 0);
     } catch {
@@ -633,8 +641,22 @@ export function ConstructionPanel({ onChange }: { onChange: () => void }) {
   async function start(kind: Quote["kind"]) {
     setBusy(true);
     try {
-      await api.post("/constructions", { kind });
-      showToast("Chantier lancé");
+      const { data } = await api.post("/constructions", { kind });
+      showToast(data?.queued ? "Chantier mis en file : il démarrera à la fin du chantier en cours" : "Chantier lancé");
+      await load();
+      onChange();
+    } catch (e: any) {
+      showToast(e?.response?.data?.error ?? "Une erreur est survenue", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function cancelQueue() {
+    setBusy(true);
+    try {
+      const { data } = await api.post("/constructions/queue/cancel");
+      showToast(`Chantier retiré de la file · ${Number(data?.refunded ?? 0).toLocaleString("fr-FR")} pi. remboursées`);
       await load();
       onChange();
     } catch (e: any) {
@@ -656,7 +678,7 @@ export function ConstructionPanel({ onChange }: { onChange: () => void }) {
         qui limite, pas seulement la trésorerie.
       </p>
 
-      {current ? (
+      {current && (
         <div className="border border-amber/40 p-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
             <span className="font-body text-[14px] text-offwhite">{current.label}</span>
@@ -671,29 +693,65 @@ export function ConstructionPanel({ onChange }: { onChange: () => void }) {
             <div className="h-full bg-amber transition-all" style={{ width: `${progress}%` }} />
           </div>
         </div>
-      ) : (
-        <ul className="divide-y divide-line border-t border-line">
-          {quotes.map((q) => (
-            <li key={q.kind} className="flex flex-wrap items-center justify-between gap-3 py-3">
-              <div>
-                <div className="font-body text-[14px]">{q.label}</div>
-                <div className="font-mono2 text-[11px] text-slate2 uppercase tracking-wide">
-                  {q.cost.toLocaleString("fr-FR")} pi. · {formatHours(q.hours)} de travaux
+      )}
+
+      {/* chantier en file (Premium) : il attend, il n'avance pas */}
+      {queued && (
+        <div className="border border-dashed border-line p-3 mt-2 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-[0.14em] mb-0.5">Ensuite</div>
+            <div className="font-body text-[14px]">{queued.label}</div>
+            <div className="font-mono2 text-[11px] text-slate2 uppercase tracking-wide">
+              démarre à la fin du chantier en cours · {formatDuration(queued.durationMs ?? 0)} de travaux
+            </div>
+          </div>
+          <button
+            onClick={cancelQueue}
+            disabled={busy}
+            className="px-3 py-1.5 border border-line font-mono2 text-[11px] uppercase tracking-wide hover:border-rail-red hover:text-rail-red disabled:opacity-40"
+          >
+            Retirer · remboursé
+          </button>
+        </div>
+      )}
+
+      {(!current || canQueue) && (
+        <>
+          {current && (
+            <p className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-[0.14em] mt-5 mb-1">
+              Préparer le chantier suivant
+            </p>
+          )}
+          <ul className="divide-y divide-line border-t border-line">
+            {quotes.map((q) => (
+              <li key={q.kind} className="flex flex-wrap items-center justify-between gap-3 py-3">
+                <div>
+                  <div className="font-body text-[14px]">{q.label}</div>
+                  <div className="font-mono2 text-[11px] text-slate2 uppercase tracking-wide">
+                    {q.cost.toLocaleString("fr-FR")} pi. · {formatHours(q.hours)} de travaux
+                  </div>
+                  {!q.available && q.reason && (
+                    <div className="font-body text-[12px] text-slate2 mt-0.5">{q.reason}</div>
+                  )}
                 </div>
-                {!q.available && q.reason && (
-                  <div className="font-body text-[12px] text-slate2 mt-0.5">{q.reason}</div>
-                )}
-              </div>
-              <button
-                onClick={() => start(q.kind)}
-                disabled={busy || !q.available || balance < q.cost}
-                className="px-3 py-1.5 border border-line font-mono2 text-[11px] uppercase tracking-wide hover:border-amber disabled:opacity-40"
-              >
-                {balance < q.cost ? "Trésorerie insuffisante" : "Lancer"}
-              </button>
-            </li>
-          ))}
-        </ul>
+                <button
+                  onClick={() => start(q.kind)}
+                  disabled={busy || !q.available || balance < q.cost}
+                  className="px-3 py-1.5 border border-line font-mono2 text-[11px] uppercase tracking-wide hover:border-amber disabled:opacity-40"
+                >
+                  {balance < q.cost ? "Trésorerie insuffisante" : current ? "Mettre en file" : "Lancer"}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
+      {current && !queued && !isPremium && (
+        <p className="text-[12px] text-slate2 font-body mt-3">
+          Avec le Premium, vous pouvez préparer le chantier suivant : il démarre tout seul à la fin de celui-ci,
+          même la nuit. Il ne va pas plus vite pour autant.
+        </p>
       )}
     </section>
   );

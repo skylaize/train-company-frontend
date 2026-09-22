@@ -44,7 +44,22 @@ body.lp-body {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23p)' opacity='.09'/%3E%3C/svg%3E");
 }
 
-.lp-wrap { max-width: 1080px; margin: 0 auto; padding: 0 32px; }
+.lp {
+  /* largeur de la colonne de contenu : une seule valeur, reprise par le tracé
+     du héros pour que les deux restent alignés quelle que soit la taille d'écran */
+  --lp-col: 1080px;
+}
+.lp-wrap { max-width: var(--lp-col); margin: 0 auto; padding: 0 32px; }
+
+/* Grands écrans : la page s'élargit ET grossit un peu. Élargir seul laissait
+   une colonne de texte perdue au milieu d'un écran vide ; grossir seul donnait
+   un texte énorme sur un portable. */
+@media (min-width: 1600px) {
+  .lp { --lp-col: 1240px; font-size: 17px; }
+}
+@media (min-width: 2200px) {
+  .lp { --lp-col: 1400px; font-size: 18px; }
+}
 .lp-serif { font-family: "Instrument Serif", serif; font-weight: 400; }
 .lp-ov {
   font-family: "Barlow Condensed", sans-serif; font-size: 13px; font-weight: 600;
@@ -104,9 +119,33 @@ body.lp-body {
 .lp-cta { display: flex; gap: 12px; margin-top: 26px; flex-wrap: wrap; }
 
 /* tracé à l'encre */
+/* Le tracé était ancré au bord droit de l'ÉCRAN, large de 56 % de l'écran, avec
+   un SVG qui se déforme pour remplir sa boîte : sur un grand écran il s'étirait
+   à l'horizontale (la locomotive comprise) et partait loin du texte. Il est
+   désormais ancré au bord droit de la COLONNE de contenu, avec une largeur
+   plafonnée proche de ses proportions d'origine (700 × 430), et son extrémité
+   droite se fond au lieu de s'arrêter net. */
 .lp-route {
-  position: absolute; top: 28px; right: 0; width: 56%; height: 430px;
+  position: absolute; top: 28px;
+  right: max(0px, calc((100% - var(--lp-col)) / 2));
+  /* plus étroit sur les écrans moyens, où la colonne de texte occupe davantage
+     de place : sinon le premier segment venait mordre sur l'introduction */
+  width: min(48%, 660px); height: 430px;
   z-index: 1; pointer-events: none;
+  /* fondu aux deux bouts : à droite pour ne pas s'arrêter net au bord de la
+     colonne, à gauche pour ne pas barrer le paragraphe d'introduction, que le
+     premier segment traversait à toutes les largeurs d'écran */
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 30%, #000 84%, transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0%, #000 30%, #000 84%, transparent 100%);
+}
+@media (min-width: 1600px) {
+  .lp-hero h1 { font-size: 84px; }
+  .lp-lede { font-size: 19px; }
+  .lp-route { width: min(56%, 720px); }
+}
+@media (min-width: 2200px) {
+  .lp-hero h1 { font-size: 96px; }
+  .lp-route { width: min(56%, 820px); height: 490px; }
 }
 @media (max-width: 1000px) { .lp-route { display: none; } }
 .lp-route path.ln { fill: none; stroke: var(--pline); stroke-width: 1.6; }

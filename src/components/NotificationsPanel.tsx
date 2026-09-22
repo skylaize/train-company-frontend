@@ -7,6 +7,10 @@ import {
   enablePush,
   disablePush,
   sendTestPush,
+  resyncPush,
+  pushServerEnabled,
+  isIOS,
+  isStandalone,
 } from "../push";
 
 /* Réglage des notifications. Placé dans les Paramètres et non dans le bloc
@@ -15,6 +19,7 @@ import {
    de la surveillance. */
 export function NotificationsPanel() {
   const [subscribed, setSubscribed] = useState<boolean | null>(null);
+  const [serverOn, setServerOn] = useState<boolean | null>(null);
   const [busy, setBusy] = useState(false);
   const { showToast } = useToast();
 
@@ -31,9 +36,30 @@ export function NotificationsPanel() {
   }
 
   useEffect(() => {
-    refresh();
+    pushServerEnabled().then(setServerOn);
+    // l'abonnement de cet appareil est renvoyé au serveur avant d'afficher l'état
+    resyncPush().finally(refresh);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  async function test() {
+    setBusy(true);
+    const result = await sendTestPush();
+    setBusy(false);
+    if (result.ok) {
+      showToast(
+        result.delivered > 1
+          ? `Notification d'essai envoyée à ${result.delivered} appareils`
+          : "Notification d'essai envoyée — elle doit arriver dans quelques secondes"
+      );
+    } else {
+      showToast(result.reason, "error");
+      await refresh();
+    }
+  }
+
+  const ios = isIOS();
+  const iosNeedsInstall = ios && !isStandalone();
 
   async function activate() {
     setBusy(true);
@@ -72,10 +98,24 @@ export function NotificationsPanel() {
         L'autorisation vaut pour cet appareil seulement.
       </p>
 
-      {!supported ? (
+      {iosNeedsInstall ? (
+        <div className="text-[12.5px] text-slate2 font-body max-w-[62ch]">
+          <p className="mb-2">Sur iPhone et iPad, les notifications ne marchent que si le jeu est installé :</p>
+          <ol className="list-decimal pl-5 space-y-1">
+            <li>ouvrez le jeu dans Safari ;</li>
+            <li>touchez le bouton Partager (le carré avec une flèche) ;</li>
+            <li>choisissez « Sur l'écran d'accueil » ;</li>
+            <li>ouvrez Réseau depuis la nouvelle icône, puis revenez ici.</li>
+          </ol>
+          <p className="mt-2">Il faut iOS 16.4 ou plus récent.</p>
+        </div>
+      ) : !supported ? (
         <p className="text-[12.5px] text-slate2 font-body">
-          Votre navigateur ne gère pas les notifications. Sur iPhone, il faut d'abord ajouter le jeu
-          à l'écran d'accueil depuis Safari.
+          Votre navigateur ne gère pas les notifications. Essayez Chrome, Edge ou Firefox.
+        </p>
+      ) : serverOn === false ? (
+        <p className="text-[12.5px] text-slate2 font-body">
+          Les notifications ne sont pas encore activées sur le serveur. Revenez un peu plus tard.
         </p>
       ) : permission === "denied" ? (
         <p className="text-[12.5px] text-rail-red font-body max-w-[62ch]">
@@ -90,7 +130,7 @@ export function NotificationsPanel() {
                 Activées sur cet appareil
               </span>
               <button
-                onClick={() => sendTestPush().then(() => showToast("Notification d'essai envoyée"))}
+                onClick={test}
                 disabled={busy}
                 className="px-3 py-1.5 border border-line font-mono2 text-[11px] uppercase tracking-wide hover:border-amber disabled:opacity-40"
               >

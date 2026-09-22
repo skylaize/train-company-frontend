@@ -5,6 +5,8 @@ import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { MarketSection, ConstructionPanel } from "../components/MarketSection";
 import { NotificationsPanel } from "../components/NotificationsPanel";
+import { ShopSection } from "../components/ShopSection";
+import { Emblem } from "../components/Emblem";
 
 /* Durée de chantier, en clair. Le joueur doit lire « 2 h 15 », pas « 2.25 ». */
 function formatBuildHours(hours: number) {
@@ -15,13 +17,16 @@ function formatBuildHours(hours: number) {
   if (m === 0) return `${h} h`;
   return `${h} h ${String(m).padStart(2, "0")}`;
 }
-import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, FogMark, SunMark, SnowMark, LockMark, FragileMark, RankMark, AnnounceMark } from "../components/TrainMark";
+import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, ChartMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, FogMark, SunMark, SnowMark, LockMark, FragileMark, RankMark, AnnounceMark } from "../components/TrainMark";
 import { RailSchematic } from "../components/RailSchematic";
 import { Tutorial } from "../components/Tutorial";
 import { SplitFlap } from "../components/SplitFlap";
 import { SteamEffect } from "../components/SteamEffect";
 import { WeatherOverlay } from "../components/WeatherOverlay";
 import { WhatsNewModal } from "../components/WhatsNewModal";
+import { ProfitabilitySection } from "../components/ProfitabilitySection";
+import { AbsenceReport } from "../components/AbsenceReport";
+import { resyncPush } from "../push";
 import { FirstVisitHint } from "../components/FirstVisitHint";
 import { applyTheme, readLocalTheme, THEMES, ThemeId } from "../theme";
 import { CURRENT_VERSION } from "../changelog";
@@ -46,6 +51,9 @@ interface Staff {
   id: string;
   role: "MECANICIEN" | "CHEF_DEPOT" | "DIRECTEUR_COMMERCIAL";
   salaryPerTick: number;
+  name?: string;
+  level?: number;
+  raiseRequested?: boolean;
 }
 
 interface TodaySummary {
@@ -125,7 +133,13 @@ interface Company {
   tutorialSeen: boolean;
   nextDepotCost?: number;
   nextDepotHours?: number;
+  repairCostPerPoint?: number;
+  emblem?: string | null;
+  title?: string | null;
+  unlocked?: { themes: string[]; emblems: string[]; titles: string[]; liveries: string[] };
   construction?: { id: string; label: string; endsAt: string } | null;
+  queuedConstruction?: { id: string; label: string; endsAt: string } | null;
+  canQueue?: boolean;
   upkeepPerHour?: number;
   hintsSeen?: string;
   theme?: ThemeId;
@@ -165,6 +179,7 @@ interface LeaderEntry {
   id: string;
   name: string;
   liveryColor: string;
+  emblem?: string | null;
   grade: string;
   title: string | null;
   trains: number;
@@ -200,7 +215,7 @@ export default function Dashboard() {
   const [lines, setLines] = useState<Line[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"lignes" | "trains" | "fret" | "missions" | "classement" | "historique" | "succes" | "carte" | "personnel" | "parametres" | "carriere" | "cours">("trains");
+  const [view, setView] = useState<"lignes" | "trains" | "fret" | "missions" | "classement" | "historique" | "succes" | "carte" | "personnel" | "parametres" | "carriere" | "cours" | "boutique" | "rentabilite">("trains");
   const [now, setNow] = useState(new Date());
   const [market, setMarket] = useState<Contract[]>([]);
   const [myContracts, setMyContracts] = useState<Contract[]>([]);
@@ -236,6 +251,11 @@ export default function Dashboard() {
     }
   }
 
+  // abonnement aux notifications renvoyé au serveur à chaque ouverture du jeu (voir push.ts)
+  useEffect(() => {
+    resyncPush();
+  }, []);
+
   useEffect(() => {
     const clock = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(clock);
@@ -250,6 +270,22 @@ export default function Dashboard() {
      payer, et il n'a aucune raison de faire confiance à ce qu'il voit. */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+
+    /* Retour de la boutique : même principe que le Premium, l'objet n'est
+       livré que par le webhook, on se contente d'attendre qu'il arrive. */
+    const boutique = params.get("boutique");
+    if (boutique) {
+      window.history.replaceState({}, "", window.location.pathname);
+      if (boutique === "annule") {
+        showToast("Achat abandonné — rien n'a été débité");
+      } else {
+        showToast("Paiement reçu — l'objet arrive dans votre compagnie");
+        setView("boutique");
+        window.setTimeout(() => loadAll(), 3000);
+      }
+      return;
+    }
+
     const premium = params.get("premium");
     if (!premium) return;
 
@@ -363,8 +399,12 @@ export default function Dashboard() {
       // notifie si un employé est parti faute de trésorerie
       setStaff((prevStaff) => {
         prevStaff.forEach((prevS) => {
-          if (!st.find((newS: Staff) => newS.id === prevS.id)) {
+          const now = st.find((newS: Staff) => newS.id === prevS.id);
+          if (!now) {
             showToast(`Un employé a quitté la compagnie`, "error");
+          } else if (now.raiseRequested && !prevS.raiseRequested) {
+            // seulement au passage à « demandée », pas à chaque rafraîchissement
+            showToast(`${now.name || "Un employé"} demande une augmentation`);
           }
         });
         return st;
@@ -524,10 +564,19 @@ export default function Dashboard() {
           style={{ borderTopColor: company.liveryColor }}
         >
           <div className="flex items-center gap-2.5 mb-0.5 md:mb-1">
-            <span className="relative inline-flex">
-              <SteamEffect size={28} />
-              <TrainMark size={20} style={{ color: company.liveryColor }} className="shrink-0 relative" />
-            </span>
+            {/* L'emblème, quand il y en a un, prend la place de la locomotive
+                plutôt que de s'ajouter à côté : trois signes devant le nom le
+                tronquaient dès qu'il dépassait une dizaine de lettres. */}
+            {company.emblem ? (
+              <span style={{ color: company.liveryColor }} className="inline-flex">
+                <Emblem id={company.emblem} size={20} />
+              </span>
+            ) : (
+              <span className="relative inline-flex">
+                <SteamEffect size={28} />
+                <TrainMark size={20} style={{ color: company.liveryColor }} className="shrink-0 relative" />
+              </span>
+            )}
             <span className="font-display text-base md:text-xl leading-tight truncate">{company.name}</span>
           </div>
           <div className="hidden md:block text-[11px] text-amber font-body uppercase tracking-[0.14em]">
@@ -544,10 +593,12 @@ export default function Dashboard() {
             <SidebarItem icon={<CargoMark size={14} />} label="Missions" count={missionCount} active={view === "missions"} onClick={() => setView("missions")} />
             <SidebarItem icon={<CargoMark size={14} />} label="Cours" active={view === "cours"} onClick={() => setView("cours")} dataTutorial="nav-cours" />
             <SidebarItem icon={<TrophyMark size={14} />} label="Classement" count={leaderTotal} active={view === "classement"} onClick={() => setView("classement")} dataTutorial="nav-classement" />
+            <SidebarItem icon={<ChartMark size={14} />} label="Rentabilité" active={view === "rentabilite"} onClick={() => setView("rentabilite")} />
             <SidebarItem icon={<LedgerMark size={14} />} label="Historique" count={transactions.length} active={view === "historique"} onClick={() => setView("historique")} />
             <SidebarItem icon={<MedalMark size={14} />} label="Succès" count={achievements.filter((a) => a.unlocked).length} active={view === "succes"} onClick={() => setView("succes")} />
             <SidebarItem icon={<RankMark size={14} />} label="Carrière" active={view === "carriere"} onClick={() => setView("carriere")} />
-          <SidebarItem icon={<StaffMark size={14} />} label="Personnel" count={staff.length} active={view === "personnel"} onClick={() => setView("personnel")} />
+          <SidebarItem icon={<StaffMark size={14} />} label={staff.some((s) => s.raiseRequested) ? "Personnel ●" : "Personnel"} count={staff.length} active={view === "personnel"} onClick={() => setView("personnel")} />
+          <SidebarItem icon={<MedalMark size={14} />} label="Boutique" active={view === "boutique"} onClick={() => setView("boutique")} />
           <SidebarItem icon={<GearMark size={14} />} label="Paramètres" active={view === "parametres"} onClick={() => setView("parametres")} />
           </nav>
 
@@ -588,6 +639,7 @@ export default function Dashboard() {
         />
       )}
       {showWhatsNew && !showTutorial && <WhatsNewModal onClose={dismissWhatsNew} />}
+      {!showWhatsNew && !showTutorial && <AbsenceReport onNavigate={setView} />}
       {editingCompany && (
         <EditCompanyModal company={company} onClose={() => setEditingCompany(false)} onChange={loadAll} />
       )}
@@ -619,8 +671,20 @@ export default function Dashboard() {
           />
         </div>
 
-        <div className="border-b border-line grid grid-cols-2 md:grid-cols-5">
-          <StatCell label="Trésorerie" value={`${String(company.balance).padStart(6, " ")} pi.`} color="text-amber" accent="#c99a3e" flap />
+        {/* La trésorerie a sa propre largeur : c'est le seul chiffre qui grandit
+            vraiment, et à 1/5 de la rangée ses derniers chiffres étaient coupés
+            (4 820 pi. s'affichait « 482 »). Sur téléphone, elle prend toute la
+            première ligne. */}
+        <div className="border-b border-line grid grid-cols-2 md:grid-cols-[minmax(0,1.8fr)_repeat(4,minmax(0,1fr))]">
+          <StatCell
+            label="Trésorerie"
+            value={String(Math.max(0, company.balance))}
+            unit="pi."
+            color="text-amber"
+            accent="#c99a3e"
+            flap
+            className="col-span-2 md:col-span-1 border-b md:border-b-0"
+          />
           <StatCell label="Trains" value={String(trains.length)} color="text-offwhite" accent="#4a3f2e" />
           <StatCell label="En circulation" value={String(enRoute)} color="text-rail-green" accent="#5c8a68" />
           <StatCell label="Lignes" value={String(lines.length)} color="text-offwhite" accent="#4a3f2e" />
@@ -664,6 +728,15 @@ export default function Dashboard() {
                     minute: "2-digit",
                   })}
                 </div>
+                {company.queuedConstruction && (
+                  <div className="font-body text-[12.5px] text-slate2 mt-1">
+                    Ensuite : {company.queuedConstruction.label} — fin prévue vers{" "}
+                    {new Date(company.queuedConstruction.endsAt).toLocaleTimeString("fr-FR", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                )}
               </div>
             )}
             {view === "trains" && referral && <ReferralBanner referral={referral} />}
@@ -692,6 +765,8 @@ export default function Dashboard() {
               />
             )}
             {view === "missions" && <MissionsSection onChange={loadAll} />}
+            {view === "boutique" && <ShopSection onChange={loadAll} />}
+            {view === "rentabilite" && <ProfitabilitySection />}
             {view === "cours" && (
               <>
                 <FirstVisitHint
@@ -749,7 +824,9 @@ export default function Dashboard() {
             {view === "personnel" && (
               <StaffSection staff={staff} gradeId={career?.currentRank.id ?? 0} onChange={loadAll} />
             )}
-            {view === "parametres" && <SettingsSection company={company} referral={referral} onChange={loadAll} />}
+            {view === "parametres" && (
+              <SettingsSection company={company} referral={referral} onChange={loadAll} onOpenShop={() => setView("boutique")} />
+            )}
           </div>
         </main>
       </div>
@@ -764,12 +841,14 @@ const PAGE_COPY = {
   missions: { title: "Donneurs d'ordre", subtitle: "Quatre chargeurs confient du fret au réseau. Leur confiance se gagne, et elle paie." },
   classement: { title: "Classement", subtitle: "Les compagnies les plus prospères du réseau." },
   historique: { title: "Historique", subtitle: "Le registre de tous les mouvements de trésorerie." },
+  rentabilite: { title: "Rentabilité", subtitle: "Ce que rapporte et ce que coûte chaque ligne, chaque rame, sur sept jours." },
   succes: { title: "Succès", subtitle: "Les étapes franchies par votre compagnie." },
   carte: { title: "Carte du réseau", subtitle: "Vos lignes et vos trains, positionnés en temps réel." },
-  personnel: { title: "Personnel", subtitle: "Recrutez du personnel pour améliorer votre exploitation." },
+  personnel: { title: "Personnel", subtitle: "Une équipe qui prend de l'expérience et doit suivre la taille de votre flotte." },
   parametres: { title: "Paramètres", subtitle: "Gérez votre compte." },
   carriere: { title: "Carrière", subtitle: "Votre progression, grade après grade." },
   cours: { title: "Cours du fret", subtitle: "Ce que valent les marchandises aujourd'hui, et ce que vous en faites." },
+  boutique: { title: "Boutique", subtitle: "Des couleurs, des emblèmes, un titre. Rien qui change un chiffre du jeu." },
 };
 
 export type DashboardView = keyof typeof PAGE_COPY;
@@ -1034,12 +1113,32 @@ function SidebarItem({ label, count, active, onClick, icon, dataTutorial }: { la
   );
 }
 
-function StatCell({ label, value, color, accent, flap }: { label: string; value: string; color: string; accent: string; flap?: boolean }) {
+function StatCell({
+  label,
+  value,
+  unit,
+  color,
+  accent,
+  flap,
+  className = "",
+}: {
+  label: string;
+  value: string;
+  unit?: string;
+  color: string;
+  accent: string;
+  flap?: boolean;
+  className?: string;
+}) {
   return (
-    <div className="px-4 py-4 md:px-6 md:py-6 border-r border-line last:border-0 overflow-hidden relative">
+    <div className={`px-4 py-4 md:px-6 md:py-6 border-r border-line last:border-0 overflow-hidden relative min-w-0 ${className}`}>
       <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: accent }} />
       {flap ? (
-        <SplitFlap value={value} size="lg" className={color} />
+        <div className="flex items-end gap-2">
+          {/* au-delà du million, les palettes rapetissent plutôt que de sortir du cadre */}
+          <SplitFlap value={value} size={value.length >= 7 ? "md-compact" : "md"} className={color} />
+          {unit && <span className={`font-mono2 text-sm md:text-base pb-1 ${color}`}>{unit}</span>}
+        </div>
       ) : (
         <div key={value} className={`text-2xl md:text-4xl font-mono2 ${color} animate-flip-in`}>{value}</div>
       )}
@@ -1110,10 +1209,13 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
   );
 }
 
+// par ordre alphabétique : à trente-huit gares, c'est le seul ordre où l'on retrouve la sienne
 const STATIONS = [
-  "Paris", "Lyon", "Marseille", "Bordeaux", "Lille", "Strasbourg",
-  "Nantes", "Toulouse", "Rennes", "Dijon", "Nancy", "Metz",
-  "Chartres", "Le Mans", "Rouen", "Le Havre", "Grenoble", "Mulhouse",
+  "Amiens", "Angers", "Avignon", "Bayonne", "Besançon", "Bordeaux", "Brest", "Caen",
+  "Chartres", "Clermont-Ferrand", "Dijon", "Grenoble", "La Rochelle", "Le Havre", "Le Mans", "Lille",
+  "Limoges", "Lyon", "Marseille", "Metz", "Montpellier", "Mulhouse", "Nancy", "Nantes",
+  "Nice", "Orléans", "Paris", "Pau", "Perpignan", "Poitiers", "Reims", "Rennes",
+  "Rouen", "Saint-Étienne", "Strasbourg", "Toulouse", "Tours", "Troyes",
 ];
 
 function StationPicker({
@@ -1370,8 +1472,11 @@ function TrainsSection({
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const { showToast, showComposter } = useToast();
-  const hasChefDepot = staff.some((s) => s.role === "CHEF_DEPOT");
-  const repairCostPerPoint = hasChefDepot ? 1 : 2;
+  /* Le prix vient du serveur : avec la couverture des chefs de dépôt, il dépend
+     de la taille de la flotte et du niveau de chacun. Repli sur l'ancien calcul
+     tant que le serveur ne l'envoie pas. */
+  const repairCostPerPoint =
+    company.repairCostPerPoint ?? (staff.some((s) => s.role === "CHEF_DEPOT") ? 1 : 2);
 
   const atCapacity = trains.length >= company.maxTrains;
   /* Le barème géométrique vit côté serveur : le recopier ici, c'est prendre le
@@ -1381,11 +1486,13 @@ function TrainsSection({
   async function expandFleet() {
     setExpanding(true);
     try {
-      await api.post("/company/expand-fleet");
+      const { data } = await api.post("/company/expand-fleet");
       showToast(
-        `Chantier lancé — la ${company.maxTrains + 1}e place sera livrée dans ${formatBuildHours(
-          company.nextDepotHours ?? 0.5
-        )}`
+        data?.queued
+          ? "Agrandissement mis en file : il démarrera à la fin du chantier en cours"
+          : `Chantier lancé — la ${company.maxTrains + 1}e place sera livrée dans ${formatBuildHours(
+              company.nextDepotHours ?? 0.5
+            )}`
       );
       onChange();
     } catch (err: any) {
@@ -1416,10 +1523,10 @@ function TrainsSection({
     }
   }
 
-  async function repair(trainId: string) {
+  async function repair(trainId: string, preventive = false) {
     try {
       await api.post("/trains/repair", { trainId });
-      showComposter("Rame réparée et remise en service");
+      showComposter(preventive ? "Révision effectuée — usure remise à zéro" : "Rame réparée et remise en service");
       onChange();
     } catch (err: any) {
       showToast(err?.response?.data?.error || "Erreur lors de la réparation", "error");
@@ -1460,13 +1567,17 @@ function TrainsSection({
               onClick={expandFleet}
               /* Un seul chantier à la fois : mieux vaut griser le bouton que
                  laisser le joueur découvrir la règle par un message d'erreur. */
-              disabled={expanding || Boolean(company.construction)}
+              disabled={expanding || (Boolean(company.construction) && !company.canQueue)}
               className="text-[11px] font-mono2 text-amber uppercase border border-amber/40 px-2 py-1 hover:bg-amber/10 transition-colors disabled:opacity-50"
             >
               {expanding
                 ? "Chantier…"
+                : company.construction && company.canQueue
+                ? `Mettre en file l'agrandissement (${expandCost} pi.)`
                 : company.construction
-                ? "Chantier déjà en cours"
+                ? company.queuedConstruction
+                  ? "Chantier en cours · file pleine"
+                  : "Chantier déjà en cours"
                 : `Agrandir le dépôt (${expandCost} pi. · ${formatBuildHours(company.nextDepotHours ?? 0.5)})`}
             </button>
           )}
@@ -1567,6 +1678,19 @@ function TrainsSection({
               </td>
               <td className="py-3.5">
                 <WearGauge value={t.wear} />
+                {/* Révision préventive. Le coût est proportionnel à l'usure, donc
+                    réviser tôt ne coûte ni plus ni moins que réparer une panne :
+                    ce qu'on y gagne, c'est de ne pas tomber en panne un jour où la
+                    trésorerie ne suit pas. La rame ne s'arrête pas pour autant. */}
+                {t.wear > 0 && t.wear < 100 && t.status !== "MAINTENANCE" && (
+                  <button
+                    onClick={() => repair(t.id, true)}
+                    title="Remet l'usure à zéro sans arrêter la rame"
+                    className="mt-1 text-[10.5px] font-mono2 text-slate2 hover:text-amber uppercase tracking-wide transition-colors"
+                  >
+                    Réviser · {Math.ceil(t.wear * repairCostPerPoint)} pi.
+                  </button>
+                )}
               </td>
               <td className="py-3.5">
                 <div className="relative h-3 flex items-center">
@@ -2041,7 +2165,17 @@ function ClientCardView({
   );
 }
 
-function ThemePanel({ current, onChange }: { current: ThemeId; onChange: () => void }) {
+function ThemePanel({
+  current,
+  owned,
+  onChange,
+  onOpenShop,
+}: {
+  current: ThemeId;
+  owned: string[];
+  onChange: () => void;
+  onOpenShop: () => void;
+}) {
   const [theme, setTheme] = useState<ThemeId>(current);
   const { showToast } = useToast();
 
@@ -2062,28 +2196,29 @@ function ThemePanel({ current, onChange }: { current: ThemeId; onChange: () => v
     <div className="border-t border-line pt-6">
       <h2 className="font-display text-xl mb-2">Apparence</h2>
       <p className="text-sm text-slate2 font-body mb-4">
-        Deux habillages de la même interface. Le choix est enregistré sur votre compte et vous suit d'un appareil à
-        l'autre.
+        Plusieurs habillages de la même interface. Le choix est enregistré sur votre compte et vous suit d'un
+        appareil à l'autre.
       </p>
 
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid sm:grid-cols-3 gap-3">
         {THEMES.map((t) => {
           const on = theme === t.id;
+          /* Un habillage de boutique est montré même à ceux qui ne l'ont pas :
+             c'est la vitrine. Il reste simplement inactivable, avec un lien
+             vers la boutique au lieu d'une erreur. */
+          const locked = Boolean(t.shop) && !owned.includes(t.id);
           return (
             <button
               key={t.id}
-              onClick={() => pick(t.id)}
+              onClick={() => (locked ? onOpenShop() : pick(t.id))}
               className={`text-left border p-4 transition-colors ${
                 on ? "border-cobalt bg-cobalt/10" : "border-line hover:border-slate2"
-              }`}
+              } ${locked ? "opacity-70" : ""}`}
             >
               <div className="flex items-center gap-2 mb-1.5">
                 {/* pastilles : les couleurs réelles du thème, pas une étiquette */}
                 <span className="flex shrink-0">
-                  {(t.id === "sombre"
-                    ? ["#0b0f19", "#38bdf8", "#f59e0b"]
-                    : ["#e9e4d7", "#1f5c4d", "#a06a17"]
-                  ).map((col) => (
+                  {t.swatch.map((col) => (
                     <span
                       key={col}
                       className="w-3.5 h-3.5 border border-line -ml-0.5 first:ml-0"
@@ -2095,6 +2230,11 @@ function ThemePanel({ current, onChange }: { current: ThemeId; onChange: () => v
                 {on && (
                   <span className="ml-auto text-[10px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-1.5">
                     Actif
+                  </span>
+                )}
+                {locked && (
+                  <span className="ml-auto text-[10px] font-mono2 uppercase text-amber border border-amber/40 px-1.5">
+                    Boutique
                   </span>
                 )}
               </div>
@@ -2447,6 +2587,7 @@ function LeaderRowView({ c, fmt }: { c: LeaderEntry; fmt: (v: number) => string 
       <td className="py-3.5 font-body">
         <span className="flex items-center gap-2 flex-wrap">
           <span className="w-2 h-2 shrink-0" style={{ background: c.liveryColor }} />
+          {c.emblem && <Emblem id={c.emblem} size={13} className="text-slate2" />}
           {c.name}
           {c.title && (
             <span className="text-[10px] text-amber font-mono2 uppercase border border-amber/40 px-1.5">
@@ -2533,6 +2674,27 @@ function EditCompanyModal({
                 />
               ))}
             </div>
+
+            {(company.unlocked?.liveries?.length ?? 0) > 0 && (
+              <div className="mt-3">
+                <div className="text-[10px] font-mono2 uppercase tracking-[0.16em] text-slate2 mb-2">
+                  Livrées de la boutique
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  {company.unlocked!.liveries.map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => setLiveryColor(c)}
+                      className={`w-8 h-8 border-2 transition-transform active:scale-95 ${
+                        liveryColor.toLowerCase() === c ? "border-offwhite" : "border-transparent"
+                      }`}
+                      style={{ background: c }}
+                      aria-label={`Couleur ${c}`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Palette réservée : visible pour tous, sélectionnable par les abonnés.
                 La montrer grisée vaut mieux que la cacher — un avantage qu'on
@@ -2940,7 +3102,14 @@ const CORSE_OUTLINE =
 
 /* Quelques gares se touchent (Le Havre / Rouen, Metz / Nancy) : leur étiquette
    part à gauche pour ne pas se chevaucher. */
-const LABEL_LEFT = new Set(["Le Havre", "Rennes", "Nantes", "Bordeaux", "Chartres", "Le Mans", "Toulouse"]);
+const LABEL_LEFT = new Set([
+  "Le Havre", "Rennes", "Nantes", "Bordeaux", "Chartres", "Le Mans", "Toulouse",
+  "Angers", "La Rochelle", "Limoges", "Saint-Étienne", "Dijon", "Bayonne",
+]);
+/* Au centre du pays, les gares sont trop serrées pour une étiquette de côté :
+   celles-ci se lisent au-dessus ou au-dessous de leur pastille. */
+const LABEL_ABOVE = new Set(["Clermont-Ferrand"]);
+const LABEL_BELOW = new Set(["Montpellier"]);
 
 // Positions approximatives des gares sur une carte stylisée de France (viewBox 0 0 340 380)
 const STATION_COORDS: Record<string, { x: number; y: number }> = {
@@ -2962,6 +3131,27 @@ const STATION_COORDS: Record<string, { x: number; y: number }> = {
   "Bordeaux": { x: 108, y: 269 },
   "Toulouse": { x: 154, y: 322 },
   "Marseille": { x: 242, y: 335 },
+  // v1.3 — mêmes positions que côté serveur (geography.service), même projection
+  "Brest": { x: 21, y: 116 },
+  "Caen": { x: 113, y: 82 },
+  "Amiens": { x: 173, y: 52 },
+  "Reims": { x: 212, y: 79 },
+  "Troyes": { x: 213, y: 120 },
+  "Orléans": { x: 164, y: 137 },
+  "Tours": { x: 137, y: 159 },
+  "Angers": { x: 109, y: 156 },
+  "Poitiers": { x: 129, y: 194 },
+  "La Rochelle": { x: 96, y: 212 },
+  "Limoges": { x: 150, y: 226 },
+  "Clermont-Ferrand": { x: 190, y: 228 },
+  "Saint-Étienne": { x: 220, y: 243 },
+  "Besançon": { x: 256, y: 166 },
+  "Avignon": { x: 229, y: 307 },
+  "Montpellier": { x: 208, y: 322 },
+  "Nice": { x: 284, y: 318 },
+  "Perpignan": { x: 186, y: 361 },
+  "Pau": { x: 113, y: 335 },
+  "Bayonne": { x: 89, y: 327 },
 };
 
 const LINE_PALETTE = ["#4f7fa3", "#c99a3e", "#5c8a68", "#a8483a", "#8a6ba3", "#c97a3e"];
@@ -3309,9 +3499,9 @@ function NetworkMap({
                 />
                 {/* liseré de la couleur du fond : le texte reste lisible par-dessus une voie */}
                 <text
-                  x={pos.x + (left ? -6 : 6)}
-                  y={pos.y + 3}
-                  textAnchor={left ? "end" : "start"}
+                  x={LABEL_ABOVE.has(name) || LABEL_BELOW.has(name) ? pos.x : pos.x + (left ? -6 : 6)}
+                  y={LABEL_ABOVE.has(name) ? pos.y - 6 : LABEL_BELOW.has(name) ? pos.y + 11 : pos.y + 3}
+                  textAnchor={LABEL_ABOVE.has(name) || LABEL_BELOW.has(name) ? "middle" : left ? "end" : "start"}
                   fontSize="8.5"
                   fontFamily="var(--font-mono2)"
                   fill={active ? "rgb(var(--c-offwhite))" : "rgb(var(--c-slate2))"}
@@ -3486,7 +3676,328 @@ const STAFF_ROLES_UI: Record<string, { label: string; salaryPerTick: number; eff
   },
 };
 
+interface StaffMember {
+  id: string;
+  role: string;
+  roleLabel: string;
+  name: string;
+  level: number;
+  xp: number;
+  xpForNext: number | null;
+  hoursToNext: number | null;
+  raiseRequested: boolean;
+  salaryPerHour: number;
+  raiseSalaryPerHour: number | null;
+  effect: string;
+  nextEffect: string | null;
+  covered?: number | null;
+  savingsPerHour?: number;
+}
+
+interface StaffOverview {
+  members: StaffMember[];
+  trainCount: number;
+  coverage: { MECANICIEN: number; CHEF_DEPOT: number };
+  effects: { wearReduction: number; repairReduction: number; revenueBonus: number };
+  payrollPerHour: number;
+  roles: { id: string; label: string; unique: boolean; minGradeId: number; salaryPerHour: number; effect: string }[];
+}
+
+// seuils d'expérience (en cycles), recopiés du serveur pour la barre de progression
+const STAFF_LEVEL_XP = [0, 720, 2880, 8640, 20160];
+
+function formatHoursShort(h: number) {
+  if (h < 1) return "moins d'1 h";
+  if (h < 48) return `${h} h`;
+  return `${Math.round(h / 24)} j`;
+}
+
+/* ============================================================
+   Personnel.
+
+   La page répond à deux questions, dans cet ordre :
+   1. Qui attend une réponse de ma part ? (les demandes d'augmentation, en haut)
+   2. Mon équipe suit-elle ma flotte ? (la couverture, poste par poste)
+   Le reste — la fiche de chaque employé — se consulte ensuite.
+   ============================================================ */
 function StaffSection({ staff, gradeId, onChange }: { staff: Staff[]; gradeId: number; onChange: () => void }) {
+  const [overview, setOverview] = useState<StaffOverview | null>(null);
+  const [unavailable, setUnavailable] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [confirmFire, setConfirmFire] = useState<string | null>(null);
+  const { showToast } = useToast();
+
+  async function load() {
+    try {
+      const { data } = await api.get("/staff/overview");
+      setOverview(data);
+      setUnavailable(false);
+    } catch {
+      // serveur pas encore à jour : on garde l'ancienne présentation
+      setUnavailable(true);
+    }
+  }
+
+  // se recharge quand le tableau de bord voit bouger l'équipe (départ, demande, niveau)
+  const staffKey = staff.map((s) => `${s.id}:${s.level ?? 1}:${s.raiseRequested ? 1 : 0}`).join("|");
+  useEffect(() => {
+    load();
+  }, [staffKey]);
+
+  async function hire(role: string, label: string) {
+    setBusy(`hire:${role}`);
+    try {
+      const { data } = await api.post("/staff/hire", { role });
+      showToast(data?.name ? `${data.name} rejoint la compagnie · ${label}` : `${label} embauché`);
+      await load();
+      onChange();
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || "Erreur", "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function fire(m: { id: string; name: string }) {
+    setBusy(`fire:${m.id}`);
+    try {
+      await api.post("/staff/fire", { staffId: m.id });
+      showToast(`${m.name} a quitté la compagnie`);
+      setConfirmFire(null);
+      await load();
+      onChange();
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || "Erreur", "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function answer(m: StaffMember, accept: boolean) {
+    setBusy(`raise:${m.id}`);
+    try {
+      await api.post("/staff/raise", { staffId: m.id, accept });
+      showToast(accept ? `${m.name} passe au niveau ${m.level + 1}` : `${m.name} reste au niveau ${m.level}`);
+      await load();
+      onChange();
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || "Erreur", "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  if (unavailable) return <LegacyStaffSection staff={staff} gradeId={gradeId} onChange={onChange} />;
+  if (!overview) return <p className="text-sm text-slate2 font-body">Chargement du personnel…</p>;
+
+  const { members, trainCount, coverage, effects, payrollPerHour, roles } = overview;
+  const requests = members.filter((m) => m.raiseRequested);
+
+  return (
+    <div>
+      {/* ---- demandes en attente ---- */}
+      {requests.length > 0 && (
+        <section className="mb-8 border border-amber/40 bg-amber/5">
+          <h2 className="px-4 pt-3 pb-2 font-mono2 text-[11px] uppercase tracking-[0.14em] text-amber">
+            {requests.length === 1 ? "Une demande d'augmentation" : `${requests.length} demandes d'augmentation`}
+          </h2>
+          <ul className="divide-y divide-amber/20">
+            {requests.map((m) => (
+              <li key={m.id} className="px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+                <div className="flex-1 min-w-[220px]">
+                  <div className="font-body text-sm text-offwhite">
+                    {m.name} <span className="text-slate2">· {m.roleLabel}, niveau {m.level}</span>
+                  </div>
+                  <p className="text-xs text-slate2 font-body mt-0.5">
+                    Niveau {m.level + 1} : {m.nextEffect} — salaire {m.salaryPerHour} → {m.raiseSalaryPerHour} pi./h
+                  </p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => answer(m, true)}
+                    disabled={busy !== null}
+                    className="text-[11px] font-mono2 uppercase text-onaccent bg-cobalt px-3 py-1.5 disabled:opacity-50"
+                  >
+                    Accorder · +{(m.raiseSalaryPerHour ?? m.salaryPerHour) - m.salaryPerHour} pi./h
+                  </button>
+                  <button
+                    onClick={() => answer(m, false)}
+                    disabled={busy !== null}
+                    className="text-[11px] font-mono2 uppercase text-slate2 border border-line px-3 py-1.5 hover:text-offwhite disabled:opacity-50"
+                  >
+                    Refuser
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p className="px-4 pb-3 pt-1 text-[11.5px] text-slate2 font-body">
+            Refuser ne fait partir personne : l'employé reste à son niveau et redemandera plus tard.
+          </p>
+        </section>
+      )}
+
+      {/* ---- synthèse ---- */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-line border border-line mb-8">
+        {[
+          { label: "Usure réduite de", value: `${effects.wearReduction} %` },
+          { label: "Réparations moins chères de", value: `${effects.repairReduction} %` },
+          { label: "Recettes augmentées de", value: `${effects.revenueBonus} %` },
+          { label: "Masse salariale", value: `${payrollPerHour} pi./h` },
+        ].map((c) => (
+          <div key={c.label} className="px-4 py-3 bg-navy-950">
+            <div className="font-mono2 text-lg text-offwhite">{c.value}</div>
+            <div className="text-[10.5px] text-slate2 font-body uppercase tracking-[0.1em] mt-0.5">{c.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ---- un bloc par poste ---- */}
+      <div className="space-y-8">
+        {roles.map((role) => {
+          const team = members.filter((m) => m.role === role.id);
+          const locked = role.minGradeId > gradeId;
+          const covered = role.id === "MECANICIEN" ? coverage.MECANICIEN : role.id === "CHEF_DEPOT" ? coverage.CHEF_DEPOT : null;
+          const canHire = !locked && !(role.unique && team.length > 0) && team.length < 8;
+          const uncovered = covered !== null && trainCount > 0 && covered < trainCount;
+
+          return (
+            <section key={role.id}>
+              <div className="flex flex-wrap items-end justify-between gap-3 mb-3">
+                <div>
+                  <h2 className="font-display text-xl leading-tight flex items-center gap-2">
+                    <StaffMark size={16} className={team.length ? "text-cobalt" : "text-slate2"} />
+                    {role.label}
+                    {role.minGradeId > 0 && (
+                      <span className="text-[10px] font-mono2 uppercase text-amber border border-amber/40 px-1.5 py-0.5">
+                        {GRADE_NAMES[role.minGradeId]}
+                      </span>
+                    )}
+                  </h2>
+                  {covered !== null ? (
+                    <p className={`text-xs font-body mt-1 ${uncovered ? "text-amber" : "text-slate2"}`}>
+                      {trainCount === 0
+                        ? "Aucune rame à couvrir pour l'instant"
+                        : `${covered} rame${covered > 1 ? "s" : ""} couverte${covered > 1 ? "s" : ""} sur ${trainCount}`}
+                      {uncovered && (role.id === "CHEF_DEPOT" ? " — les autres se réparent au tarif normal" : " — les autres s'usent au tarif normal")}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-slate2 font-body mt-1">Un seul par compagnie · agit sur toute la flotte</p>
+                  )}
+                </div>
+                {canHire ? (
+                  <button
+                    onClick={() => hire(role.id, role.label)}
+                    disabled={busy !== null}
+                    className="text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors disabled:opacity-50"
+                  >
+                    {busy === `hire:${role.id}` ? "…" : `Embaucher · ${role.salaryPerHour} pi./h`}
+                  </button>
+                ) : locked ? (
+                  <span className="text-[11px] font-mono2 uppercase text-slate2 border border-line px-3 py-1.5">Grade insuffisant</span>
+                ) : null}
+              </div>
+
+              {covered !== null && trainCount > 0 && (
+                <div className="h-1 bg-line mb-3" aria-hidden>
+                  <div
+                    className={`h-full ${uncovered ? "bg-amber" : "bg-rail-green"}`}
+                    style={{ width: `${Math.min(100, (covered / trainCount) * 100)}%` }}
+                  />
+                </div>
+              )}
+
+              {team.length === 0 ? (
+                <p className="text-[12.5px] text-slate2 font-body border border-dashed border-line px-4 py-3">
+                  Personne à ce poste. Au niveau 1 : {role.effect.charAt(0).toLowerCase() + role.effect.slice(1)}.
+                </p>
+              ) : (
+                <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                  {team.map((m) => {
+                    const from = STAFF_LEVEL_XP[m.level - 1] ?? 0;
+                    const pct = m.xpForNext ? Math.min(100, ((m.xp - from) / (m.xpForNext - from)) * 100) : 100;
+                    return (
+                      <li key={m.id} className={`p-4 border ${m.raiseRequested ? "border-amber/50" : "border-line"} bg-navy-900/40`}>
+                        <div className="flex items-baseline justify-between gap-3">
+                          <div className="font-body text-sm text-offwhite truncate">{m.name}</div>
+                          <span className="font-mono2 text-[11px] text-slate2 shrink-0">Niv. {m.level}</span>
+                        </div>
+                        <p className="text-xs text-slate2 font-body mt-1">{m.effect}</p>
+
+                        <div className="mt-3">
+                          <div className="h-1 bg-line" aria-hidden>
+                            <div className="h-full bg-cobalt" style={{ width: `${Math.max(0, pct)}%` }} />
+                          </div>
+                          <div className="text-[10.5px] font-mono2 text-slate2 mt-1">
+                            {m.level >= 5
+                              ? "Niveau maximal"
+                              : m.raiseRequested
+                              ? "Attend votre réponse"
+                              : m.hoursToNext === 0
+                              ? "Redemandera une augmentation bientôt"
+                              : `Niveau ${m.level + 1} dans ${formatHoursShort(m.hoursToNext ?? 0)} de service`}
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between mt-3">
+                          <span className="text-[11px] font-mono2 leading-snug">
+                            <span className="text-amber">coûte {m.salaryPerHour} pi./h</span>
+                            {m.savingsPerHour !== undefined && (
+                              <span
+                                className={m.savingsPerHour > m.salaryPerHour ? "text-rail-green block" : "text-slate2 block"}
+                                title="Estimation, rames en service en continu"
+                              >
+                                {m.role === "DIRECTEUR_COMMERCIAL" ? "rapporte" : "fait économiser"} ~{m.savingsPerHour} pi./h
+                              </span>
+                            )}
+                          </span>
+                          {confirmFire === m.id ? (
+                            <span className="flex gap-2">
+                              <button
+                                onClick={() => fire(m)}
+                                disabled={busy !== null}
+                                className="text-[11px] font-mono2 uppercase text-rail-red border border-rail-red/50 px-2 py-1 disabled:opacity-50"
+                              >
+                                Confirmer
+                              </button>
+                              <button
+                                onClick={() => setConfirmFire(null)}
+                                className="text-[11px] font-mono2 uppercase text-slate2 border border-line px-2 py-1"
+                              >
+                                Annuler
+                              </button>
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => setConfirmFire(m.id)}
+                              className="text-[11px] font-mono2 uppercase text-slate2 hover:text-rail-red border border-line px-2 py-1 transition-colors"
+                            >
+                              Licencier
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          );
+        })}
+      </div>
+
+      <p className="text-[11.5px] text-slate2 font-body mt-8 max-w-[70ch]">
+        Chaque employé gagne de l'expérience en service : niveau 2 après 6 h, puis 1 jour, 3 jours et une semaine.
+        Licencier un vétéran fait perdre son expérience — son remplaçant repart du niveau 1. Mécaniciens et chefs
+        de dépôt ne sont pas payés quand aucune de vos rames ne roule.
+      </p>
+    </div>
+  );
+}
+
+/* Ancienne présentation, gardée pour la fenêtre où le site est à jour mais pas
+   encore le serveur. */
+function LegacyStaffSection({ staff, gradeId, onChange }: { staff: Staff[]; gradeId: number; onChange: () => void }) {
   const [busyRole, setBusyRole] = useState<string | null>(null);
   const { showToast } = useToast();
 
@@ -3566,10 +4077,12 @@ function SettingsSection({
   company,
   referral,
   onChange,
+  onOpenShop,
 }: {
   company: Company;
   referral: ReferralInfo | null;
   onChange: () => void;
+  onOpenShop: () => void;
 }) {
   const { logout } = useAuth();
   const { showToast } = useToast();
@@ -3682,7 +4195,12 @@ function SettingsSection({
         </form>
       </div>
 
-      <ThemePanel current={company.theme ?? readLocalTheme()} onChange={onChange} />
+      <ThemePanel
+        current={company.theme ?? readLocalTheme()}
+        owned={company.unlocked?.themes ?? ["sombre", "papier"]}
+        onChange={onChange}
+        onOpenShop={onOpenShop}
+      />
 
       <NotificationsPanel />
 
@@ -3702,7 +4220,8 @@ function SettingsSection({
           {[
             ["Deux ordres par donneur d'ordre", "Plus de choix à la table, pas une meilleure prime"],
             ["Marché de fret élargi", "Six contrats visibles au lieu de trois"],
-            ["Réparation automatique", "La rame repart seule si la trésorerie suit — la facture est identique"],
+            ["Alertes et ordres permanents", "Le marché vous prévient, ou achète et vend au seuil choisi — au même cours qu'un joueur présent"],
+            ["Cinq marchandises en stock", "De la variété dans l'entrepôt, pas une unité de capacité en plus"],
             ["−20 % sur les places de dépôt", "Vous atteignez la même taille optimale plus tôt, pas une taille plus grande"],
             ["Livrée étendue", "Une palette de couleurs réservée pour votre compagnie"],
           ].map(([label, detail]) => (

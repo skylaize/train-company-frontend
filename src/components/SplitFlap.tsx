@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
-function FlapChar({ char, size }: { char: string; size: "sm" | "lg" }) {
+type FlapSize = "sm" | "md" | "md-compact" | "lg";
+
+function FlapChar({ char, size }: { char: string; size: FlapSize }) {
   const [displayChar, setDisplayChar] = useState(char);
   const [flipping, setFlipping] = useState(false);
   const prevRef = useRef(char);
@@ -22,7 +24,16 @@ function FlapChar({ char, size }: { char: string; size: "sm" | "lg" }) {
     }
   }, [char]);
 
-  const dims = size === "lg" ? "w-[1.05em] h-[1.3em] text-2xl md:text-4xl" : "w-[0.9em] h-[1.2em] text-xs";
+  /* « md » grandit avec l'écran au lieu de sauter d'un coup à 36 px : c'est la
+     taille de la trésorerie, qui doit tenir dans sa colonne même à 1024 px. */
+  const dims =
+    size === "lg"
+      ? "w-[1.05em] h-[1.3em] text-2xl md:text-4xl"
+      : size === "md"
+      ? "w-[1.05em] h-[1.3em] text-[26px] xl:text-3xl 2xl:text-4xl"
+      : size === "md-compact"
+      ? "w-[1.05em] h-[1.3em] text-[20px] xl:text-2xl 2xl:text-3xl"
+      : "w-[0.9em] h-[1.2em] text-xs";
 
   return (
     <span
@@ -39,7 +50,7 @@ function FlapChar({ char, size }: { char: string; size: "sm" | "lg" }) {
   );
 }
 
-export function SplitFlap({ value, size = "lg", className = "" }: { value: string; size?: "sm" | "lg"; className?: string }) {
+export function SplitFlap({ value, size = "lg", className = "" }: { value: string; size?: FlapSize; className?: string }) {
   return (
     <span className={`inline-flex gap-[2px] ${className}`}>
       {value.split("").map((c, i) => (

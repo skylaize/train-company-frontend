@@ -22,6 +22,20 @@ export function pushSupported() {
   );
 }
 
+/* iPhone et iPad : les notifications n'existent que dans le jeu ouvert depuis
+   l'écran d'accueil. Dans Safari, l'API est simplement absente — d'où le
+   message dédié plutôt qu'un « navigateur non compatible » qui ne dit pas quoi
+   faire. */
+export function isIOS() {
+  if (typeof navigator === "undefined") return false;
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+export function isStandalone() {
+  if (typeof window === "undefined") return false;
+  return window.matchMedia?.("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
+}
+
 export function pushPermission(): NotificationPermission | "unsupported" {
   if (!pushSupported()) return "unsupported";
   return Notification.permission;
@@ -100,6 +114,58 @@ export async function disablePush() {
   await api.post("/push/unsubscribe", { endpoint }).catch(() => undefined);
 }
 
-export async function sendTestPush() {
-  await api.post("/push/test");
+/* Resynchronisation silencieuse, au chargement du jeu. Un appareil peut se
+   croire abonné alors que le serveur l'a oublié (base remise à zéro, clés
+   VAPID changées, abonnement expiré puis renouvelé par le navigateur) : les
+   notifications cessent alors sans que personne ne sache pourquoi. On renvoie
+   donc l'abonnement courant au serveur, qui l'enregistre sans doublon — et si
+   les clés ont changé, on le recrée avec les nouvelles. */
+export async function resyncPush() {
+  try {
+    if (!pushSupported() || Notification.permission !== "granted") return;
+    const reg = await navigator.serviceWorker.getRegistration("/");
+    if (!reg) return;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) return;
+
+    const { data } = await api.get("/push/key");
+    if (!data?.enabled || !data?.publicKey) return;
+
+    // abonnement créé avec une ancienne clé : il ne recevra plus rien, on le refait
+    const key = sub.options?.applicationServerKey;
+    if (key) {
+      const current = new Uint8Array(key);
+      const expected = urlBase64ToUint8Array(data.publicKey);
+      const same = current.length === expected.length && current.every((b, i) => b === expected[i]);
+      if (!same) {
+        await sub.unsubscribe().catch(() => undefined);
+        sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: expected });
+      }
+    }
+
+    const json = sub.toJSON() as { endpoint?: string; keys?: { p256dh?: string; auth?: string } };
+    if (json.endpoint && json.keys?.p256dh && json.keys?.auth) {
+      await api.post("/push/subscribe", { endpoint: json.endpoint, keys: json.keys });
+    }
+  } catch {
+    // silencieux : c'est un filet de sécurité, pas une action du joueur
+  }
+}
+
+export async function pushServerEnabled(): Promise<boolean> {
+  try {
+    const { data } = await api.get("/push/key");
+    return Boolean(data?.enabled && data?.publicKey);
+  } catch {
+    return false;
+  }
+}
+
+export async function sendTestPush(): Promise<{ ok: true; delivered: number } | { ok: false; reason: string }> {
+  try {
+    const { data } = await api.post("/push/test");
+    return { ok: true, delivered: Number(data?.delivered ?? 1) };
+  } catch (e: any) {
+    return { ok: false, reason: e?.response?.data?.error ?? "Envoi impossible" };
+  }
 }
