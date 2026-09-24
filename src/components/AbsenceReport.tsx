@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
-import { useToast } from "../context/ToastContext";
+import { PremiumCTA, PremiumInfo } from "./PremiumCTA";
 
 /* ============================================================
    Bilan de retour.
@@ -49,10 +49,16 @@ function formatAway(h: number) {
   return rest ? `${d} j ${rest} h` : `${d} j`;
 }
 
-export function AbsenceReport({ onNavigate }: { onNavigate: (view: "trains" | "personnel" | "cours" | "rentabilite") => void }) {
+export function AbsenceReport({
+  onNavigate,
+  company,
+  onChange,
+}: {
+  onNavigate: (view: "trains" | "personnel" | "cours" | "rentabilite") => void;
+  company: PremiumInfo;
+  onChange: () => void;
+}) {
   const [report, setReport] = useState<Report | null>(null);
-  const [busy, setBusy] = useState(false);
-  const { showToast } = useToast();
 
   useEffect(() => {
     api
@@ -67,17 +73,6 @@ export function AbsenceReport({ onNavigate }: { onNavigate: (view: "trains" | "p
     setReport(null);
     api.post("/report/absence/dismiss").catch(() => undefined);
     then?.();
-  }
-
-  async function upgrade() {
-    setBusy(true);
-    try {
-      const { data } = await api.post("/billing/checkout");
-      if (data?.url) window.location.href = data.url;
-    } catch (e: any) {
-      showToast(e?.response?.data?.error ?? "Impossible d'ouvrir la page de paiement", "error");
-      setBusy(false);
-    }
   }
 
   if (!report) return null;
@@ -97,9 +92,9 @@ export function AbsenceReport({ onNavigate }: { onNavigate: (view: "trains" | "p
           <button onClick={() => close()} className="px-3 py-1.5 border border-line font-mono2 text-[11px] uppercase tracking-wide text-slate2 hover:text-offwhite">
             Fermer
           </button>
-          <button onClick={upgrade} disabled={busy} className="px-3 py-1.5 bg-cobalt text-onaccent font-mono2 text-[11px] uppercase tracking-wide disabled:opacity-50">
-            {busy ? "Ouverture…" : "Passer Premium"}
-          </button>
+        </div>
+        <div className="mt-2">
+          <PremiumCTA company={company} onChange={() => { close(); onChange(); }} compact />
         </div>
       </div>
     );

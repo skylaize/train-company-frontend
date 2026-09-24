@@ -14,7 +14,7 @@ import { applyTheme, ThemeId } from "../theme";
 
 interface ShopItem {
   id: string;
-  kind: "LIVREES" | "EMBLEMES" | "TITRES" | "THEME";
+  kind: "LIVREES" | "EMBLEMES" | "TITRES" | "THEME" | "CABINE";
   name: string;
   description: string;
   priceCents: number;
@@ -22,14 +22,48 @@ interface ShopItem {
   emblems?: string[];
   titles?: string[];
   theme?: string;
+  cabSkins?: string[];
   owned: boolean;
 }
 
 interface ShopData {
   enabled: boolean;
   items: ShopItem[];
-  equipped: { emblem: string | null; title: string | null; theme: string; livery: string };
-  unlocked: { emblems: string[]; titles: string[]; themes: string[]; liveries: string[] };
+  equipped: { emblem: string | null; title: string | null; theme: string; livery: string; cabSkin?: string | null };
+  unlocked: { emblems: string[]; titles: string[]; themes: string[]; liveries: string[]; cabSkins?: string[] };
+}
+
+export const CAB_SKIN_LABELS: Record<string, string> = {
+  vapeur: "Locomotive à vapeur",
+  micheline: "Micheline",
+};
+
+/* Petite silhouette du matériel de collection, pour voir ce qu'on achète. */
+function CabSkinPreview({ id }: { id: string }) {
+  if (id === "vapeur") {
+    return (
+      <svg width="64" height="28" viewBox="0 0 64 28" aria-label="Locomotive à vapeur" role="img">
+        <circle cx="14" cy="6" r="3" fill="#9aa3ad" opacity="0.7" />
+        <circle cx="9" cy="3.5" r="2.4" fill="#9aa3ad" opacity="0.45" />
+        <rect x="12" y="8" width="5" height="6" fill="#1f2530" />
+        <rect x="8" y="13" width="30" height="8" rx="3" fill="#1f2530" />
+        <rect x="34" y="8" width="12" height="13" fill="#6b1f2a" />
+        <rect x="36" y="10" width="6" height="4" fill="#f3d9a0" />
+        <rect x="47" y="12" width="14" height="9" fill="#2a3040" />
+        <circle cx="16" cy="22" r="3.4" fill="#c99a3e" /><circle cx="27" cy="22" r="3.4" fill="#c99a3e" />
+        <circle cx="40" cy="23" r="2.4" fill="#c99a3e" /><circle cx="52" cy="23" r="2.2" fill="#555" /><circle cx="58" cy="23" r="2.2" fill="#555" />
+      </svg>
+    );
+  }
+  return (
+    <svg width="64" height="28" viewBox="0 0 64 28" aria-label="Micheline" role="img">
+      <path d="M4 20 Q4 9 16 8 H50 Q60 9 60 20 Z" fill="#b3261e" />
+      <path d="M4 20 Q4 15 8 13 H56 Q60 15 60 20 Z" fill="#efe6cf" />
+      {[14, 22, 30, 38, 46].map((x) => <rect key={x} x={x} y="10" width="5" height="4" fill="#2b3a4f" />)}
+      <circle cx="14" cy="22" r="2.6" fill="#333" /><circle cx="21" cy="22" r="2.6" fill="#333" />
+      <circle cx="44" cy="22" r="2.6" fill="#333" /><circle cx="51" cy="22" r="2.6" fill="#333" />
+    </svg>
+  );
 }
 
 function euros(cents: number) {
@@ -112,6 +146,11 @@ export function ShopSection({ onChange }: { onChange: () => void }) {
                   {t}
                 </span>
               ))}
+              {item.cabSkins?.map((c) => (
+                <span key={c} className="border border-line px-1.5 py-1 bg-navy-950 flex items-center" title={CAB_SKIN_LABELS[c] ?? c}>
+                  <CabSkinPreview id={c} />
+                </span>
+              ))}
               {item.theme && (
                 <span className="flex">
                   {["#122d54", "#d6e8fa", "#f4d06f"].map((c) => (
@@ -140,7 +179,8 @@ export function ShopSection({ onChange }: { onChange: () => void }) {
         ))}
       </div>
 
-      {owned.length > 0 && (
+      {/* titres de carrière ou de parrainage : à porter même sans rien avoir acheté */}
+      {(owned.length > 0 || data.unlocked.titles.length > 0) && (
         <section className="border-t border-line pt-6">
           <h2 className="font-display text-xl mb-1">Ce que vous portez</h2>
           <p className="text-[12.5px] text-slate2 font-body mb-5">
@@ -197,6 +237,34 @@ export function ShopSection({ onChange }: { onChange: () => void }) {
                     }`}
                   >
                     {t}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(data.unlocked.cabSkins?.length ?? 0) > 0 && (
+            <div className="mb-6">
+              <h3 className="font-mono2 text-[11px] text-slate2 uppercase tracking-[0.14em] mb-2">Matériel en vue cabine</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => equip({ cabSkin: null }, "Vos rames reprennent leur allure")}
+                  className={`px-3 py-2 border font-mono2 text-[11px] uppercase ${
+                    !data.equipped.cabSkin ? "border-cobalt text-cobalt" : "border-line text-slate2"
+                  }`}
+                >
+                  Vos rames
+                </button>
+                {data.unlocked.cabSkins!.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => equip({ cabSkin: c }, `${CAB_SKIN_LABELS[c] ?? c} en vue cabine`)}
+                    className={`px-3 py-1.5 border flex items-center gap-2 font-body text-[12.5px] ${
+                      data.equipped.cabSkin === c ? "border-cobalt text-cobalt" : "border-line hover:border-slate2"
+                    }`}
+                  >
+                    <CabSkinPreview id={c} />
+                    {CAB_SKIN_LABELS[c] ?? c}
                   </button>
                 ))}
               </div>

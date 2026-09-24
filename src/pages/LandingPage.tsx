@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import "./landing.css";
+import { LandingCab } from "../components/LandingCab";
 
 interface NetworkStats {
   activeCompanies: number;
@@ -94,7 +95,7 @@ const SYSTEMES = [
   { n: "01", t: "Le dépôt", s: "Matériel",
     b: "Deux places pour commencer, aucun plafond. Chaque agrandissement est un chantier, plus long et plus cher que le précédent." },
   { n: "02", t: "Les lignes", s: "Exploitation",
-    b: "Trente-huit gares, de Brest à Nice, à relier comme vous l'entendez. La durée du trajet détermine la recette." },
+    b: "Trente-huit gares, de Paris la capitale à La Rochelle. Les grandes gares attirent plus de voyageurs, et sur une ligne partagée, la meilleure compagnie les prend aux autres." },
   { n: "03", t: "Le fret", s: "Commerce",
     b: "Des contrats qui expirent. Les cargaisons fragiles paient double, mais arrivent parfois en morceaux." },
   { n: "04", t: "L'usure", s: "Entretien",
@@ -102,11 +103,11 @@ const SYSTEMES = [
   { n: "05", t: "Le personnel", s: "Effectif",
     b: "Des employés nommés qui prennent de l'expérience et réclament leur augmentation. L'équipe doit grandir avec la flotte." },
   { n: "06", t: "La météo", s: "Aléas",
-    b: "Brouillard, canicule, verglas. Chacun ralentit, use ou provoque des incidents sur tout le réseau." },
+    b: "Brouillard, verglas, canicule l'été et neige l'hiver : la météo suit les saisons. Chacune ralentit, use ou provoque des incidents sur tout le réseau." },
   { n: "07", t: "La réputation", s: "Image",
     b: "Le rapport entre trajets réussis et incidents. Elle multiplie vos recettes voyageurs, de moitié à plein tarif." },
   { n: "08", t: "La carrière", s: "Progression",
-    b: "Cinq grades, d'apprenti exploitant à magnat ferroviaire. Chacun exige une série d'objectifs, pas un simple chiffre." },
+    b: "Dix grades, d'apprenti exploitant à légende du rail. Chacun exige une série d'objectifs, et les plus hauts se portent comme un titre." },
 ];
 
 const CONTINU = [
@@ -116,6 +117,8 @@ const CONTINU = [
     b: "Chaque arrivée crédite la trésorerie et s'inscrit au grand livre, avec l'heure exacte." },
   { t: "Incidents", s: "Exploitation",
     b: "Un retard peut survenir à n'importe quel cycle. Il entame la réputation, durablement." },
+  { t: "Concurrence", s: "Marché",
+    b: "Sur une ligne partagée, les voyageurs vont à la compagnie la plus attractive. La partie se joue aussi pendant votre absence." },
 ];
 
 function pad(v: string | number, w: number) {
@@ -144,7 +147,7 @@ export default function LandingPage() {
     async function load() {
       try {
         const { data } = await api.get("/network/stats");
-        setStats(data);
+        if (data && typeof data.activeCompanies === "number") setStats(data);
       } catch {
         // vitrine publique : si le backend dort, le panneau reste en attente
       }
@@ -282,6 +285,7 @@ export default function LandingPage() {
             <b>Réseau</b>
           </span>
           <nav className="lp-nav">
+            <a className="lp-navlink" href="#bord">À bord</a>
             <a className="lp-navlink" href="#exploiter">Exploiter</a>
             <a className="lp-navlink" href="#direct">En direct</a>
             <a className="lp-navlink" href="#billets">Billets</a>
@@ -355,6 +359,24 @@ export default function LandingPage() {
         </div>
       </div>
 
+      <section id="bord" className="lp-bord">
+        <div className="lp-wrap">
+          <div className="lp-sec-hd">
+            <h2 className="lp-serif">Montez à bord</h2>
+            <span className="n">— vue cabine, en direct</span>
+          </div>
+          <p className="lp-sub">
+            Chaque rame roule pour de vrai. Sa position vient de la simulation, la météo est celle
+            du réseau et la livrée est la vôtre. Elle s'arrête sous le panneau de la gare à la
+            seconde où le trajet se termine.
+          </p>
+          <LandingCab />
+          <p className="lp-cab-note">
+            Quelques secondes offertes à chaque compagnie, le voyage entier en Premium.
+          </p>
+        </div>
+      </section>
+
       <section id="exploiter">
         <div className="lp-wrap">
           <div className="lp-sec-hd">
@@ -365,7 +387,7 @@ export default function LandingPage() {
             Rien de décoratif : chaque mécanique pèse sur les autres. Une rame mal entretenue
             casse votre ponctualité, qui fait chuter vos recettes voyageurs.
           </p>
-          <div className="lp-cat">
+          <div className="lp-cat two">
             {SYSTEMES.map((s) => (
               <div className="lp-item" key={s.n}>
                 <span className="num">{s.n}</span>
@@ -390,10 +412,10 @@ export default function LandingPage() {
             La simulation tourne côté serveur, en permanence. Vous fermez l'onglet, vos trains
             continuent leur trajet, encaissent, s'usent et tombent parfois en panne.
           </p>
-          <div className="lp-cat">
-            {CONTINU.map((c) => (
+          <div className="lp-cat two">
+            {CONTINU.map((c, i) => (
               <div className="lp-item" key={c.t}>
-                <span className="num">·</span>
+                <span className="num">{String.fromCharCode(65 + i)}</span>
                 <div className="bd">
                   <h3>{c.t}</h3>
                   <p>{c.b}</p>
@@ -430,8 +452,10 @@ export default function LandingPage() {
                 <li><b>·</b>Dépôt sans plafond — chaque place coûte plus cher que la précédente</li>
                 <li><b>·</b>Toutes les rames et tout le personnel, débloqués au grade</li>
                 <li><b>·</b>Les quatre donneurs d'ordre et leur fidélité</li>
-                <li><b>·</b>Classements, 55 succès, défi quotidien</li>
+                <li><b>·</b>Classements, 66 succès, défi quotidien</li>
                 <li><b>·</b>Carte du réseau, tracé à la souris, deux habillages</li>
+                <li><b>·</b>Gares vivantes, concurrence sur les lignes partagées</li>
+                <li><b>·</b>Un aperçu de la vue cabine sur chaque rame</li>
               </ul>
               <div className="lp-tk-ft">
                 <button className="lp-btn ghost" onClick={() => navigate("/auth?mode=register")}>
@@ -449,6 +473,8 @@ export default function LandingPage() {
                 <div className="px">dès 5,99 €<small>prix libre</small></div>
               </div>
               <ul>
+                <li><b>·</b>Vue cabine : suivez chaque rame en direct, de gare en gare</li>
+                <li><b>·</b>Veille concurrentielle et événements de gare annoncés une heure avant</li>
                 <li><b>·</b>Rentabilité de chaque ligne et de chaque rame, sur sept jours</li>
                 <li><b>·</b>Bilan de votre absence au retour, et résumé de la nuit chaque matin</li>
                 <li><b>·</b>File de chantiers : le suivant démarre seul, même la nuit</li>

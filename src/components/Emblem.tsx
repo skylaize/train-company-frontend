@@ -12,6 +12,10 @@ export const EMBLEM_LABELS: Record<string, string> = {
   couronne: "Couronne",
   ancre: "Ancre du port",
   eclair: "Éclair",
+  rail: "Rail et traverses",
+  boussole: "Boussole",
+  horloge: "Horloge de gare",
+  viaduc: "Viaduc",
 };
 
 export function Emblem({ id, size = 14, className = "" }: { id: string; size?: number; className?: string }) {
@@ -69,6 +73,35 @@ export function Emblem({ id, size = 14, className = "" }: { id: string; size?: n
       return (
         <svg {...common}>
           <path d="M9.5 1.8L3.8 9h4l-1.3 5.2L12.2 7h-4z" />
+        </svg>
+      );
+    case "rail":
+      return (
+        <svg {...common}>
+          <path d="M5 1.8L3.6 14.2M11 1.8l1.4 12.4M4.2 4.5h7.6M3.9 8h8.2M3.6 11.5h8.8" />
+        </svg>
+      );
+    case "boussole":
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="8" r="6" />
+          <path d="M8 3.6l1.6 4.4L8 12.4 6.4 8z" />
+          <path d="M8 1.8v1M8 13.2v1M1.8 8h1M13.2 8h1" />
+        </svg>
+      );
+    case "horloge":
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="8.6" r="5.4" />
+          <path d="M8 5.6v3l2 1.4M6.2 1.8h3.6M8 1.8v1.4" />
+        </svg>
+      );
+    case "viaduc":
+      return (
+        <svg {...common}>
+          <path d="M1.8 5h12.4M1.8 5v9M14.2 5v9" />
+          <path d="M3.4 14v-3.4a1.9 1.9 0 0 1 3.8 0V14M8.8 14v-3.4a1.9 1.9 0 0 1 3.8 0V14" />
+          <path d="M1.8 3h12.4" />
         </svg>
       );
     default:

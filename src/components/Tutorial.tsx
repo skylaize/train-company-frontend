@@ -36,7 +36,7 @@ const STEPS: Step[] = [
     target: "btn-new-line",
     modalOpen: false,
     title: "Tracez votre première ligne",
-    body: "Une ligne relie deux gares. Choisissez-les : la distance et la durée du trajet se calculent toutes seules. Une ligne longue paie mieux à la minute, mais immobilise la rame plus longtemps.",
+    body: "Une ligne relie deux gares. Choisissez-les : la distance et la durée du trajet se calculent toutes seules. Une ligne longue paie mieux à la minute, et une grande gare attire plus de voyageurs — mais si une autre compagnie roule déjà sur la liaison, il faudra les lui disputer.",
     awaits: (s) => s.lineCount >= 1,
     waitingLabel: "En attente de votre première ligne",
   },

@@ -284,48 +284,6 @@ body.lp-body::after {
   animation: urgent-pulse 0.8s ease-in-out infinite;
 }
 
-@keyframes weather-enter {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-.weather-enter {
-  animation: weather-enter 1.4s ease-in both;
-}
-
-.weather-fog {
-  background:
-    radial-gradient(ellipse at 15% 0%, rgba(163,148,122,0.14), transparent 55%),
-    radial-gradient(ellipse at 85% 100%, rgba(163,148,122,0.14), transparent 55%);
-  background-size: 140% 140%;
-  animation: fog-drift 20s ease-in-out infinite alternate;
-}
-@keyframes fog-drift {
-  from { background-position: 0% 0%, 100% 100%; }
-  to { background-position: 10% 6%, 90% 94%; }
-}
-
-.weather-heat {
-  background: radial-gradient(ellipse at 50% 105%, rgba(168,72,58,0.16), transparent 62%);
-  animation: heat-pulse 3.2s ease-in-out infinite;
-}
-@keyframes heat-pulse {
-  0%, 100% { opacity: 0.55; }
-  50% { opacity: 1; }
-}
-
-.weather-ice {
-  background:
-    linear-gradient(rgba(79,127,163,0.13), transparent 18%),
-    linear-gradient(to top, rgba(79,127,163,0.13), transparent 18%),
-    linear-gradient(to right, rgba(79,127,163,0.1), transparent 14%),
-    linear-gradient(to left, rgba(79,127,163,0.1), transparent 14%);
-  animation: ice-shimmer 4.5s ease-in-out infinite;
-}
-@keyframes ice-shimmer {
-  0%, 100% { opacity: 0.65; }
-  50% { opacity: 1; }
-}
-
 @keyframes dropdown-menu-enter {
   from { opacity: 0; transform: scale(0.96) translateY(-4px); }
   to { opacity: 1; transform: scale(1) translateY(0); }

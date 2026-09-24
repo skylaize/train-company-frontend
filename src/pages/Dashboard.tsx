@@ -27,6 +27,9 @@ import { WhatsNewModal } from "../components/WhatsNewModal";
 import { ProfitabilitySection } from "../components/ProfitabilitySection";
 import { AbsenceReport } from "../components/AbsenceReport";
 import { resyncPush } from "../push";
+import { PremiumCTA } from "../components/PremiumCTA";
+import { CabView } from "../components/CabView";
+import { NetworkData, StationEventsPanel, LineShareCell, DemandCell, RivalsDetail, stationOf, pairOf } from "../components/NetworkPanels";
 import { FirstVisitHint } from "../components/FirstVisitHint";
 import { applyTheme, readLocalTheme, THEMES, ThemeId } from "../theme";
 import { CURRENT_VERSION } from "../changelog";
@@ -38,7 +41,8 @@ interface Train {
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
-  line?: { id: string; name: string; departureStation: string; arrivalStation: string } | null;
+  departedAt?: string | null;
+  line?: { id: string; name: string; departureStation: string; arrivalStation: string; durationMinutes?: number } | null;
 }
 
 interface Weather {
@@ -68,6 +72,8 @@ interface TodaySummary {
 interface CareerRequirement {
   label: string;
   met: boolean;
+  current?: number;
+  target?: number;
 }
 
 interface CareerRank {
@@ -75,6 +81,7 @@ interface CareerRank {
   name: string;
   requirements: CareerRequirement[];
   achieved: boolean;
+  reward?: string | null;
 }
 
 interface CareerStatus {
@@ -136,6 +143,7 @@ interface Company {
   repairCostPerPoint?: number;
   emblem?: string | null;
   title?: string | null;
+  cabSkin?: string | null;
   unlocked?: { themes: string[]; emblems: string[]; titles: string[]; liveries: string[] };
   construction?: { id: string; label: string; endsAt: string } | null;
   queuedConstruction?: { id: string; label: string; endsAt: string } | null;
@@ -152,6 +160,7 @@ interface Contract {
   originStation: string;
   destinationStation: string;
   durationMinutes: number;
+  acceptedAt?: string | null;
   reward: number;
   risky: boolean;
   insured: boolean;
@@ -255,6 +264,17 @@ export default function Dashboard() {
   useEffect(() => {
     resyncPush();
   }, []);
+
+  /* Carte vivante du réseau (1.4) : gares, événements, concurrence. Rafraîchie
+     toutes les minutes — la concurrence se calcule sur tout le réseau, pas
+     question de la redemander à chaque battement du tableau de bord. */
+  const [network, setNetwork] = useState<NetworkData | null>(null);
+  useEffect(() => {
+    const load = () => api.get("/network/map").then(({ data }) => setNetwork(data)).catch(() => undefined);
+    load();
+    const t = setInterval(load, 60_000);
+    return () => clearInterval(t);
+  }, [lines.length, company?.isPremium]);
 
   useEffect(() => {
     const clock = setInterval(() => setNow(new Date()), 1000);
@@ -639,7 +659,7 @@ export default function Dashboard() {
         />
       )}
       {showWhatsNew && !showTutorial && <WhatsNewModal onClose={dismissWhatsNew} />}
-      {!showWhatsNew && !showTutorial && <AbsenceReport onNavigate={setView} />}
+      {!showWhatsNew && !showTutorial && <AbsenceReport onNavigate={setView} company={company} onChange={loadAll} />}
       {editingCompany && (
         <EditCompanyModal company={company} onClose={() => setEditingCompany(false)} onChange={loadAll} />
       )}
@@ -656,10 +676,10 @@ export default function Dashboard() {
           </span>
           {weather && weather.type !== "CLAIR" && (
             <span className={`flex items-center gap-1.5 truncate ${
-              weather.type === "CANICULE" ? "text-rail-red" : weather.type === "VERGLAS" ? "text-cobalt" : "text-slate2"
+              weather.type === "CANICULE" ? "text-rail-red" : weather.type === "VERGLAS" || weather.type === "NEIGE" ? "text-cobalt" : "text-slate2"
             }`}>
               {weather.type === "CANICULE" && <SunMark size={13} />}
-              {weather.type === "VERGLAS" && <SnowMark size={13} />}
+              {(weather.type === "VERGLAS" || weather.type === "NEIGE") && <SnowMark size={13} />}
               {weather.type === "BROUILLARD" && <FogMark size={13} />}
               {weather.label}
             </span>
@@ -740,14 +760,28 @@ export default function Dashboard() {
               </div>
             )}
             {view === "trains" && referral && <ReferralBanner referral={referral} />}
-            {view === "trains" && <TrainsSection trains={trains} lines={lines} incidents={incidents} company={company} staff={staff} onChange={loadAll} onOpenCatalog={() => setShowCatalog(true)} />}
-            {view === "lignes" && <LinesSection lines={lines} onChange={loadAll} />}
+            {view === "trains" && <TrainsSection trains={trains} lines={lines} incidents={incidents} company={company} staff={staff} weatherType={weather?.type} onChange={loadAll} onOpenCatalog={() => setShowCatalog(true)} />}
+            {view === "lignes" && <LinesSection lines={lines} onChange={loadAll} network={network} company={company} />}
             {view === "fret" && (
               <FreightSection
                 market={market}
                 myContracts={myContracts}
                 trains={trains}
                 onChange={loadAll}
+              />
+            )}
+            {view === "lignes" && (
+              <FirstVisitHint
+                id="concurrence"
+                seen={company.hintsSeen ?? ""}
+                onSeen={loadAll}
+                title="Les gares ont une taille, et les lignes se disputent"
+                body="Une ligne rapporte désormais selon ses deux gares : Paris attire plus de voyageurs que Chartres, et un salon ou un festival fait grimper la demande pendant quelques heures. Et si une autre compagnie roule sur la même liaison, vous vous partagez les voyageurs."
+                points={[
+                  "La compagnie la plus attractive prend des voyageurs aux autres : jusqu'à +40 % pour elle, −40 % pour la moins bonne.",
+                  "Ce qui attire : la réputation, le nombre de rames, les rames Express et des rames en bon état.",
+                  "À attractivité égale, personne ne perd rien. Une liaison que personne n'exploite reste à vous.",
+                ]}
               />
             )}
             {view === "missions" && (
@@ -766,7 +800,7 @@ export default function Dashboard() {
             )}
             {view === "missions" && <MissionsSection onChange={loadAll} />}
             {view === "boutique" && <ShopSection onChange={loadAll} />}
-            {view === "rentabilite" && <ProfitabilitySection />}
+            {view === "rentabilite" && <ProfitabilitySection company={company} onChange={loadAll} />}
             {view === "cours" && (
               <>
                 <FirstVisitHint
@@ -803,7 +837,7 @@ export default function Dashboard() {
               <AchievementsSection achievements={achievements} />
             )}
             {view === "carriere" && career && (
-              <CareerSection career={career} />
+              <CareerSection career={career} onOpenShop={() => setView("boutique")} />
             )}
             {view === "carte" && (
               <>
@@ -818,7 +852,7 @@ export default function Dashboard() {
                     "En contrepartie elle immobilise la rame plus longtemps, et une panne en route fait perdre bien plus de trajet.",
                   ]}
                 />
-                <NetworkMap lines={lines} trains={trains} contracts={myContracts} onChange={loadAll} />
+                <NetworkMap lines={lines} trains={trains} contracts={myContracts} onChange={loadAll} network={network} />
               </>
             )}
             {view === "personnel" && (
@@ -1260,7 +1294,17 @@ function StationPicker({
   );
 }
 
-function LinesSection({ lines, onChange }: { lines: Line[]; onChange: () => void }) {
+function LinesSection({
+  lines,
+  onChange,
+  network,
+  company,
+}: {
+  lines: Line[];
+  onChange: () => void;
+  network: NetworkData | null;
+  company: Company;
+}) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState("");
@@ -1273,7 +1317,10 @@ function LinesSection({ lines, onChange }: { lines: Line[]; onChange: () => void
       ? (() => {
           const km = distanceKm(STATION_COORDS[departure], STATION_COORDS[arrival]);
           const minutes = durationFromKm(km);
-          return { km, minutes, yieldPct: lengthYieldPct(minutes), hourly: hourlyRevenue(minutes) };
+          const d1 = stationOf(network, departure)?.demand ?? 1;
+          const d2 = stationOf(network, arrival)?.demand ?? 1;
+          const demand = (d1 + d2) / 2;
+          return { km, minutes, yieldPct: lengthYieldPct(minutes), hourly: Math.round(hourlyRevenue(minutes) * demand), demand };
         })()
       : null;
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -1389,6 +1436,33 @@ function LinesSection({ lines, onChange }: { lines: Line[]; onChange: () => void
                   {" "}· ~<span className="text-amber">{plan.hourly} pi./h</span> par rame
                 </div>
               )}
+              {/* 1.4 : ce que valent les deux gares, et qui roule déjà sur cette liaison */}
+              {plan && network && (
+                <div className="text-[11px] mt-1 pl-[22px] font-body">
+                  {[departure, arrival].map((n, i) => {
+                    const st = stationOf(network, n);
+                    return (
+                      <span key={n}>
+                        {i > 0 && " · "}
+                        {n} : {st?.sizeLabel ?? "—"}
+                        {st && st.events.length > 0 && <span className="text-amber"> ({st.events.map((e) => e.label.toLowerCase()).join(", ")})</span>}
+                      </span>
+                    );
+                  })}
+                  {" "}· demande <DemandCell demand={plan.demand} />
+                  {(() => {
+                    const p = pairOf(network, departure, arrival);
+                    const others = p ? p.companies - (p.mine ? 1 : 0) : 0;
+                    return others > 0 ? (
+                      <div className="text-amber mt-0.5">
+                        Déjà exploitée par {others} compagnie{others > 1 ? "s" : ""} : il faudra leur prendre des voyageurs.
+                      </div>
+                    ) : (
+                      <div className="text-rail-green mt-0.5">Aucune autre compagnie sur cette liaison.</div>
+                    );
+                  })()}
+                </div>
+              )}
             </div>
           )}
 
@@ -1401,26 +1475,40 @@ function LinesSection({ lines, onChange }: { lines: Line[]; onChange: () => void
         </form>
       )}
 
+      {network && <StationEventsPanel network={network} company={company} onChange={onChange} />}
+
       <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-      <table className="w-full text-sm min-w-[560px]">
+      <table className="w-full text-sm min-w-[720px]">
         <thead>
           <tr className="text-left text-[11px] text-slate2 font-body uppercase tracking-[0.14em] border-b border-line">
             <th className="py-2.5 font-normal">Départ</th>
             <th className="py-2.5 font-normal">Arrivée</th>
             <th className="py-2.5 font-normal text-right">Durée</th>
+            <th className="py-2.5 font-normal text-right pl-4">Demande</th>
+            <th className="py-2.5 font-normal pl-4">Voyageurs</th>
             <th className="py-2.5 font-normal w-44"></th>
           </tr>
         </thead>
         <tbody>
           {lines.length === 0 && (
-            <tr><td colSpan={4} className="py-6 text-center text-slate2 font-body">Aucune ligne tracée — dessinez votre premier trajet.</td></tr>
+            <tr><td colSpan={6} className="py-6 text-center text-slate2 font-body">Aucune ligne tracée — dessinez votre premier trajet.</td></tr>
           )}
           {lines.map((l) => (
             <tr key={l.id} className="border-b border-line last:border-0 hover:bg-navy-900/40 transition-colors">
-              <td className="py-3.5 font-body">{l.departureStation}</td>
-              <td className="py-3.5 font-body">{l.arrivalStation}</td>
-              <td className="py-3.5 text-right text-slate2 font-mono2">{l.durationMinutes} min</td>
-              <td className="py-3.5 text-right">
+              <td className="py-3.5 font-body align-top">{l.departureStation}</td>
+              <td className="py-3.5 font-body align-top">{l.arrivalStation}</td>
+              <td className="py-3.5 text-right text-slate2 font-mono2 align-top">{l.durationMinutes} min</td>
+              <td className="py-3.5 text-right pl-4 align-top">
+                <DemandCell demand={network?.lines.find((m) => m.lineId === l.id)?.demand} />
+              </td>
+              <td className="py-3.5 pl-4 align-top">
+                <LineShareCell market={network?.lines.find((m) => m.lineId === l.id)} />
+                {(() => {
+                  const m = network?.lines.find((x) => x.lineId === l.id);
+                  return m ? <RivalsDetail market={m} premium={network!.isPremium} company={company} onChange={onChange} /> : null;
+                })()}
+              </td>
+              <td className="py-3.5 text-right align-top">
                 {confirmDeleteId === l.id ? (
                   <span className="flex items-center justify-end gap-2">
                     <span className="text-[11px] text-slate2 font-body">Supprimer ?</span>
@@ -1457,6 +1545,7 @@ function TrainsSection({
   incidents,
   company,
   staff,
+  weatherType,
   onChange,
   onOpenCatalog,
 }: {
@@ -1465,9 +1554,13 @@ function TrainsSection({
   incidents: Incident[];
   company: Company;
   staff: Staff[];
+  weatherType?: string;
   onChange: () => void;
   onOpenCatalog: () => void;
 }) {
+  // vue cabine (1.4) : la rame suivie, relue à chaque rafraîchissement du tableau de bord
+  const [cabId, setCabId] = useState<string | null>(null);
+  const cabTrain = cabId ? trains.find((x) => x.id === cabId) ?? null : null;
   const [expanding, setExpanding] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -1549,6 +1642,16 @@ function TrainsSection({
 
   return (
     <div data-tutorial="trains-table">
+      {cabTrain && cabTrain.line && (
+        <CabView
+          train={cabTrain}
+          weatherType={weatherType}
+          livery={company.liveryColor}
+          skin={company.cabSkin ?? null}
+          company={company}
+          onClose={() => setCabId(null)}
+        />
+      )}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <span className="text-[11px] font-mono2 text-slate2 border border-line px-2 py-1">
@@ -1657,8 +1760,15 @@ function TrainsSection({
                     Réparer ({Math.ceil(t.wear * repairCostPerPoint)} pi.)
                   </button>
                 ) : t.line ? (
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2 flex-wrap">
                     {t.line.departureStation} → {t.line.arrivalStation}
+                    <button
+                      onClick={() => setCabId(t.id)}
+                      className="text-[11px] text-cobalt hover:bg-cobalt/10 border border-cobalt/40 px-1.5 py-0.5 uppercase transition-colors font-body"
+                      title="Suivre cette rame en direct"
+                    >
+                      Vue cabine
+                    </button>
                     <button
                       onClick={() => release(t.id)}
                       className="text-[11px] text-slate2 hover:text-rail-red border border-line px-1.5 py-0.5 uppercase transition-colors font-body"
@@ -2784,7 +2894,10 @@ function StatBars({ level, max = 3, active }: { level: number; max?: number; act
   );
 }
 
-const GRADE_NAMES = ["Apprenti exploitant", "Gestionnaire confirmé", "Chef de réseau", "Baron du rail", "Magnat"];
+const GRADE_NAMES = [
+  "Apprenti exploitant", "Gestionnaire confirmé", "Chef de réseau", "Baron du rail", "Magnat",
+  "Directeur régional", "Directeur national", "Administrateur des chemins de fer", "Président de compagnie", "Légende du rail",
+];
 
 function TrainCatalogModal({
   buying,
@@ -2992,19 +3105,40 @@ function TransactionsSection({ transactions, currentBalance }: { transactions: T
   );
 }
 
-function CareerSection({ career }: { career: CareerStatus }) {
+function CareerSection({ career, onOpenShop }: { career: CareerStatus; onOpenShop: () => void }) {
+  const total = career.ranks.length;
+  const next = career.nextRank;
+  // progression vers le grade suivant : la moyenne des conditions, chacune plafonnée à 100 %
+  const nextPct = next
+    ? Math.round(
+        (next.requirements.reduce((sum, r) => sum + (r.target ? Math.min(1, (r.current ?? 0) / r.target) : r.met ? 1 : 0), 0) /
+          Math.max(1, next.requirements.length)) *
+          100
+      )
+    : 100;
+
   return (
     <div>
-      {/* grade actuel, en évidence */}
+      {/* grade actuel, en évidence, avec l'échelle complète */}
       <div className="border border-line border-t-2 border-t-amber p-6 mb-8">
-        <div className="flex items-center gap-3 mb-1">
+        <div className="flex flex-wrap items-center gap-3 mb-1">
           <RankMark size={24} className="text-amber shrink-0" />
           <span className="font-display text-2xl">{career.currentRank.name}</span>
+          <span className="font-mono2 text-[11px] text-slate2 ml-auto">
+            Grade {career.currentRank.id + 1} sur {total}
+          </span>
         </div>
-        <p className="text-xs text-slate2 font-body">
-          {career.nextRank
-            ? `Prochain grade : ${career.nextRank.name}`
-            : "Vous avez atteint le grade le plus élevé — félicitations."}
+        {/* échelle des grades : une case par grade, remplie jusqu'au grade actuel */}
+        <div className="flex gap-1 mt-4" aria-hidden>
+          {career.ranks.map((r) => (
+            <div
+              key={r.id}
+              className={`h-1.5 flex-1 ${r.id <= career.currentRank.id ? "bg-amber" : r.id === career.currentRank.id + 1 ? "bg-amber/30" : "bg-line"}`}
+            />
+          ))}
+        </div>
+        <p className="text-xs text-slate2 font-body mt-3">
+          {next ? `Prochain grade : ${next.name} — ${nextPct} % du chemin` : "Vous avez atteint le grade le plus élevé — félicitations."}
         </p>
       </div>
 
@@ -3012,11 +3146,12 @@ function CareerSection({ career }: { career: CareerStatus }) {
       <div className="space-y-3">
         {career.ranks.map((rank) => {
           const isCurrent = rank.id === career.currentRank.id;
+          const isNext = rank.id === career.currentRank.id + 1;
           const isFuture = rank.id > career.currentRank.id;
           return (
             <div
               key={rank.id}
-              className={`border p-4 ${isCurrent ? "border-amber/50 bg-amber/5" : isFuture ? "border-line opacity-70" : "border-line"}`}
+              className={`border p-4 ${isCurrent ? "border-amber/50 bg-amber/5" : isNext ? "border-line" : isFuture ? "border-line opacity-70" : "border-line"}`}
             >
               <div className="flex items-center gap-2.5 mb-2">
                 <RankMark size={16} className={rank.achieved ? "text-amber" : "text-slate2"} />
@@ -3029,18 +3164,50 @@ function CareerSection({ career }: { career: CareerStatus }) {
                 {rank.achieved && !isCurrent && (
                   <span className="text-[10px] font-mono2 uppercase text-rail-green ml-auto shrink-0">Franchi</span>
                 )}
+                {isNext && !rank.achieved && (
+                  <span className="text-[10px] font-mono2 uppercase text-cobalt ml-auto shrink-0">Prochain</span>
+                )}
               </div>
               {rank.requirements.length === 0 ? (
                 <p className="text-xs text-slate2 font-body pl-[26px]">Grade de départ, aucune condition requise.</p>
               ) : (
-                <ul className="space-y-1 pl-[26px]">
-                  {rank.requirements.map((req, i) => (
-                    <li key={i} className={`text-xs font-body flex items-center gap-2 ${req.met ? "text-slate2" : "text-offwhite"}`}>
-                      <span className={req.met ? "text-rail-green" : "text-line"}>{req.met ? "✓" : "—"}</span>
-                      {req.label}
-                    </li>
-                  ))}
+                <ul className="space-y-2 pl-[26px]">
+                  {rank.requirements.map((req, i) => {
+                    const pct = req.target ? Math.min(100, ((req.current ?? 0) / req.target) * 100) : req.met ? 100 : 0;
+                    return (
+                      <li key={i} className={`text-xs font-body ${req.met ? "text-slate2" : "text-offwhite"}`}>
+                        <div className="flex items-center gap-2">
+                          <span className={req.met ? "text-rail-green" : "text-line"}>{req.met ? "✓" : "—"}</span>
+                          <span className="flex-1">{req.label}</span>
+                          {req.target !== undefined && !req.met && (isNext || isCurrent) && (
+                            <span className="font-mono2 text-[11px] text-slate2 tabular-nums">
+                              {(req.current ?? 0).toLocaleString("fr-FR")} / {req.target.toLocaleString("fr-FR")}
+                            </span>
+                          )}
+                        </div>
+                        {/* barre seulement pour le grade à viser : ailleurs, elle ne ferait que du bruit */}
+                        {isNext && !req.met && (
+                          <div className="h-1 bg-line mt-1 ml-[18px]">
+                            <div className="h-full bg-cobalt" style={{ width: `${pct}%` }} />
+                          </div>
+                        )}
+                      </li>
+                    );
+                  })}
                 </ul>
+              )}
+              {rank.reward && (
+                <p className="text-[11.5px] font-body mt-2.5 pl-[26px] text-amber">
+                  {rank.reward}
+                  {rank.achieved && rank.reward.startsWith("Titre") && (
+                    <>
+                      {" "}·{" "}
+                      <button onClick={onOpenShop} className="underline hover:no-underline">
+                        l'afficher
+                      </button>
+                    </>
+                  )}
+                </p>
               )}
             </div>
           );
@@ -3154,6 +3321,30 @@ const STATION_COORDS: Record<string, { x: number; y: number }> = {
   "Bayonne": { x: 89, y: 327 },
 };
 
+/* Géométrie d'une ligne sur la carte : un léger arc (courbe de Bézier
+   quadratique), alterné selon la parité pour que deux lignes qui se croisent ne
+   se superposent pas. La même fonction sert à tracer la ligne ET à placer les
+   trains dessus : sinon un train roule en ligne droite à côté de sa voie. */
+function lineCurve(index: number, from: { x: number; y: number }, to: { x: number; y: number }) {
+  const mx = (from.x + to.x) / 2;
+  const my = (from.y + to.y) / 2;
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const dist = Math.hypot(dx, dy) || 1;
+  const bend = (index % 2 === 0 ? 1 : -1) * Math.min(dist * 0.12, 22);
+  return { cx: mx - (dy / dist) * bend, cy: my + (dx / dist) * bend };
+}
+
+// point et direction sur la courbe, à la fraction t du trajet (0 → 1)
+function pointOnCurve(from: { x: number; y: number }, c: { cx: number; cy: number }, to: { x: number; y: number }, t: number) {
+  const u = 1 - t;
+  const x = u * u * from.x + 2 * u * t * c.cx + t * t * to.x;
+  const y = u * u * from.y + 2 * u * t * c.cy + t * t * to.y;
+  const tx = 2 * u * (c.cx - from.x) + 2 * t * (to.x - c.cx);
+  const ty = 2 * u * (c.cy - from.y) + 2 * t * (to.y - c.cy);
+  return { x, y, angle: (Math.atan2(ty, tx) * 180) / Math.PI };
+}
+
 const LINE_PALETTE = ["#4f7fa3", "#c99a3e", "#5c8a68", "#a8483a", "#8a6ba3", "#c97a3e"];
 
 /* Projection inverse de STATION_COORDS : on remonte aux degrés pour calculer une
@@ -3199,13 +3390,21 @@ function NetworkMap({
   trains,
   contracts,
   onChange,
+  network,
 }: {
   lines: Line[];
   trains: Train[];
   contracts: Contract[];
   onChange: () => void;
+  network: NetworkData | null;
 }) {
   const { showToast } = useToast();
+  // horloge de la carte : fait avancer les trains en continu entre deux rafraîchissements
+  const [clock, setClock] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setClock(Date.now()), 500);
+    return () => clearInterval(t);
+  }, []);
   const [drawing, setDrawing] = useState(false);
   const [from, setFrom] = useState<string | null>(null);
   const [to, setTo] = useState<string | null>(null);
@@ -3392,6 +3591,31 @@ function NetworkMap({
             />
           </g>
 
+          {/* 1.4 : liaisons exploitées par d'autres compagnies, en pointillé discret —
+              on voit où sont les concurrents, et les liaisons encore libres */}
+          {network?.pairs
+            .filter((p) => !p.mine || p.companies > 1)
+            .map((p) => {
+              const a = STATION_COORDS[p.a];
+              const b = STATION_COORDS[p.b];
+              if (!a || !b) return null;
+              return (
+                <line
+                  key={`rival-${p.a}-${p.b}`}
+                  x1={a.x}
+                  y1={a.y}
+                  x2={b.x}
+                  y2={b.y}
+                  stroke="rgb(var(--c-slate2))"
+                  strokeWidth={Math.min(2.2, 0.7 + 0.3 * p.companies)}
+                  strokeDasharray="2 3"
+                  opacity="0.45"
+                >
+                  <title>{`${p.a} — ${p.b} : ${p.companies} compagnie${p.companies > 1 ? "s" : ""}, ${p.trains} rame${p.trains > 1 ? "s" : ""}`}</title>
+                </line>
+              );
+            })}
+
           {/* voies tracées entre les gares desservies, en courbe, une couleur par ligne */}
           {lines.map((l, i) => {
             const from = STATION_COORDS[l.departureStation];
@@ -3400,16 +3624,7 @@ function NetworkMap({
             const hasActiveTrain = trains.some((t) => t.line?.id === l.id && t.status === "EN_ROUTE");
             const color = LINE_PALETTE[i % LINE_PALETTE.length];
 
-            // léger arc perpendiculaire au trajet, alterné selon la parité pour éviter que les
-            // lignes qui se croisent ne se superposent exactement
-            const mx = (from.x + to.x) / 2;
-            const my = (from.y + to.y) / 2;
-            const dx = to.x - from.x;
-            const dy = to.y - from.y;
-            const dist = Math.hypot(dx, dy) || 1;
-            const bend = (i % 2 === 0 ? 1 : -1) * Math.min(dist * 0.12, 22);
-            const cx = mx - (dy / dist) * bend;
-            const cy = my + (dx / dist) * bend;
+            const { cx, cy } = lineCurve(i, from, to);
             const path = `M ${from.x},${from.y} Q ${cx},${cy} ${to.x},${to.y}`;
 
             return (
@@ -3488,10 +3703,21 @@ function NetworkMap({
                 {pulsing && (
                   <circle cx={pos.x} cy={pos.y} r={7} fill="none" stroke="rgb(var(--c-rail-green))" strokeWidth="1" opacity="0.6" className="blink-dot" />
                 )}
+                {/* événement de gare : anneau ambre si la demande monte, rouge si elle baisse */}
+                {(() => {
+                  const ev = stationOf(network, name)?.events ?? [];
+                  if (ev.length === 0) return null;
+                  const up = ev.some((e) => e.multiplier > 1);
+                  return (
+                    <circle cx={pos.x} cy={pos.y} r={9} fill="none" stroke={up ? "rgb(var(--c-amber))" : "rgb(var(--c-rail-red))"} strokeWidth="1.3" strokeDasharray="2 2">
+                      <title>{`${name} : ${ev.map((e) => e.label).join(", ")}`}</title>
+                    </circle>
+                  );
+                })()}
                 <circle
                   cx={pos.x}
                   cy={pos.y}
-                  r={active || drawing ? 3.6 : 2}
+                  r={(active || drawing ? 3.6 : 2) + 0.35 * ((stationOf(network, name)?.size ?? 2) - 2)}
                   fill={active ? "rgb(var(--c-offwhite))" : "rgb(var(--c-slate2))"}
                   stroke={active ? "rgb(var(--c-cobalt))" : "none"}
                   strokeWidth="1.5"
@@ -3523,12 +3749,19 @@ function NetworkMap({
             const from = STATION_COORDS[t.line.departureStation];
             const to = STATION_COORDS[t.line.arrivalStation];
             if (!from || !to) return null;
-            const ratio = t.progress / 100;
-            const x = from.x + (to.x - from.x) * ratio;
-            const y = from.y + (to.y - from.y) * ratio;
-            const angle = (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
+            /* Position : sur la même courbe que la ligne dessinée, et calculée en
+               continu depuis l'heure de départ — le train glisse au lieu de sauter
+               d'un rafraîchissement à l'autre. */
+            const lineIndex = lines.findIndex((l) => l.id === t.line!.id);
+            const curve = lineCurve(Math.max(0, lineIndex), from, to);
+            const duration = (t.line.durationMinutes ?? 0) * 60_000 * (t.model === "EXPRESS" ? 0.7 : 1);
+            const ratio =
+              t.departedAt && duration > 0
+                ? Math.min(1, Math.max(0, (clock - new Date(t.departedAt).getTime()) / duration))
+                : t.progress / 100;
+            const { x, y, angle } = pointOnCurve(from, curve, to, ratio);
             return (
-              <g key={t.id} style={{ transition: "transform 0.7s ease-out" }} transform={`translate(${x},${y}) rotate(${angle})`}>
+              <g key={t.id} transform={`translate(${x},${y}) rotate(${angle})`}>
                 <circle r="6" fill="rgb(var(--c-navy-950))" stroke="rgb(var(--c-rail-green))" strokeWidth="1.5" opacity="0.9" />
                 <rect x="-4" y="-1.6" width="8" height="3.2" rx="1" fill="rgb(var(--c-rail-green))" />
                 <circle cx="4.5" cy="0" r="1.1" fill="rgb(var(--c-navy-950))" />
@@ -3541,11 +3774,14 @@ function NetworkMap({
             const from = STATION_COORDS[c.originStation];
             const to = STATION_COORDS[c.destinationStation];
             if (!from || !to) return null;
-            const ratio = (c.train?.progress ?? 0) / 100;
+            // même principe que pour les trains : progression continue depuis l'heure d'acceptation
+            const ratio = c.acceptedAt
+              ? Math.min(1, Math.max(0, (clock - new Date(c.acceptedAt).getTime()) / (c.durationMinutes * 60_000)))
+              : (c.train?.progress ?? 0) / 100;
             const x = from.x + (to.x - from.x) * ratio;
             const y = from.y + (to.y - from.y) * ratio;
             return (
-              <g key={c.id} style={{ transition: "transform 0.7s ease-out" }} transform={`translate(${x},${y})`}>
+              <g key={c.id} transform={`translate(${x},${y})`}>
                 <rect x="-5" y="-5" width="10" height="10" fill="rgb(var(--c-navy-950))" stroke="rgb(var(--c-amber))" strokeWidth="1.5" />
                 <rect x="-2.5" y="-2.5" width="5" height="5" fill="rgb(var(--c-amber))" />
               </g>
@@ -3565,6 +3801,9 @@ function NetworkMap({
             <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-slate2 shrink-0" /> Gare disponible</span>
             <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full border border-rail-green bg-navy-950 shrink-0" /> Train en circulation</span>
             <span className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed border-amber shrink-0" /> Trajet de fret</span>
+            <span className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dotted border-slate2 shrink-0" /> Liaison d'un concurrent</span>
+            <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full border border-dashed border-amber shrink-0" /> Affluence en gare</span>
+            <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full border border-dashed border-rail-red shrink-0" /> Grève ou travaux</span>
           </div>
 
           <div className="text-[10px] font-mono2 uppercase tracking-[0.18em] text-slate2 mb-3">Vos lignes</div>
@@ -4218,6 +4457,12 @@ function SettingsSection({
 
         <ul className="border border-line divide-y divide-line mb-4">
           {[
+            ["Vue cabine", "Suivez chacune de vos rames en direct, de profil, avec la météo du réseau et votre livrée"],
+            ["Veille concurrentielle", "Le détail de chaque concurrent sur vos lignes, et une notification quand l'un d'eux arrive ou vous passe devant"],
+            ["Événements de gare annoncés", "Salons, festivals, grèves : vous les voyez une heure avant qu'ils commencent"],
+            ["Rentabilité détaillée", "Recettes, pannes et bénéfice à l'heure de chaque ligne et de chaque rame"],
+            ["Bilan de retour", "Ce qui s'est passé pendant votre absence, et un résumé de la nuit chaque matin"],
+            ["File de chantiers", "Le chantier suivant démarre seul, même la nuit — sans aller plus vite"],
             ["Deux ordres par donneur d'ordre", "Plus de choix à la table, pas une meilleure prime"],
             ["Marché de fret élargi", "Six contrats visibles au lieu de trois"],
             ["Alertes et ordres permanents", "Le marché vous prévient, ou achète et vend au seuil choisi — au même cours qu'un joueur présent"],
@@ -4239,13 +4484,7 @@ function SettingsSection({
 
           {!company.isPremium &&
             (billingOpen ? (
-              <button
-                onClick={startCheckout}
-                disabled={checkingOut}
-                className="bg-amber text-onaccent text-xs font-semibold uppercase tracking-wide px-4 py-2 hover:bg-amber/90 active:scale-[0.97] transition-transform disabled:opacity-50"
-              >
-                {checkingOut ? "Ouverture du paiement…" : "Passer au Premium"}
-              </button>
+              <PremiumCTA company={company} onChange={onChange} />
             ) : (
               <span className="text-[11px] font-mono2 uppercase text-slate2 border border-line px-2 py-1">
                 Bientôt disponible

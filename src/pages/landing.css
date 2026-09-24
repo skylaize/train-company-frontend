@@ -241,8 +241,40 @@ body.lp-body {
 }
 @media (max-width: 700px) { .lp-item .side { display: none; } }
 
+/* deux colonnes sur grand écran : la liste se lit d'un coup d'œil au lieu de défiler */
+@media (min-width: 900px) {
+  .lp-cat.two { display: grid; grid-template-columns: 1fr 1fr; column-gap: 56px; }
+  .lp-cat.two .lp-item .side { display: none; }
+  .lp-cat.two .lp-item p { font-size: 15px; }
+}
+
+/* vue cabine en vitrine */
+.lp-bord { padding-bottom: 64px !important; }
+.lp-cab { margin: 0; box-shadow: 8px 8px 0 var(--paper3); }
+.lp-cab-win { position: relative; border: 1.5px solid var(--ink); background: var(--board); }
+.lp-cab-win canvas { display: block; width: 100%; aspect-ratio: 16 / 6.2; max-width: 100%; }
+@media (max-width: 720px) { .lp-cab-win canvas { aspect-ratio: 4 / 3; } .lp-cab { box-shadow: none; } }
+.lp-cab-live {
+  position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 7px;
+  font-family: "Barlow Condensed", sans-serif; font-size: 12.5px; font-weight: 600;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper2);
+  background: rgb(22 24 26 / 0.78); padding: 5px 10px;
+}
+.lp-cab-live i { width: 7px; height: 7px; border-radius: 50%; background: #d4553f; animation: lp-blink 1.6s infinite; }
+@keyframes lp-blink { 50% { opacity: 0.25; } }
+.lp-cab-hud {
+  display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline;
+  border: 1.5px solid var(--ink); border-top: 0; background: var(--paper2); padding: 12px 18px;
+  font-family: "Barlow Condensed", sans-serif; font-size: 15px; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--ink2); font-variant-numeric: tabular-nums;
+}
+.lp-cab-hud b { color: var(--ink); font-weight: 700; }
+.lp-cab-hud .trip { color: var(--ink); font-weight: 700; font-size: 17px; letter-spacing: 0.04em; }
+.lp-cab-hud .wx { margin-left: auto; color: var(--vert); font-weight: 600; }
+.lp-cab-note { margin-top: 16px; color: var(--ink3); font-size: 14.5px; }
+
 /* billets */
-.lp-tickets { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; }
+.lp-tickets { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
 @media (max-width: 760px) { .lp-tickets { grid-template-columns: 1fr; } }
 .lp-tk {
   position: relative; background: var(--paper2); border: 1.5px solid var(--ink);

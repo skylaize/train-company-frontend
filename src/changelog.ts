@@ -1,4 +1,4 @@
-export const CURRENT_VERSION = "1.3.0";
+export const CURRENT_VERSION = "1.4.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -13,6 +13,30 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.4.0",
+    date: "Septembre 2026",
+    changes: [
+      { type: "nouveau", text: "Les gares ont une taille : Paris, les huit métropoles, les grandes villes, les villes moyennes et les petites. Une ligne rapporte selon ses deux gares — une liaison vers la capitale paie plus qu'une desserte de petites villes" },
+      { type: "nouveau", text: "Événements de gare : salons, matchs, festivals, afflux touristiques font grimper la demande d'une gare pendant quelques heures ; grèves et travaux la font baisser. Ils s'affichent sur la page des lignes et sur la carte" },
+      { type: "nouveau", text: "Concurrence : si plusieurs compagnies exploitent la même liaison, elles se partagent les voyageurs. La plus attractive — réputation, nombre de rames, rames Express, rames en bon état — en prend aux autres, jusqu'à +40 % pour elle et −40 % pour la moins bonne. À attractivité égale, personne ne perd rien" },
+      { type: "nouveau", text: "Chaque ligne affiche sa demande et votre part des voyageurs, et la carte montre les liaisons exploitées par les autres compagnies" },
+      { type: "nouveau", text: "Avant de tracer une ligne, vous voyez la taille des deux gares, leur demande du moment et si une autre compagnie y roule déjà" },
+      { type: "nouveau", text: "Premium — Vue cabine : suivez n'importe laquelle de vos rames en direct, de profil, du départ jusqu'à l'arrêt sous le panneau de la gare d'arrivée. Sa vraie position sur la ligne, la météo du réseau, la nuit, votre livrée et son modèle. En gratuit, un aperçu de quelques secondes" },
+      { type: "nouveau", text: "Premium — Veille concurrentielle : le détail de chaque concurrent sur vos lignes (réputation, rames Express, état des rames) et une notification quand une compagnie arrive sur votre ligne ou vous passe devant" },
+      { type: "nouveau", text: "Premium — Événements annoncés : les abonnés voient chaque événement de gare une heure avant qu'il commence, le temps de placer leurs rames" },
+      { type: "nouveau", text: "11 nouveaux succès, 66 en tout : face à face, tête de ligne, ligne disputée, tous les chemins mènent à Paris, les grandes métropoles, desserte fine, le bon moment, en cabine, directeur régional, légende du rail et un nom qui compte" },
+      { type: "nouveau", text: "Boutique : quatre nouveaux objets — Livrées régionales (bleu Bretagne, rouge Alsace, lavande de Provence, vert Normandie), Emblèmes du réseau (rail, boussole, horloge de gare, viaduc), Titres de légende, et le Matériel de collection : une locomotive à vapeur et son panache, ou une Micheline rouge et crème, dans la vue cabine. Toujours purement cosmétique" },
+      { type: "nouveau", text: "Carrière agrandie : cinq grades de plus après le Magnat — Directeur régional, Directeur national, Administrateur des chemins de fer, Président de compagnie et Légende du rail. Ils demandent un réseau étendu, du fret, une équipe et une réputation, pas seulement de l'argent. Chacun donne son nom en titre à afficher au classement" },
+      { type: "nouveau", text: "La neige arrive, seulement en hiver (décembre à février) : elle ralentit les rames et rend les retards plus fréquents. La météo suit maintenant les saisons — verglas de novembre à mars, canicule de mai à septembre, brouillard toute l'année" },
+      { type: "ameliore", text: "La météo se voit vraiment : flocons qui tombent et s'amassent en bas de l'écran, nappes de brouillard qui dérivent, givre qui gagne depuis les bords, lumière écrasante de canicule. Chaque épisode arrive et repart en fondu, et le centre de l'écran reste lisible" },
+      { type: "corrige", text: "Le classement « Fret de la semaine » comptait les sept derniers jours glissants : il repart maintenant de zéro chaque lundi à 0 h (heure de Paris)" },
+      { type: "ameliore", text: "La page Carrière montre la progression de chaque condition du grade suivant (« 12 / 20 gares »), l'avancement global et ce que chaque grade débloque" },
+      { type: "corrige", text: "Sur la carte, les trains roulaient en ligne droite à côté de leur voie courbe, et avançaient par à-coups. Ils suivent maintenant exactement le tracé de leur ligne, en continu" },
+      { type: "corrige", text: "Un titre gagné en jeu ne pouvait être porté qu'après avoir acheté un objet en boutique" },
+      { type: "ameliore", text: "La liste des avantages Premium dans les Paramètres était restée à la 1.2 : elle présente maintenant tout ce que le Premium comprend" },
+    ],
+  },
   {
     version: "1.3.0",
     date: "Septembre 2026",
