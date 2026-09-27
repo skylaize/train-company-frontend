@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
+import { LogoMark } from "../components/Logo";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { TrainMark } from "../components/TrainMark";
 import { RailSchematic } from "../components/RailSchematic";
 import { SplitFlap } from "../components/SplitFlap";
-import { SteamEffect } from "../components/SteamEffect";
 import { api } from "../api/client";
 
 interface NetworkStats {
@@ -109,11 +108,8 @@ export default function AuthPage() {
       <div className="hidden md:flex flex-col justify-between bg-navy-900 border-r border-line p-10 rail-bg relative overflow-hidden">
         <RailSchematic className="absolute inset-0 w-full h-full opacity-[0.12] pointer-events-none" />
         <div>
-          <div className="flex items-center gap-2 mb-3">
-            <span className="relative inline-flex">
-              <SteamEffect size={28} />
-              <TrainMark size={20} className="text-cobalt relative" />
-            </span>
+          <div className="flex items-center gap-2.5 mb-3">
+            <LogoMark size={30} />
             <div className="font-body uppercase tracking-[0.16em] text-xs text-slate2">Réseau</div>
           </div>
           <div className="font-display text-4xl lg:text-5xl leading-[1.05] max-w-sm">
@@ -146,7 +142,10 @@ export default function AuthPage() {
       {/* Panneau droit — formulaire */}
       <div className="flex items-center justify-center px-6 py-16 bg-navy-950">
         <div className="w-full max-w-sm tutorial-step-enter">
-          <div className="md:hidden font-display uppercase tracking-wide text-lg mb-8">Réseau</div>
+          <div className="md:hidden flex items-center gap-2.5 mb-8">
+            <LogoMark size={30} />
+            <span className="font-display uppercase tracking-wide text-lg">Réseau</span>
+          </div>
 
           <h1 className="font-display text-3xl mb-1">
             {mode === "login" ? "Bon retour" : "Rejoindre le réseau"}

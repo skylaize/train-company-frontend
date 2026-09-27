@@ -16,6 +16,11 @@ export const EMBLEM_LABELS: Record<string, string> = {
   boussole: "Boussole",
   horloge: "Horloge de gare",
   viaduc: "Viaduc",
+  // 1.5 : éditions de saison
+  grappe: "Grappe des Vendanges",
+  sapin: "Sapin de Noël",
+  flocon: "Flocon",
+  soleil: "Soleil d'été",
 };
 
 export function Emblem({ id, size = 14, className = "" }: { id: string; size?: number; className?: string }) {
@@ -102,6 +107,36 @@ export function Emblem({ id, size = 14, className = "" }: { id: string; size?: n
           <path d="M1.8 5h12.4M1.8 5v9M14.2 5v9" />
           <path d="M3.4 14v-3.4a1.9 1.9 0 0 1 3.8 0V14M8.8 14v-3.4a1.9 1.9 0 0 1 3.8 0V14" />
           <path d="M1.8 3h12.4" />
+        </svg>
+      );
+    case "grappe":
+      return (
+        <svg {...common}>
+          <path d="M8 1.6v2.2M8 3.2c1.4-1.2 3.2-1 4 0" />
+          <circle cx="6" cy="6" r="1.6" /><circle cx="10" cy="6" r="1.6" />
+          <circle cx="8" cy="8.8" r="1.6" /><circle cx="4.8" cy="9" r="1.4" /><circle cx="11.2" cy="9" r="1.4" />
+          <circle cx="6.6" cy="11.8" r="1.5" /><circle cx="9.4" cy="11.8" r="1.5" /><circle cx="8" cy="14.2" r="1.2" />
+        </svg>
+      );
+    case "sapin":
+      return (
+        <svg {...common}>
+          <path d="M8 1.6 11 6H9.6l2.6 4H10l2.8 3.6H3.2L6 10H3.8l2.6-4H5L8 1.6Z" />
+          <path d="M8 13.6v1.8" />
+        </svg>
+      );
+    case "flocon":
+      return (
+        <svg {...common}>
+          <path d="M8 1.5v13M2.4 4.75l11.2 6.5M2.4 11.25l11.2-6.5" />
+          <path d="M6.4 2.6 8 4l1.6-1.4M6.4 13.4 8 12l1.6 1.4" />
+        </svg>
+      );
+    case "soleil":
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="8" r="3" />
+          <path d="M8 1.4v2M8 12.6v2M1.4 8h2M12.6 8h2M3.3 3.3l1.4 1.4M11.3 11.3l1.4 1.4M3.3 12.7l1.4-1.4M11.3 4.7l1.4-1.4" />
         </svg>
       );
     default:

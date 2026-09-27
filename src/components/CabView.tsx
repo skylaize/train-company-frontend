@@ -65,6 +65,7 @@ export function CabView({
   skin = null,
   company,
   onClose,
+  preview = false,
 }: {
   train: CabTrain;
   weatherType?: string;
@@ -72,6 +73,7 @@ export function CabView({
   skin?: string | null;
   company: PremiumInfo;
   onClose: () => void;
+  preview?: boolean; // aperçu de boutique : ne compte pas pour le succès « En cabine »
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const trainRef = useRef(train);
@@ -153,8 +155,8 @@ export function CabView({
 
   // première montée à bord : débloque le succès « En cabine » (idempotent côté serveur)
   useEffect(() => {
-    api.patch("/company", { seenHint: "cabine" }).catch(() => {});
-  }, []);
+    if (!preview) api.patch("/company", { seenHint: "cabine" }).catch(() => {});
+  }, [preview]);
 
   // Échap ferme la vue
   useEffect(() => {

@@ -25,7 +25,8 @@ self.addEventListener("push", (event) => {
   const options = {
     body: data.body || "",
     icon: "/icone-192.png",
-    badge: "/icone-192.png",
+    // silhouette blanche sur fond transparent : Android la teinte lui-même dans la barre d'état
+    badge: "/badge-96.png",
     // deux notifications de même étiquette se remplacent au lieu de s'empiler
     tag: data.tag || "reseau",
     renotify: true,

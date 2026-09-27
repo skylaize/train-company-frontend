@@ -47,12 +47,15 @@ export function readLocalTheme(): ThemeId {
   }
 }
 
-export function applyTheme(theme: ThemeId) {
+/* persist: false pour un essai de la boutique — l'habillage change à l'écran
+   sans devenir celui qu'on retrouve au prochain chargement. */
+export function applyTheme(theme: ThemeId, { persist = true }: { persist?: boolean } = {}) {
   const safe: ThemeId = isTheme(theme) ? theme : "sombre";
   document.documentElement.dataset.theme = safe;
   // la barre d'adresse du mobile suit la couleur de fond
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) meta.setAttribute("content", META_COLOR[safe]);
+  if (!persist) return;
   try {
     localStorage.setItem(KEY, safe);
   } catch {

@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { LogoMark, LogoPaths } from "../components/Logo";
+import { InstagramMark } from "../components/InstagramMark";
+import { INSTAGRAM } from "../social";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import "./landing.css";
@@ -108,6 +111,10 @@ const SYSTEMES = [
     b: "Le rapport entre trajets réussis et incidents. Elle multiplie vos recettes voyageurs, de moitié à plein tarif." },
   { n: "08", t: "La carrière", s: "Progression",
     b: "Dix grades, d'apprenti exploitant à légende du rail. Chacun exige une série d'objectifs, et les plus hauts se portent comme un titre." },
+  { n: "09", t: "Les appels d'offres", s: "Marchés",
+    b: "Chaque semaine, trois régions mettent une liaison en concurrence. La compagnie qui demande la plus petite subvention l'emporte, à condition d'y faire rouler ses rames." },
+  { n: "10", t: "Les correspondances", s: "Réseau",
+    b: "Une gare où se croisent plusieurs de vos lignes rapporte plus. Dix lignes éparpillées valent moins que dix lignes qui se rejoignent." },
 ];
 
 const CONTINU = [
@@ -273,15 +280,7 @@ export default function LandingPage() {
       <header className="lp-header">
         <div className="lp-wrap lp-hd">
           <span className="lp-mark">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1f5c4d" strokeWidth="1.7">
-              <rect x="5" y="3" width="14" height="13" rx="2" />
-              <line x1="5" y1="9" x2="19" y2="9" />
-              <line x1="9" y1="3" x2="9" y2="16" />
-              <circle cx="8.5" cy="19" r="1.4" fill="#1f5c4d" stroke="none" />
-              <circle cx="15.5" cy="19" r="1.4" fill="#1f5c4d" stroke="none" />
-              <line x1="7" y1="16" x2="5" y2="19" strokeLinecap="round" />
-              <line x1="17" y1="16" x2="19" y2="19" strokeLinecap="round" />
-            </svg>
+            <LogoMark size={30} />
             <b>Réseau</b>
           </span>
           <nav className="lp-nav">
@@ -289,6 +288,9 @@ export default function LandingPage() {
             <a className="lp-navlink" href="#exploiter">Exploiter</a>
             <a className="lp-navlink" href="#direct">En direct</a>
             <a className="lp-navlink" href="#billets">Billets</a>
+            <a className="lp-social" href={INSTAGRAM.url} target="_blank" rel="noopener noreferrer" aria-label={`Réseau sur Instagram (@${INSTAGRAM.handle})`}>
+              <InstagramMark size={18} />
+            </a>
             <span className="lp-clk">{clock}</span>
             <button className="lp-btn" onClick={() => navigate("/auth?mode=register")}>
               Fonder ma compagnie
@@ -381,7 +383,7 @@ export default function LandingPage() {
         <div className="lp-wrap">
           <div className="lp-sec-hd">
             <h2 className="lp-serif">Ce que vous exploitez</h2>
-            <span className="n">— huit systèmes liés</span>
+            <span className="n">— dix systèmes liés</span>
           </div>
           <p className="lp-sub">
             Rien de décoratif : chaque mécanique pèse sur les autres. Une rame mal entretenue
@@ -452,9 +454,10 @@ export default function LandingPage() {
                 <li><b>·</b>Dépôt sans plafond — chaque place coûte plus cher que la précédente</li>
                 <li><b>·</b>Toutes les rames et tout le personnel, débloqués au grade</li>
                 <li><b>·</b>Les quatre donneurs d'ordre et leur fidélité</li>
-                <li><b>·</b>Classements, 66 succès, défi quotidien</li>
+                <li><b>·</b>Classements, 77 succès, défi quotidien</li>
                 <li><b>·</b>Carte du réseau, tracé à la souris, deux habillages</li>
                 <li><b>·</b>Gares vivantes, concurrence sur les lignes partagées</li>
+                <li><b>·</b>Appels d'offres chaque semaine, correspondances et temps forts de saison</li>
                 <li><b>·</b>Un aperçu de la vue cabine sur chaque rame</li>
               </ul>
               <div className="lp-tk-ft">
@@ -475,6 +478,7 @@ export default function LandingPage() {
               <ul>
                 <li><b>·</b>Vue cabine : suivez chaque rame en direct, de gare en gare</li>
                 <li><b>·</b>Veille concurrentielle et événements de gare annoncés une heure avant</li>
+                <li><b>·</b>Appels d'offres de la semaine suivante dès le dimanche, et nombre d'offres déposées</li>
                 <li><b>·</b>Rentabilité de chaque ligne et de chaque rame, sur sept jours</li>
                 <li><b>·</b>Bilan de votre absence au retour, et résumé de la nuit chaque matin</li>
                 <li><b>·</b>File de chantiers : le suivant démarre seul, même la nuit</li>
@@ -520,20 +524,20 @@ export default function LandingPage() {
             <text fontFamily="'Barlow Condensed',sans-serif" fontSize="11" fontWeight="600" fill="#a33b2c" letterSpacing="1.5">
               <textPath href="#lp-s2" startOffset="50%" textAnchor="middle">SERVICE ASSURÉ</textPath>
             </text>
-            <g stroke="#a33b2c" strokeWidth="2.2" fill="none">
-              <rect x="50" y="51" width="26" height="19" rx="2" />
-              <line x1="50" y1="60.5" x2="76" y2="60.5" />
-              <line x1="58.5" y1="51" x2="58.5" y2="70" />
-              <line x1="67.5" y1="51" x2="67.5" y2="70" />
+            {/* le R-ligne au centre du tampon, à l'encre du tampon */}
+            <g transform="translate(43.5 43.1) scale(0.4)">
+              <LogoPaths line="#a33b2c" node="#e9e4d7" />
             </g>
-            <circle cx="55" cy="75" r="2.2" fill="#a33b2c" />
-            <circle cx="71" cy="75" r="2.2" fill="#a33b2c" />
           </svg>
         </div>
 
         <div className="lp-wrap">
           <div className="lp-credit">
             <span>Développé par <b>Skylaize</b></span>
+            <span>·</span>
+            <a className="lp-credit-link" href={INSTAGRAM.url} target="_blank" rel="noopener noreferrer">
+              <InstagramMark size={14} /> @{INSTAGRAM.handle}
+            </a>
             <span>·</span>
             <span>React · Node · PostgreSQL</span>
             <span>·</span>

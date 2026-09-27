@@ -376,3 +376,4 @@ tbody tr:nth-child(n+6) { animation-delay: 0.16s; }
   animation: flap-rotate 0.28s ease-in-out;
   backface-visibility: hidden;
 }
+

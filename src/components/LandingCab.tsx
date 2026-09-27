@@ -54,7 +54,6 @@ export function LandingCab() {
       ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
     resize();
-    window.addEventListener("resize", resize);
 
     let raf = 0;
     let visible = false;
@@ -105,13 +104,20 @@ export function LandingCab() {
       if (visible) raf = requestAnimationFrame(step);
     });
     io.observe(cv);
+    /* redimensionner vide la toile : sans boucle en cours (mouvement réduit,
+       scène hors écran), on redessine tout de suite l'image fixe */
+    const onResize = () => {
+      resize();
+      if (reduce || !visible) step(performance.now());
+    };
+    window.addEventListener("resize", onResize);
     // une première image tout de suite : la scène n'est jamais vide
     step(performance.now());
 
     return () => {
       io.disconnect();
       cancelAnimationFrame(raf);
-      window.removeEventListener("resize", resize);
+      window.removeEventListener("resize", onResize);
     };
   }, []);
 

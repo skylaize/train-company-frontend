@@ -41,7 +41,10 @@ export function WeatherOverlay({ type }: { type?: string }) {
     resize();
     window.addEventListener("resize", resize);
 
+    // deux minuteries distinctes : un identifiant rAF et un identifiant de
+    // setTimeout peuvent coïncider, et annuler l'un avec l'autre ne marche pas
     let raf = 0;
+    let timer = 0;
     let last = performance.now();
     let k = reduce ? 1 : 0;
 
@@ -58,13 +61,14 @@ export function WeatherOverlay({ type }: { type?: string }) {
         return;
       }
       // mouvement réduit : une image fixe suffit, on ne relance que pour suivre un changement
-      raf = reduce ? window.setTimeout(() => loop(performance.now()), 1000) as unknown as number : requestAnimationFrame(loop);
+      if (reduce) timer = window.setTimeout(() => loop(performance.now()), 1000);
+      else raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
 
     return () => {
       cancelAnimationFrame(raf);
-      window.clearTimeout(raf);
+      window.clearTimeout(timer);
       window.removeEventListener("resize", resize);
     };
   }, [kind]);

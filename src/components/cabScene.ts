@@ -37,11 +37,13 @@ export function createCabScene(ctx) {
     ctx.fillRect(x - 200, groundY - 70, 400, 10);
     for (let i = -180; i <= 180; i += 90) ctx.fillRect(x + i - 2, groundY - 60, 4, 54);
     // panneau
-    ctx.fillStyle = "#0b2a4a";
-    ctx.fillRect(x - 70, groundY - 104, 140, 26);
-    ctx.strokeStyle = "#e8edf5"; ctx.lineWidth = 1.5; ctx.strokeRect(x - 67, groundY - 101, 134, 20);
-    ctx.fillStyle = "#e8edf5";
+    // le panneau s'élargit pour les noms longs (« Clermont-Ferrand », ou le nom d'une compagnie en vitrine)
     ctx.font = "700 13px 'Space Mono', monospace";
+    const half = Math.max(70, ctx.measureText(name.toUpperCase()).width / 2 + 16);
+    ctx.fillStyle = "#0b2a4a";
+    ctx.fillRect(x - half, groundY - 104, half * 2, 26);
+    ctx.strokeStyle = "#e8edf5"; ctx.lineWidth = 1.5; ctx.strokeRect(x - half + 3, groundY - 101, half * 2 - 6, 20);
+    ctx.fillStyle = "#e8edf5";
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     ctx.fillText(name.toUpperCase(), x, groundY - 90.5);
     ctx.fillRect(x - 1.5, groundY - 78, 3, 16);

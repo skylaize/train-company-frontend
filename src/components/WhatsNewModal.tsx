@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { InstagramMark } from "./InstagramMark";
+import { INSTAGRAM } from "../social";
 import { CHANGELOG, ChangeType } from "../changelog";
 
 /* ============================================================
@@ -101,8 +103,11 @@ export function WhatsNewModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex items-center justify-between gap-4 px-6 py-4 border-t border-line shrink-0">
-          <span className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-[0.14em]">
-            {CHANGELOG.length} bulletin{CHANGELOG.length > 1 ? "s" : ""} au registre
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono2 text-[10.5px] text-slate2 uppercase tracking-[0.14em]">
+            <span>{CHANGELOG.length} bulletin{CHANGELOG.length > 1 ? "s" : ""} au registre</span>
+            <a href={INSTAGRAM.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 normal-case tracking-normal hover:text-offwhite">
+              <InstagramMark size={13} /> Les nouveautés en avant-première sur Instagram
+            </a>
           </span>
           <button
             onClick={onClose}

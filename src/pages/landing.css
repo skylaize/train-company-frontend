@@ -347,6 +347,11 @@ body.lp-body {
   text-transform: uppercase; color: var(--ink3); display: flex; gap: 18px; flex-wrap: wrap;
 }
 .lp-credit b { color: var(--ink2); font-weight: 600; }
+.lp-credit-link { display: inline-flex; align-items: center; gap: 6px; color: var(--ink2); text-decoration: none; text-transform: none; letter-spacing: 0.04em; }
+.lp-credit-link:hover { color: var(--vert); }
+/* lien Instagram de l'en-tête : une icône, pas un soulignement de menu */
+.lp-nav a.lp-social { display: inline-flex; align-items: center; padding: 6px; border-bottom: 0; color: var(--ink2); }
+.lp-nav a.lp-social:hover { color: var(--vert); }
 
 @media (prefers-reduced-motion: reduce) {
   .lp *, .lp *::after, .lp *::before { animation: none !important; transition: none !important; }

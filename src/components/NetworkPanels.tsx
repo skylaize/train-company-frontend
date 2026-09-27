@@ -38,6 +38,17 @@ export interface LineMarket {
   leading: boolean | null;
   rivals: Rival[];
   self: { reputation: number; expressPct: number; comfortPct: number; trains: number } | null;
+  hub?: number; // 1.5 : multiplicateur de correspondance, 1 = aucune
+}
+
+export interface SeasonInfo {
+  id: string;
+  name: string;
+  blurb: string;
+  stations: string[];
+  multiplier: number;
+  startsAt: string;
+  endsAt: string;
 }
 
 export interface NetworkData {
@@ -47,6 +58,91 @@ export interface NetworkData {
   lines: LineMarket[];
   upcoming: { station: string; label: string; multiplier: number; startsAt: string; endsAt: string }[] | null;
   upcomingCount: number;
+  hubs?: { station: string; lines: number; bonus: number }[];
+  hubRule?: { step: number; cap: number };
+  season?: { active: SeasonInfo | null; next: SeasonInfo | null };
+}
+
+const dayMonth = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+const daysLeft = (iso: string) => Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000));
+
+/* Temps fort de saison (1.5) : bandeau en tête de la page des lignes. */
+export function SeasonBanner({ network, onOpenShop }: { network: NetworkData; onOpenShop?: () => void }) {
+  const active = network.season?.active;
+  const next = network.season?.next;
+  if (!active && !next) return null;
+  if (!active && next) {
+    return (
+      <div className="border border-line px-4 py-2.5 mb-4 text-[12.5px] font-body text-slate2">
+        Prochain temps fort : <span className="text-offwhite">{next.name}</span>, à partir du {dayMonth(next.startsAt)}.
+      </div>
+    );
+  }
+  const a = active!;
+  // la date de fin est exclusive (minuit le lendemain) : on affiche le dernier jour
+  const lastDay = new Date(new Date(a.endsAt).getTime() - 3600_000).toISOString();
+  return (
+    <section className="border border-amber/40 bg-amber/5 mb-6 px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+      <div className="flex-1 min-w-[240px]">
+        <div className="font-mono2 text-[10.5px] uppercase tracking-[0.14em] text-amber">Temps fort · jusqu'au {dayMonth(lastDay)}</div>
+        <div className="font-display text-lg leading-tight mt-0.5">{a.name}</div>
+        <p className="text-[12.5px] font-body text-slate2 mt-1">{a.blurb}</p>
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {a.stations.map((st) => (
+            <span key={st} className="text-[11px] font-mono2 border border-amber/40 text-amber px-1.5 py-0.5">
+              {st} {pct(a.multiplier)}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div className="text-right">
+        <div className="font-mono2 text-2xl text-amber tabular-nums">{daysLeft(a.endsAt)} j</div>
+        <div className="text-[10.5px] font-body text-slate2 uppercase tracking-[0.1em]">restants</div>
+        {onOpenShop && (
+          <button onClick={onOpenShop} className="mt-2 text-[11px] font-mono2 uppercase text-amber underline underline-offset-2 hover:text-offwhite">
+            Édition limitée en boutique
+          </button>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/* Cellule « correspondance » d'une ligne (1.5). */
+export function HubCell({ hub }: { hub: number | undefined }) {
+  if (!hub || hub <= 1.0001) return <span className="text-slate2 text-[11px] font-body">—</span>;
+  return <span className="font-mono2 text-[12px] text-cobalt">+{Math.round((hub - 1) * 100)} %</span>;
+}
+
+/* Ce que créerait une nouvelle ligne entre deux gares : les correspondances
+   qu'elle ouvre ou renforce, calculées comme sur le serveur — destinations
+   distinctes, lignes où roule au moins une rame. */
+export function hubPreview(
+  lines: { departureStation: string; arrivalStation: string; id?: string; trains?: unknown[] }[],
+  a: string,
+  b: string,
+  rule: { step: number; cap: number } | undefined,
+  excludeId?: string | null
+) {
+  if (!rule || !a || !b || a === b) return [];
+  // modification d'une ligne sans changer ses gares : rien de nouveau à annoncer
+  const edited = excludeId ? lines.find((l) => l.id === excludeId) : null;
+  if (edited && ((edited.departureStation === a && edited.arrivalStation === b) || (edited.departureStation === b && edited.arrivalStation === a))) return [];
+  const bonus = (n: number) => Math.min(rule.cap, rule.step * Math.max(0, n - 1));
+  const served = lines.filter((l) => l.id !== excludeId && (!l.trains || l.trains.length > 0));
+  return [[a, b], [b, a]]
+    .map(([st, other]) => {
+      const dests = new Set<string>();
+      for (const l of served) {
+        if (l.departureStation === st) dests.add(l.arrivalStation);
+        if (l.arrivalStation === st) dests.add(l.departureStation);
+      }
+      const before = dests.size;
+      dests.add(other);
+      const after = dests.size;
+      return { station: st, before, after, gain: Math.round((bonus(after) - bonus(before)) * 100), total: Math.round(bonus(after) * 100) };
+    })
+    .filter((h) => h.after >= 2 && h.after > h.before);
 }
 
 const pct = (m: number) => `${m >= 1 ? "+" : "−"}${Math.abs(Math.round((m - 1) * 100))} %`;
@@ -72,7 +168,8 @@ export function StationEventsPanel({
   company: PremiumInfo;
   onChange: () => void;
 }) {
-  const active = network.stations.flatMap((s) => s.events.map((e) => ({ station: s.name, ...e })));
+  const seasonName = network.season?.active?.name;
+  const active = network.stations.flatMap((s) => s.events.filter((e) => e.label !== seasonName).map((e) => ({ station: s.name, ...e })));
   const upcoming = network.upcoming ?? [];
 
   return (
@@ -86,7 +183,11 @@ export function StationEventsPanel({
 
       <ul className="divide-y divide-line">
         {active.length === 0 && (
-          <li className="px-4 py-3 text-[12.5px] text-slate2 font-body">Aucun événement en cours : la demande est normale partout.</li>
+          <li className="px-4 py-3 text-[12.5px] text-slate2 font-body">
+            {seasonName
+              ? "Aucun autre événement que le temps fort de saison : en dehors de ses gares, la demande est normale."
+              : "Aucun événement en cours : la demande est normale partout."}
+          </li>
         )}
         {active.map((e) => (
           <li key={`${e.station}-${e.label}`} className="px-4 py-2.5 flex flex-wrap items-center gap-x-4 gap-y-1">

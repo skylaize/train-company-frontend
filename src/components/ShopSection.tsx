@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Emblem, EMBLEM_LABELS } from "./Emblem";
-import { applyTheme, ThemeId } from "../theme";
+import { applyTheme, ThemeId, THEMES } from "../theme";
+import { ShopShowroom, ShopTile, ShowroomCompany as PreviewCompany } from "./ShopShowroom";
 
 /* ============================================================
    Boutique.
@@ -14,7 +15,7 @@ import { applyTheme, ThemeId } from "../theme";
 
 interface ShopItem {
   id: string;
-  kind: "LIVREES" | "EMBLEMES" | "TITRES" | "THEME" | "CABINE";
+  kind: "LIVREES" | "EMBLEMES" | "TITRES" | "THEME" | "CABINE" | "SAISON";
   name: string;
   description: string;
   priceCents: number;
@@ -24,6 +25,10 @@ interface ShopItem {
   theme?: string;
   cabSkins?: string[];
   owned: boolean;
+  // 1.5 : édition limitée de saison
+  season?: string;
+  seasonName?: string | null;
+  availableUntil?: string | null;
 }
 
 interface ShopData {
@@ -31,6 +36,11 @@ interface ShopData {
   items: ShopItem[];
   equipped: { emblem: string | null; title: string | null; theme: string; livery: string; cabSkin?: string | null };
   unlocked: { emblems: string[]; titles: string[]; themes: string[]; liveries: string[]; cabSkins?: string[] };
+  nextSeason?: { name: string; itemName: string; startsAt: string } | null;
+}
+
+function daysUntil(iso: string) {
+  return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000));
 }
 
 export const CAB_SKIN_LABELS: Record<string, string> = {
@@ -70,9 +80,63 @@ function euros(cents: number) {
   return (cents / 100).toFixed(2).replace(".", ",") + " €";
 }
 
-export function ShopSection({ onChange }: { onChange: () => void }) {
+export interface ThemeTrial {
+  theme: string;
+  itemId: string;
+  itemName: string;
+  priceCents: number;
+  owned: boolean;
+}
+
+/* Bandeau de l'essai d'habillage : il vit au niveau de la console, pour que
+   l'essai tienne quand on change de page. */
+export function ThemeTrialBanner({ trial, onEnd }: { trial: ThemeTrial; onEnd: () => void }) {
+  const { showToast } = useToast();
+  const [busy, setBusy] = useState(false);
+  async function buy() {
+    setBusy(true);
+    try {
+      const { data } = await api.post("/shop/checkout", { itemId: trial.itemId });
+      if (data?.url) window.location.href = data.url;
+    } catch (e: any) {
+      showToast(e?.response?.data?.error ?? "Impossible d'ouvrir la page de paiement", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="fixed bottom-0 inset-x-0 z-50 bg-navy-900 border-t-[3px] border-amber px-4 py-2.5 flex flex-wrap items-center gap-3 shadow-[0_-8px_20px_rgba(0,0,0,0.35)]" style={{ paddingBottom: "calc(0.625rem + env(safe-area-inset-bottom, 0px))" }}>
+      <span className="font-mono2 text-[10.5px] uppercase tracking-[0.14em] text-amber">Aperçu de l'habillage</span>
+      <span className="font-body text-sm flex-1 min-w-[160px]">{THEMES.find((t) => t.id === trial.theme)?.label ?? trial.theme} : parcourez la console pour le voir partout.</span>
+      {!trial.owned && (
+        <button onClick={buy} disabled={busy} className="px-3 py-1.5 bg-amber text-onaccent font-mono2 text-[11px] uppercase disabled:opacity-50">
+          Acheter · {euros(trial.priceCents)}
+        </button>
+      )}
+      <button onClick={onEnd} className="px-3 py-1.5 border border-line text-offwhite font-mono2 text-[11px] uppercase">
+        Revenir à mon habillage
+      </button>
+    </div>
+  );
+}
+
+export function ShopSection({
+  onChange,
+  company,
+  grade,
+  onTryTheme,
+  initialItem,
+}: {
+  onChange: () => void;
+  initialItem?: string | null;
+  company?: PreviewCompany;
+  grade?: string;
+  onTryTheme?: (trial: ThemeTrial | null) => void;
+}) {
   const [data, setData] = useState<ShopData | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(initialItem ?? null);
+
   const { showToast } = useToast();
 
   async function load() {
@@ -88,6 +152,7 @@ export function ShopSection({ onChange }: { onChange: () => void }) {
     load();
   }, []);
 
+
   async function buy(item: ShopItem) {
     setBusy(item.id);
     try {
@@ -102,7 +167,10 @@ export function ShopSection({ onChange }: { onChange: () => void }) {
   async function equip(patch: Record<string, string | null>, message: string) {
     try {
       await api.patch("/company", patch);
-      if (typeof patch.theme === "string") applyTheme(patch.theme as ThemeId);
+      if (typeof patch.theme === "string") {
+        applyTheme(patch.theme as ThemeId);
+        onTryTheme?.(null); // l'habillage est porté : l'essai n'a plus lieu d'être
+      }
       showToast(message);
       await load();
       onChange();
@@ -114,68 +182,55 @@ export function ShopSection({ onChange }: { onChange: () => void }) {
   if (!data) return <p className="text-sm text-slate2 font-body">Ouverture de la boutique…</p>;
 
   const owned = data.items.filter((i) => i.owned);
+  // éditions limitées d'abord, puis ce qu'on n'a pas encore, puis le reste
+  const sorted = [...data.items].sort(
+    (a, b) =>
+      Number(b.kind === "SAISON" && !b.owned) - Number(a.kind === "SAISON" && !a.owned) || Number(a.owned) - Number(b.owned)
+  );
+  const showcased = sorted.find((i) => i.id === selectedId) ?? sorted[0] ?? null;
+
+  const me: PreviewCompany = company ?? { name: "Votre compagnie", liveryColor: data.equipped.livery, emblem: data.equipped.emblem, title: data.equipped.title };
 
   return (
     <div>
-      <p className="text-sm text-slate2 font-body max-w-[64ch] mb-6">
+      <p className="text-sm text-slate2 font-body max-w-[64ch] mb-5">
         Chaque objet s'achète une fois et reste à votre compagnie. Aucun ne rapporte une pièce, n'accélère un
         chantier ou ne change le classement : une compagnie gratuite peut toujours finir première.
       </p>
 
-      <div className="grid md:grid-cols-2 gap-4 mb-10">
-        {data.items.map((item) => (
-          <article key={item.id} className="border border-line bg-navy-900/40 p-4 flex flex-col">
-            <div className="flex items-baseline justify-between gap-3 mb-1">
-              <h3 className="font-display text-lg leading-tight">{item.name}</h3>
-              <span className="font-mono2 text-sm text-amber shrink-0">{euros(item.priceCents)}</span>
-            </div>
-            <p className="text-[12.5px] text-slate2 font-body mb-3">{item.description}</p>
+      {data.nextSeason && (
+        <p className="border border-line px-4 py-2.5 mb-4 text-[12.5px] font-body text-slate2">
+          Prochaine édition limitée : <span className="text-offwhite">{data.nextSeason.itemName}</span>, pendant {data.nextSeason.name.toLowerCase()}, à
+          partir du {new Date(data.nextSeason.startsAt).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}.
+        </p>
+      )}
 
-            {/* aperçu : on montre ce qu'on achète, pas seulement son nom */}
-            <div className="flex flex-wrap items-center gap-2 mb-4 min-h-[28px]">
-              {item.liveries?.map((c) => (
-                <span key={c} className="w-6 h-6 border border-line" style={{ background: c }} title={c} />
-              ))}
-              {item.emblems?.map((e) => (
-                <span key={e} className="w-7 h-7 border border-line flex items-center justify-center text-offwhite">
-                  <Emblem id={e} size={15} />
-                </span>
-              ))}
-              {item.titles?.map((t) => (
-                <span key={t} className="font-mono2 text-[10.5px] uppercase tracking-wide text-slate2 border border-line px-1.5 py-0.5">
-                  {t}
-                </span>
-              ))}
-              {item.cabSkins?.map((c) => (
-                <span key={c} className="border border-line px-1.5 py-1 bg-navy-950 flex items-center" title={CAB_SKIN_LABELS[c] ?? c}>
-                  <CabSkinPreview id={c} />
-                </span>
-              ))}
-              {item.theme && (
-                <span className="flex">
-                  {["#122d54", "#d6e8fa", "#f4d06f"].map((c) => (
-                    <span key={c} className="w-6 h-6 border border-line -ml-px first:ml-0" style={{ background: c }} />
-                  ))}
-                </span>
-              )}
-            </div>
+      {/* vitrine : la rame du joueur, avec l'article choisi dessus */}
+      {showcased && (
+        <ShopShowroom
+          item={showcased}
+          company={{ ...me, liveryColor: data.equipped.livery || me.liveryColor, emblem: data.equipped.emblem, title: data.equipped.title, cabSkin: data.equipped.cabSkin ?? null, theme: data.equipped.theme }}
+          cabLabels={CAB_SKIN_LABELS}
+          enabled={data.enabled}
+          busy={busy !== null}
+          onBuy={() => buy(showcased)}
+          onEquip={equip}
+          onTryTheme={(theme) =>
+            onTryTheme?.({ theme, itemId: showcased.id, itemName: showcased.name, priceCents: showcased.priceCents, owned: showcased.owned })
+          }
+        />
+      )}
 
-            <div className="mt-auto">
-              {item.owned ? (
-                <span className="font-mono2 text-[11px] text-rail-green uppercase tracking-wide border border-line px-2 py-1">
-                  Possédé
-                </span>
-              ) : (
-                <button
-                  onClick={() => buy(item)}
-                  disabled={!data.enabled || busy !== null}
-                  className="px-3 py-1.5 bg-cobalt text-onaccent font-mono2 text-[11px] uppercase tracking-wide disabled:opacity-40"
-                >
-                  {!data.enabled ? "Bientôt disponible" : busy === item.id ? "Ouverture…" : "Acheter"}
-                </button>
-              )}
-            </div>
-          </article>
+      <h2 className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-slate2 mb-3">Articles · cliquez pour mettre en vitrine</h2>
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3 mb-10">
+        {sorted.map((item) => (
+          <ShopTile
+            key={item.id}
+            item={item}
+            selected={showcased?.id === item.id}
+            onSelect={() => { setSelectedId(item.id); window.scrollTo({ top: 0, behavior: "smooth" }); }}
+            cabPreview={(id) => <CabSkinPreview id={id} />}
+          />
         ))}
       </div>
 

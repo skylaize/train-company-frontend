@@ -233,3 +233,24 @@ export function TrainMark({
     </svg>
   );
 }
+
+/* Appel d'offres : un pli cacheté (1.5) */
+export function TenderMark({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="6" width="18" height="13" rx="1" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M3.5 7l8.5 6.5L20.5 7" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <circle cx="12" cy="14.5" r="2.3" fill="currentColor" />
+    </svg>
+  );
+}
+
+/* Boutique : un sac */
+export function ShopMark({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path d="M5 8h14l-1 12H6L5 8Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <path d="M9 10V7a3 3 0 0 1 6 0v3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}

@@ -1,4 +1,6 @@
 import { useEffect, useState, useRef } from "react";
+import { InstagramMark } from "../components/InstagramMark";
+import { INSTAGRAM } from "../social";
 import { createPortal } from "react-dom";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
@@ -17,19 +19,21 @@ function formatBuildHours(hours: number) {
   if (m === 0) return `${h} h`;
   return `${h} h ${String(m).padStart(2, "0")}`;
 }
-import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, ChartMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, FogMark, SunMark, SnowMark, LockMark, FragileMark, RankMark, AnnounceMark } from "../components/TrainMark";
+import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, ChartMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, TenderMark, ShopMark, FogMark, SunMark, SnowMark, LockMark, FragileMark, RankMark, AnnounceMark } from "../components/TrainMark";
 import { RailSchematic } from "../components/RailSchematic";
 import { Tutorial } from "../components/Tutorial";
 import { SplitFlap } from "../components/SplitFlap";
 import { SteamEffect } from "../components/SteamEffect";
 import { WeatherOverlay } from "../components/WeatherOverlay";
+import { TendersSection } from "../components/TendersSection";
+import { ThemeTrialBanner, ThemeTrial } from "../components/ShopSection";
 import { WhatsNewModal } from "../components/WhatsNewModal";
 import { ProfitabilitySection } from "../components/ProfitabilitySection";
 import { AbsenceReport } from "../components/AbsenceReport";
 import { resyncPush } from "../push";
 import { PremiumCTA } from "../components/PremiumCTA";
 import { CabView } from "../components/CabView";
-import { NetworkData, StationEventsPanel, LineShareCell, DemandCell, RivalsDetail, stationOf, pairOf } from "../components/NetworkPanels";
+import { NetworkData, StationEventsPanel, LineShareCell, DemandCell, RivalsDetail, stationOf, pairOf, SeasonBanner, HubCell, hubPreview } from "../components/NetworkPanels";
 import { FirstVisitHint } from "../components/FirstVisitHint";
 import { applyTheme, readLocalTheme, THEMES, ThemeId } from "../theme";
 import { CURRENT_VERSION } from "../changelog";
@@ -224,7 +228,7 @@ export default function Dashboard() {
   const [lines, setLines] = useState<Line[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"lignes" | "trains" | "fret" | "missions" | "classement" | "historique" | "succes" | "carte" | "personnel" | "parametres" | "carriere" | "cours" | "boutique" | "rentabilite">("trains");
+  const [view, setView] = useState<"lignes" | "trains" | "fret" | "missions" | "classement" | "historique" | "succes" | "carte" | "personnel" | "parametres" | "carriere" | "cours" | "boutique" | "rentabilite" | "appels">("trains");
   const [now, setNow] = useState(new Date());
   const [market, setMarket] = useState<Contract[]>([]);
   const [myContracts, setMyContracts] = useState<Contract[]>([]);
@@ -269,12 +273,32 @@ export default function Dashboard() {
      toutes les minutes — la concurrence se calcule sur tout le réseau, pas
      question de la redemander à chaque battement du tableau de bord. */
   const [network, setNetwork] = useState<NetworkData | null>(null);
+  // essai d'un habillage de la boutique : appliqué partout, jusqu'à ce qu'on revienne au sien
+  /* L'essai n'est jamais enregistré : le thème local reste celui du compte,
+     et c'est lui qu'on remet en quittant l'essai (y compris s'il vient d'être
+     changé en équipant un habillage). */
+  const [themeTrial, setThemeTrial] = useState<ThemeTrial | null>(null);
+  // retour d'un achat : boutique rechargée, objet acheté en vitrine
+  const [shopKey, setShopKey] = useState(0);
+  const [shopFocus, setShopFocus] = useState<string | null>(null);
+  const themeTrialRef = useRef<ThemeTrial | null>(null);
+  themeTrialRef.current = themeTrial;
+  useEffect(() => {
+    if (!themeTrial) return;
+    applyTheme(themeTrial.theme as ThemeId, { persist: false });
+    return () => applyTheme(readLocalTheme(), { persist: false });
+  }, [themeTrial]);
+  /* rechargée aussi quand une ligne change de gares ou gagne/perd une rame :
+     les correspondances en dépendent, pas seulement le nombre de lignes */
+  const linesSignature = lines
+    .map((l) => `${l.id}:${l.departureStation}>${l.arrivalStation}:${(l as { trains?: unknown[] }).trains?.length ?? 0}`)
+    .join("|");
   useEffect(() => {
     const load = () => api.get("/network/map").then(({ data }) => setNetwork(data)).catch(() => undefined);
     load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
-  }, [lines.length, company?.isPremium]);
+  }, [linesSignature, company?.isPremium]);
 
   useEffect(() => {
     const clock = setInterval(() => setNow(new Date()), 1000);
@@ -301,7 +325,14 @@ export default function Dashboard() {
       } else {
         showToast("Paiement reçu — l'objet arrive dans votre compagnie");
         setView("boutique");
-        window.setTimeout(() => loadAll(), 3000);
+        setShopFocus(params.get("objet"));
+        // la boutique se recharge aussi : sinon l'objet payé resterait « à acheter »
+        for (const ms of [3000, 8000]) {
+          window.setTimeout(() => {
+            loadAll();
+            setShopKey((k) => k + 1);
+          }, ms);
+        }
       }
       return;
     }
@@ -352,7 +383,11 @@ export default function Dashboard() {
 
       /* Le thème du compte fait foi : il suit le joueur d'un appareil à l'autre.
          Le thème local n'a servi qu'à éviter le flash pendant cet appel. */
-      if (c?.theme && c.theme !== readLocalTheme()) applyTheme(c.theme);
+      if (c?.theme && c.theme !== readLocalTheme()) {
+        applyTheme(c.theme);
+        // un essai en cours garde l'écran : le thème du compte n'est qu'enregistré
+        if (themeTrialRef.current) applyTheme(themeTrialRef.current.theme as ThemeId, { persist: false });
+      }
       const [{ data: l }, { data: t }, { data: mkt }, { data: mine }, { data: lb }, { data: inc }, { data: tx }, { data: ach }, { data: dc }, { data: st }, { data: wx }, { data: sum }, { data: car }, { data: ref }, { data: cli }] = await Promise.all([
         api.get("/lines"),
         api.get("/trains"),
@@ -573,11 +608,12 @@ export default function Dashboard() {
   const enRoute = trains.filter((t) => t.status === "EN_ROUTE").length;
 
   return (
-    <div className="min-h-screen bg-navy-950 grid grid-cols-1 md:grid-cols-[220px_1fr] relative overflow-hidden">
+    <div className="min-h-screen bg-navy-950 grid grid-cols-1 md:grid-cols-[220px_1fr] relative overflow-x-clip">
       <RailSchematic className="fixed inset-0 w-full h-full opacity-[0.10] pointer-events-none" />
       <WeatherOverlay type={weather?.type} />
+      {themeTrial && <ThemeTrialBanner trial={themeTrial} onEnd={() => setThemeTrial(null)} />}
       {/* Sidebar */}
-      <aside className="border-b md:border-b-0 md:border-r border-line flex flex-col relative bg-navy-950/30 backdrop-blur-[1px]">
+      <aside className={`border-b md:border-b-0 md:border-r border-line flex flex-col relative bg-navy-950/30 backdrop-blur-[1px] md:sticky md:top-0 md:self-start md:h-screen ${themeTrial ? "md:pb-[52px]" : ""}`}>
         <button
           onClick={() => setEditingCompany(true)}
           className="text-left px-4 py-3 md:px-5 md:py-6 border-b border-line border-t-[3px] hover:bg-navy-900/40 transition-colors"
@@ -604,43 +640,53 @@ export default function Dashboard() {
           </div>
         </button>
 
-        <div className="flex flex-row md:flex-col overflow-x-auto md:overflow-visible">
-          <nav className="flex flex-row md:flex-col md:flex-1 md:py-2">
-            <SidebarItem icon={<TrainMark size={14} />} label="Trains" count={trains.length} active={view === "trains"} onClick={() => setView("trains")} />
-            <SidebarItem icon={<TrackMark size={14} />} label="Lignes" count={lines.length} active={view === "lignes"} onClick={() => setView("lignes")} />
-            <SidebarItem icon={<MapMark size={14} />} label="Carte" active={view === "carte"} onClick={() => setView("carte")} />
-            <SidebarItem icon={<CargoMark size={14} />} label="Fret" count={myContracts.filter((c) => c.status === "EN_COURS").length} active={view === "fret"} onClick={() => setView("fret")} />
-            <SidebarItem icon={<CargoMark size={14} />} label="Missions" count={missionCount} active={view === "missions"} onClick={() => setView("missions")} />
-            <SidebarItem icon={<CargoMark size={14} />} label="Cours" active={view === "cours"} onClick={() => setView("cours")} dataTutorial="nav-cours" />
-            <SidebarItem icon={<TrophyMark size={14} />} label="Classement" count={leaderTotal} active={view === "classement"} onClick={() => setView("classement")} dataTutorial="nav-classement" />
-            <SidebarItem icon={<ChartMark size={14} />} label="Rentabilité" active={view === "rentabilite"} onClick={() => setView("rentabilite")} />
-            <SidebarItem icon={<LedgerMark size={14} />} label="Historique" count={transactions.length} active={view === "historique"} onClick={() => setView("historique")} />
-            <SidebarItem icon={<MedalMark size={14} />} label="Succès" count={achievements.filter((a) => a.unlocked).length} active={view === "succes"} onClick={() => setView("succes")} />
-            <SidebarItem icon={<RankMark size={14} />} label="Carrière" active={view === "carriere"} onClick={() => setView("carriere")} />
-          <SidebarItem icon={<StaffMark size={14} />} label={staff.some((s) => s.raiseRequested) ? "Personnel ●" : "Personnel"} count={staff.length} active={view === "personnel"} onClick={() => setView("personnel")} />
-          <SidebarItem icon={<MedalMark size={14} />} label="Boutique" active={view === "boutique"} onClick={() => setView("boutique")} />
-          <SidebarItem icon={<GearMark size={14} />} label="Paramètres" active={view === "parametres"} onClick={() => setView("parametres")} />
+        <div className="flex flex-row md:flex-col md:flex-1 overflow-x-auto md:overflow-y-auto md:min-h-0">
+          {/* 1.5 : les rubriques sont rangées par thème, comme les services d'une vraie compagnie */}
+          <nav className="flex flex-row md:flex-col md:flex-1 md:pb-2">
+            <SidebarGroup label="Exploitation">
+              <SidebarItem icon={<TrainMark size={14} />} label="Trains" count={trains.length} active={view === "trains"} onClick={() => setView("trains")} />
+              <SidebarItem icon={<TrackMark size={14} />} label="Lignes" count={lines.length} active={view === "lignes"} onClick={() => setView("lignes")} />
+              <SidebarItem icon={<MapMark size={14} />} label="Carte" active={view === "carte"} onClick={() => setView("carte")} />
+              <SidebarItem icon={<TenderMark size={14} />} label="Appels d'offres" badge="Nouveau" active={view === "appels"} onClick={() => setView("appels")} />
+            </SidebarGroup>
+            <SidebarGroup label="Commerce">
+              <SidebarItem icon={<CargoMark size={14} />} label="Fret" count={myContracts.filter((c) => c.status === "EN_COURS").length + missionCount} active={view === "fret" || view === "missions"} onClick={() => setView("fret")} />
+              <SidebarItem icon={<SwapMark size={14} />} label="Cours" active={view === "cours"} onClick={() => setView("cours")} dataTutorial="nav-cours" />
+            </SidebarGroup>
+            <SidebarGroup label="Compagnie">
+              <SidebarItem icon={<StaffMark size={14} />} label="Personnel" alert={staff.some((s) => s.raiseRequested)} count={staff.length} active={view === "personnel"} onClick={() => setView("personnel")} />
+              <SidebarItem icon={<ChartMark size={14} />} label="Comptes" active={view === "rentabilite" || view === "historique"} onClick={() => setView("rentabilite")} />
+              <SidebarItem icon={<RankMark size={14} />} label="Progression" count={achievements.filter((a) => a.unlocked).length} active={view === "carriere" || view === "succes"} onClick={() => setView("carriere")} />
+              <SidebarItem icon={<TrophyMark size={14} />} label="Classement" count={leaderTotal} active={view === "classement"} onClick={() => setView("classement")} dataTutorial="nav-classement" />
+            </SidebarGroup>
           </nav>
 
-          <button
-            onClick={() => setShowTutorial(true)}
-            className="shrink-0 whitespace-nowrap text-left px-4 py-3 text-xs text-slate2 hover:text-offwhite border-l md:border-l-0 md:border-t border-line font-mono2 uppercase tracking-wide"
-          >
-            Aide
-          </button>
-          <button
-            onClick={() => setShowWhatsNew(true)}
-            title="Voir les notes de version"
-            className="shrink-0 whitespace-nowrap text-left px-4 py-3 text-[11px] text-slate2 hover:text-cobalt border-l md:border-l-0 md:border-t border-line font-mono2 uppercase tracking-wide"
-          >
-            v{CURRENT_VERSION}
-          </button>
-          <button
-            onClick={logout}
-            className="shrink-0 whitespace-nowrap text-left px-4 py-3 md:py-4 text-xs text-slate2 hover:text-offwhite border-l md:border-l-0 md:border-t border-line font-mono2 uppercase tracking-wide"
-          >
-            Déconnexion
-          </button>
+          <div className="flex flex-row md:flex-col border-l md:border-l-0 md:border-t border-line shrink-0">
+            <SidebarItem icon={<ShopMark size={14} />} label="Boutique" accent active={view === "boutique"} onClick={() => setView("boutique")} />
+            <SidebarItem icon={<GearMark size={14} />} label="Paramètres" active={view === "parametres"} onClick={() => setView("parametres")} />
+            <div className="flex items-center md:border-t border-line font-mono2 text-[11px] uppercase tracking-wide text-slate2">
+              <button onClick={() => setShowTutorial(true)} className="whitespace-nowrap pl-4 pr-3 md:pl-5 md:pr-2 py-3 hover:text-offwhite">
+                Aide
+              </button>
+              <span aria-hidden="true" className="hidden md:inline text-line">·</span>
+              <button onClick={() => setShowWhatsNew(true)} title="Voir les notes de version" className="whitespace-nowrap px-2 py-3 hover:text-cobalt">
+                v{CURRENT_VERSION}
+              </button>
+              <a
+                href={INSTAGRAM.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={`Suivre Réseau sur Instagram (@${INSTAGRAM.handle})`}
+                aria-label={`Réseau sur Instagram (@${INSTAGRAM.handle})`}
+                className="px-2 py-3 hover:text-offwhite"
+              >
+                <InstagramMark size={14} />
+              </a>
+              <button onClick={logout} className="whitespace-nowrap pl-3 pr-4 md:pl-2 md:pr-5 py-3 md:ml-auto hover:text-offwhite">
+                Quitter
+              </button>
+            </div>
+          </div>
         </div>
       </aside>
 
@@ -718,9 +764,21 @@ export default function Dashboard() {
 
         {dailyChallenge && <DailyChallengeBanner challenge={dailyChallenge} onChange={loadAll} />}
 
-        <main className="p-4 md:p-8">
-          <div key={view} className="view-transition">
+        <main className={`p-4 md:p-8 ${themeTrial ? "pb-28 md:pb-28" : ""}`}>
+          {/* une rubrique réunie garde la même clé d'un onglet à l'autre : l'en-tête
+              et les onglets ne sont pas recréés, le focus clavier reste en place */}
+          <div key={({ missions: "fret", historique: "rentabilite", succes: "carriere" } as Record<string, string>)[view] ?? view} className="view-transition">
             <PageHeader view={view} company={company} />
+            {/* 1.5 : trois rubriques en réunissent deux chacune */}
+            {(view === "fret" || view === "missions") && (
+              <SubTabs value={view} onChange={setView} tabs={[{ id: "fret", label: "Contrats" }, { id: "missions", label: "Donneurs d'ordre", count: missionCount }]} />
+            )}
+            {(view === "rentabilite" || view === "historique") && (
+              <SubTabs value={view} onChange={setView} tabs={[{ id: "rentabilite", label: "Rentabilité" }, { id: "historique", label: "Grand livre", count: transactions.length }]} />
+            )}
+            {(view === "carriere" || view === "succes") && (
+              <SubTabs value={view} onChange={setView} tabs={[{ id: "carriere", label: "Grades" }, { id: "succes", label: "Succès", count: achievements.filter((a) => a.unlocked).length }]} />
+            )}
             {view === "trains" && todaySummary && <TodaySummaryCard summary={todaySummary} />}
             {view === "trains" && import.meta.env.VITE_ADS_ENABLED === "true" && <AdWatchCard onChange={loadAll} />}
             {view === "trains" && !!company.upkeepPerHour && (
@@ -761,13 +819,34 @@ export default function Dashboard() {
             )}
             {view === "trains" && referral && <ReferralBanner referral={referral} />}
             {view === "trains" && <TrainsSection trains={trains} lines={lines} incidents={incidents} company={company} staff={staff} weatherType={weather?.type} onChange={loadAll} onOpenCatalog={() => setShowCatalog(true)} />}
-            {view === "lignes" && <LinesSection lines={lines} onChange={loadAll} network={network} company={company} />}
-            {view === "fret" && (
-              <FreightSection
-                market={market}
-                myContracts={myContracts}
-                trains={trains}
-                onChange={loadAll}
+            {/* conseils de première visite : au-dessus du contenu, pas sous une page qu'on ne fait pas défiler */}
+            {view === "lignes" && (
+              <FirstVisitHint
+                id="correspondances"
+                seen={company.hintsSeen ?? ""}
+                onSeen={loadAll}
+                title="Les correspondances rapportent"
+                body="Quand plusieurs de vos lignes arrivent dans la même gare, les voyageurs y changent de train sans changer de compagnie : chaque trajet qui passe par cette gare rapporte plus."
+                points={[
+                  "+4 % par destination au-delà de la première, jusqu'à +12 % par gare. Une ligne entre deux correspondances pleines rapporte jusqu'à +24 %.",
+                  "Seules comptent les lignes où roule une rame, et deux lignes vers la même gare ne comptent qu'une fois.",
+                  "Le formulaire de création vous montre la correspondance qu'une nouvelle ligne ouvrirait, et la carte les marque d'un losange.",
+                  "Pendant un temps fort de saison, certaines gares attirent plus de voyageurs : c'est affiché en haut de cette page.",
+                ]}
+              />
+            )}
+            {view === "appels" && (
+              <FirstVisitHint
+                id="appels-offres"
+                seen={company.hintsSeen ?? ""}
+                onSeen={loadAll}
+                title="Les régions cherchent des exploitants"
+                body="Chaque semaine, trois liaisons sont mises en concurrence. Proposez la subvention la plus basse possible : la moins chère l'emporte, mais une bonne réputation vous permet de demander un peu plus et de gagner quand même."
+                points={[
+                  "Il faut exploiter une ligne sur la liaison pour déposer une offre, et la subvention n'est versée que les heures où une de vos rames y roule.",
+                  "Faites le nombre de trajets demandé pour toucher une prime d'une journée, sinon c'est une pénalité d'une demi-journée, même sans avoir roulé.",
+                  "Les offres sont cachées : personne ne voit votre montant, et vous ne voyez pas celui des autres.",
+                ]}
               />
             )}
             {view === "lignes" && (
@@ -782,6 +861,16 @@ export default function Dashboard() {
                   "Ce qui attire : la réputation, le nombre de rames, les rames Express et des rames en bon état.",
                   "À attractivité égale, personne ne perd rien. Une liaison que personne n'exploite reste à vous.",
                 ]}
+              />
+            )}
+            {view === "appels" && <TendersSection company={company} onChange={loadAll} onOpenLines={() => setView("lignes")} />}
+            {view === "lignes" && <LinesSection lines={lines} onChange={loadAll} network={network} company={company} onOpenShop={() => setView("boutique")} />}
+            {view === "fret" && (
+              <FreightSection
+                market={market}
+                myContracts={myContracts}
+                trains={trains}
+                onChange={loadAll}
               />
             )}
             {view === "missions" && (
@@ -799,7 +888,7 @@ export default function Dashboard() {
               />
             )}
             {view === "missions" && <MissionsSection onChange={loadAll} />}
-            {view === "boutique" && <ShopSection onChange={loadAll} />}
+            {view === "boutique" && <ShopSection key={shopKey} initialItem={shopFocus} onChange={loadAll} company={{ name: company.name, liveryColor: company.liveryColor, emblem: company.emblem, title: company.title }} grade={career?.currentRank.name} onTryTheme={setThemeTrial} />}
             {view === "rentabilite" && <ProfitabilitySection company={company} onChange={loadAll} />}
             {view === "cours" && (
               <>
@@ -871,18 +960,19 @@ export default function Dashboard() {
 const PAGE_COPY = {
   trains: { title: "Votre flotte", subtitle: "Achetez, affectez et suivez chaque rame en circulation." },
   lignes: { title: "Vos lignes", subtitle: "Tracez les trajets que vos trains emprunteront." },
-  fret: { title: "Le fret", subtitle: "Acceptez des contrats de marchandises pour faire fructifier la compagnie." },
-  missions: { title: "Donneurs d'ordre", subtitle: "Quatre chargeurs confient du fret au réseau. Leur confiance se gagne, et elle paie." },
+  fret: { title: "Fret", subtitle: "Contrats de marchandises au comptant, et ordres des donneurs d'ordre qui paient votre fidélité." },
+  missions: { title: "Fret", subtitle: "Contrats de marchandises au comptant, et ordres des donneurs d'ordre qui paient votre fidélité." },
   classement: { title: "Classement", subtitle: "Les compagnies les plus prospères du réseau." },
-  historique: { title: "Historique", subtitle: "Le registre de tous les mouvements de trésorerie." },
-  rentabilite: { title: "Rentabilité", subtitle: "Ce que rapporte et ce que coûte chaque ligne, chaque rame, sur sept jours." },
-  succes: { title: "Succès", subtitle: "Les étapes franchies par votre compagnie." },
+  historique: { title: "Comptes", subtitle: "Ce que rapporte chaque ligne, et le registre de tous les mouvements de trésorerie." },
+  rentabilite: { title: "Comptes", subtitle: "Ce que rapporte chaque ligne, et le registre de tous les mouvements de trésorerie." },
+  succes: { title: "Progression", subtitle: "Votre carrière grade après grade, et les étapes franchies par la compagnie." },
   carte: { title: "Carte du réseau", subtitle: "Vos lignes et vos trains, positionnés en temps réel." },
   personnel: { title: "Personnel", subtitle: "Une équipe qui prend de l'expérience et doit suivre la taille de votre flotte." },
   parametres: { title: "Paramètres", subtitle: "Gérez votre compte." },
-  carriere: { title: "Carrière", subtitle: "Votre progression, grade après grade." },
+  carriere: { title: "Progression", subtitle: "Votre carrière grade après grade, et les étapes franchies par la compagnie." },
   cours: { title: "Cours du fret", subtitle: "Ce que valent les marchandises aujourd'hui, et ce que vous en faites." },
   boutique: { title: "Boutique", subtitle: "Des couleurs, des emblèmes, un titre. Rien qui change un chiffre du jeu." },
+  appels: { title: "Appels d'offres", subtitle: "Chaque semaine, les régions cherchent une compagnie pour exploiter une liaison." },
 };
 
 export type DashboardView = keyof typeof PAGE_COPY;
@@ -1131,18 +1221,71 @@ function WearGauge({ value }: { value: number }) {
   );
 }
 
-function SidebarItem({ label, count, active, onClick, icon, dataTutorial }: { label: string; count?: number; active: boolean; onClick: () => void; icon: React.ReactNode; dataTutorial?: string }) {
+type SubTab<T extends string> = { id: T; label: string; count?: number };
+function SubTabs<T extends string>({ value, onChange, tabs }: { value: string; onChange: (v: T) => void; tabs: SubTab<T>[] }) {
+  return (
+    <div role="tablist" className="flex gap-1 border-b border-line mb-6 -mt-3 overflow-x-auto">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          role="tab"
+          aria-selected={value === t.id}
+          onClick={() => onChange(t.id)}
+          className={`shrink-0 px-4 py-2.5 text-sm font-body border-b-2 -mb-px transition-colors ${
+            value === t.id ? "border-cobalt text-offwhite" : "border-transparent text-slate2 hover:text-offwhite"
+          }`}
+        >
+          {t.label}
+          {t.count !== undefined && <span className="ml-2 font-mono2 text-xs text-slate2 tabular-nums">{t.count}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function SidebarGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-row md:flex-col md:pt-3 border-l md:border-l-0 border-line first:border-l-0">
+      <div className="hidden md:block px-5 pb-1 font-mono2 text-[10px] uppercase tracking-[0.16em] text-slate2/70">{label}</div>
+      {children}
+    </div>
+  );
+}
+
+function SidebarItem({
+  label,
+  count,
+  active,
+  onClick,
+  icon,
+  dataTutorial,
+  alert,
+  badge,
+  accent,
+}: {
+  label: string;
+  count?: number;
+  active: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  dataTutorial?: string;
+  alert?: boolean;
+  badge?: string;
+  accent?: boolean;
+}) {
   return (
     <button
       data-tutorial={dataTutorial}
       onClick={onClick}
-      className={`shrink-0 whitespace-nowrap md:w-full flex items-center gap-2 md:gap-2.5 px-3.5 md:px-5 py-3 text-sm font-body border-l-2 transition-colors ${
-        active ? "border-cobalt text-cobalt bg-navy-900/60" : "border-transparent text-slate2 hover:text-offwhite"
+      className={`shrink-0 whitespace-nowrap md:w-full flex items-center gap-2 md:gap-2.5 px-3.5 md:px-5 py-3 md:py-2 text-sm font-body border-l-2 transition-colors ${
+        active ? "border-cobalt text-cobalt bg-navy-900/60" : accent ? "border-transparent text-amber hover:text-offwhite" : "border-transparent text-slate2 hover:text-offwhite"
       }`}
     >
-      {icon}
+      <span className="shrink-0 inline-flex">{icon}</span>
       <span className="md:flex-1 text-left">{label}</span>
-      {count !== undefined && <span className="text-xs font-mono2">{count}</span>}
+      {alert && <span className="w-1.5 h-1.5 rounded-full bg-amber" aria-label="demande en attente" />}
+      {badge && <span className="font-mono2 text-[9px] uppercase tracking-wide px-1.5 py-0.5 bg-amber/15 text-amber">{badge}</span>}
+      {count !== undefined && <span className="text-xs font-mono2 tabular-nums opacity-80">{count}</span>}
     </button>
   );
 }
@@ -1299,11 +1442,13 @@ function LinesSection({
   onChange,
   network,
   company,
+  onOpenShop,
 }: {
   lines: Line[];
   onChange: () => void;
   network: NetworkData | null;
   company: Company;
+  onOpenShop?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1450,6 +1595,13 @@ function LinesSection({
                     );
                   })}
                   {" "}· demande <DemandCell demand={plan.demand} />
+                  {/* 1.5 : correspondances ouvertes ou renforcées par cette ligne */}
+                  {hubPreview(lines, departure, arrival, network.hubRule, editingId).map((h) => (
+                    <div key={h.station} className="text-cobalt mt-0.5">
+                      {h.before === 1 ? "Nouvelle correspondance" : "Correspondance renforcée"} à {h.station} : {h.after} destinations, +{h.total} % sur chaque trajet qui y passe
+                      {h.gain === 0 && " (plafond atteint)"}, dès qu'une rame y roule
+                    </div>
+                  ))}
                   {(() => {
                     const p = pairOf(network, departure, arrival);
                     const others = p ? p.companies - (p.mine ? 1 : 0) : 0;
@@ -1475,23 +1627,25 @@ function LinesSection({
         </form>
       )}
 
+      {network && <SeasonBanner network={network} onOpenShop={onOpenShop} />}
       {network && <StationEventsPanel network={network} company={company} onChange={onChange} />}
 
       <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-      <table className="w-full text-sm min-w-[720px]">
+      <table className="w-full text-sm min-w-[820px]">
         <thead>
           <tr className="text-left text-[11px] text-slate2 font-body uppercase tracking-[0.14em] border-b border-line">
             <th className="py-2.5 font-normal">Départ</th>
             <th className="py-2.5 font-normal">Arrivée</th>
             <th className="py-2.5 font-normal text-right">Durée</th>
             <th className="py-2.5 font-normal text-right pl-4">Demande</th>
+            <th className="py-2.5 font-normal text-right pl-4" title="Bonus des gares où plusieurs de vos lignes se croisent">Correspondance</th>
             <th className="py-2.5 font-normal pl-4">Voyageurs</th>
             <th className="py-2.5 font-normal w-44"></th>
           </tr>
         </thead>
         <tbody>
           {lines.length === 0 && (
-            <tr><td colSpan={6} className="py-6 text-center text-slate2 font-body">Aucune ligne tracée — dessinez votre premier trajet.</td></tr>
+            <tr><td colSpan={7} className="py-6 text-center text-slate2 font-body">Aucune ligne tracée — dessinez votre premier trajet.</td></tr>
           )}
           {lines.map((l) => (
             <tr key={l.id} className="border-b border-line last:border-0 hover:bg-navy-900/40 transition-colors">
@@ -1500,6 +1654,9 @@ function LinesSection({
               <td className="py-3.5 text-right text-slate2 font-mono2 align-top">{l.durationMinutes} min</td>
               <td className="py-3.5 text-right pl-4 align-top">
                 <DemandCell demand={network?.lines.find((m) => m.lineId === l.id)?.demand} />
+              </td>
+              <td className="py-3.5 text-right pl-4 align-top">
+                <HubCell hub={network?.lines.find((m) => m.lineId === l.id)?.hub} />
               </td>
               <td className="py-3.5 pl-4 align-top">
                 <LineShareCell market={network?.lines.find((m) => m.lineId === l.id)} />
@@ -2999,6 +3156,8 @@ const TYPE_LABEL: Record<string, string> = {
   VENTE_FRET: "Revente de marchandise",
   GARDE: "Frais de garde",
   CHANTIER: "Chantier",
+  SUBVENTION: "Appel d'offres",
+  BOUTIQUE: "Boutique",
 };
 
 function BalanceChart({ transactions, currentBalance }: { transactions: Transaction[]; currentBalance: number }) {
@@ -3714,6 +3873,21 @@ function NetworkMap({
                     </circle>
                   );
                 })()}
+                {/* 1.5 : correspondance — un losange autour des gares où se croisent plusieurs de vos lignes */}
+                {(() => {
+                  const hub = network?.hubs?.find((h) => h.station === name);
+                  if (!hub) return null;
+                  const r = 6.5;
+                  return (
+                    <g>
+                      <rect x={pos.x - r} y={pos.y - r} width={r * 2} height={r * 2} transform={`rotate(45 ${pos.x} ${pos.y})`} fill="none" stroke="rgb(var(--c-cobalt))" strokeWidth="1.2" />
+                      <text x={pos.x + 8.5} y={pos.y - 6} fontSize="6.5" fontFamily="var(--font-mono2)" fill="rgb(var(--c-cobalt))" stroke="rgb(var(--c-navy-950))" strokeWidth="2" paintOrder="stroke">
+                        ×{hub.lines}
+                      </text>
+                      <title>{`Correspondance à ${name} : ${hub.lines} destinations, +${hub.bonus} % par trajet`}</title>
+                    </g>
+                  );
+                })()}
                 <circle
                   cx={pos.x}
                   cy={pos.y}
@@ -3804,6 +3978,7 @@ function NetworkMap({
             <span className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dotted border-slate2 shrink-0" /> Liaison d'un concurrent</span>
             <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full border border-dashed border-amber shrink-0" /> Affluence en gare</span>
             <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full border border-dashed border-rail-red shrink-0" /> Grève ou travaux</span>
+            <span className="flex items-center gap-2"><span className="w-2 h-2 rotate-45 border border-cobalt shrink-0 ml-0.5 mr-0.5" /> Correspondance</span>
           </div>
 
           <div className="text-[10px] font-mono2 uppercase tracking-[0.18em] text-slate2 mb-3">Vos lignes</div>
@@ -4459,6 +4634,7 @@ function SettingsSection({
           {[
             ["Vue cabine", "Suivez chacune de vos rames en direct, de profil, avec la météo du réseau et votre livrée"],
             ["Veille concurrentielle", "Le détail de chaque concurrent sur vos lignes, et une notification quand l'un d'eux arrive ou vous passe devant"],
+            ["Appels d'offres en avance", "Les marchés de la semaine suivante dès le dimanche, le nombre d'offres déjà déposées, et une notification du résultat"],
             ["Événements de gare annoncés", "Salons, festivals, grèves : vous les voyez une heure avant qu'ils commencent"],
             ["Rentabilité détaillée", "Recettes, pannes et bénéfice à l'heure de chaque ligne et de chaque rame"],
             ["Bilan de retour", "Ce qui s'est passé pendant votre absence, et un résumé de la nuit chaque matin"],

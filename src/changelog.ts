@@ -1,4 +1,4 @@
-export const CURRENT_VERSION = "1.4.0";
+export const CURRENT_VERSION = "1.5.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -13,6 +13,25 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.5.0",
+    date: "Septembre 2026",
+    changes: [
+      { type: "nouveau", text: "Appels d'offres : chaque semaine, trois régions cherchent une compagnie pour exploiter une liaison. Si vous exploitez la liaison, déposez une offre du lundi au mardi (la subvention que vous demandez par jour, sous pli fermé). Le mercredi, la moins chère l'emporte, pondérée par la réputation, et touche sa subvention jusqu'au lundi suivant, chaque heure où ses rames roulent sur la liaison" },
+      { type: "nouveau", text: "Chaque marché demande un nombre de trajets : objectif atteint, prime d'une journée ; objectif manqué, pénalité d'une demi-journée, sans jamais mettre votre trésorerie dans le rouge" },
+      { type: "nouveau", text: "Correspondances : une gare d'où vos rames partent vers plusieurs destinations rapporte plus, +4 % par destination au-delà de la première, jusqu'à +12 % par gare. Le formulaire de création montre la correspondance qu'ouvrirait une nouvelle ligne, et la carte les marque d'un losange" },
+      { type: "nouveau", text: "Temps forts de saison : les Vendanges (Bordeaux, Reims, Dijon, Avignon, Tours, Mulhouse), les Marchés de Noël, les Vacances de neige et les Grandes Vacances font grimper la demande de leurs gares pendant plusieurs semaines" },
+      { type: "nouveau", text: "Boutique : un coffret en édition limitée par temps fort (livrée et emblème), en vente seulement pendant sa saison. Le premier, le Coffret des Vendanges, est disponible jusqu'au 31 octobre" },
+      { type: "nouveau", text: "Premium — Appels d'offres en avance : les marchés de la semaine suivante dès le dimanche, le nombre d'offres déjà déposées sur chaque marché (jamais les montants) et une notification du résultat" },
+      { type: "nouveau", text: "11 nouveaux succès, 77 en tout : premier marché, adjudicataire, contrat rempli, au plus juste, première correspondance, nœud ferroviaire, étoile ferroviaire, et un succès par temps fort — vendangeur, esprit de Noël, neiges éternelles, grandes vacances — qui ne se gagne que pendant sa saison" },
+      { type: "nouveau", text: "Réseau a son compte Instagram, @reseau.lejeu : les nouveautés en avant-première et les coulisses du jeu. Le lien est en bas du menu, sur la page d'accueil et dans ce bulletin" },
+      { type: "ameliore", text: "Nouveau logo : le R de Réseau tracé comme une ligne, avec le losange des correspondances. Il remplace l'ancien sur le site, l'icône de l'application installée, l'onglet du navigateur et les notifications" },
+      { type: "ameliore", text: "Menu rangé par thème (Exploitation, Commerce, Compagnie) et toujours visible quand on fait défiler une page. Missions rejoint le Fret, l'Historique rejoint la Rentabilité dans « Comptes », et les Succès rejoignent la Carrière dans « Progression » : douze rubriques au lieu de quinze" },
+      { type: "nouveau", text: "Boutique en vitrine : votre rame est exposée en gare, de nuit, et l'article choisi s'applique dessus en direct — la livrée sur la caisse, l'emblème sur la motrice, le titre sur la plaque du quai, la loco à vapeur ou la Micheline à la place de la rame. On essaie chaque variante avant d'acheter, et on porte d'un clic ce qu'on possède déjà. L'habillage s'essaie sur toute la console" },
+      { type: "corrige", text: "La suppression de compte échouait pour une compagnie qui avait utilisé les missions, l'entrepôt, les alertes de cours ou la boutique : toutes ses données sont maintenant effacées" },
+      { type: "ameliore", text: "Fret, Missions et Cours ont chacun leur icône, et une demande d'augmentation du personnel s'affiche par un point dans le menu" },
+    ],
+  },
   {
     version: "1.4.0",
     date: "Septembre 2026",
