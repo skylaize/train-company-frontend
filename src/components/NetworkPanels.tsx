@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Emblem } from "./Emblem";
 import { PremiumCTA, PremiumInfo } from "./PremiumCTA";
+import { api } from "../api/client";
+import { useToast } from "../context/ToastContext";
 
 /* ============================================================
    Gares vivantes et concurrence (1.4) — les morceaux d'interface.
@@ -61,6 +63,23 @@ export interface NetworkData {
   hubs?: { station: string; lines: number; bonus: number }[];
   hubRule?: { step: number; cap: number };
   season?: { active: SeasonInfo | null; next: SeasonInfo | null };
+  // 1.6
+  international?: {
+    stations: { name: string; country: string; code: string }[];
+    licence: {
+      owned: boolean;
+      cost: number;
+      minGrade: number;
+      gradeOk: boolean;
+      openToAllAt: string | null;
+      earlyAccess: boolean;
+      canBuy: boolean;
+      reason: string | null;
+    };
+    revenueBonus: number;
+    tollRate: number;
+  };
+  night?: { active: boolean; from: number; to: number; multiplier: number; dayMultiplier: number; minDuration: number };
 }
 
 const dayMonth = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
@@ -337,5 +356,96 @@ export function RivalsDetail({
         </div>
       )}
     </div>
+  );
+}
+
+/* ============================================================
+   Licence internationale (1.6) : en tête de la page des lignes.
+   Achetée, elle se résume à une ligne ; sinon elle dit ce qui manque.
+   ============================================================ */
+const fmtPi = (n: number) => n.toLocaleString("fr-FR");
+
+export function LicencePanel({ network, onChange }: { network: NetworkData; onChange: () => void }) {
+  const intl = network.international;
+  const [busy, setBusy] = useState(false);
+  const { showToast } = useToast();
+  if (!intl) return null;
+  const { licence } = intl;
+  const places = intl.stations.map((s) => s.name).join(", ");
+  const bonus = String(intl.revenueBonus).replace(".", ",");
+  const toll = Math.round(intl.tollRate * 100);
+
+  async function buy() {
+    setBusy(true);
+    try {
+      await api.post("/company/licence");
+      showToast("Licence internationale obtenue : l'étranger est ouvert à vos lignes");
+      onChange();
+    } catch (e: any) {
+      showToast(e?.response?.data?.error ?? "Achat impossible", "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (licence.owned) {
+    return (
+      <div className="border border-line px-4 py-2.5 mb-4 text-[12.5px] font-body text-slate2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-cobalt">Licence internationale</span>
+        <span>{places} : recette ×{bonus}, dont {toll} % de péage de sillon.</span>
+      </div>
+    );
+  }
+
+  /* 1.6 : loin du grade requis, une ligne suffit. Le grand encart attendait
+     un nouveau venu dès sa première visite, pour une licence qu'il n'aura pas
+     avant des jours : c'était du bruit. */
+  if (!licence.gradeOk) {
+    return (
+      <div className="border border-line px-4 py-2.5 mb-4 text-[12.5px] font-body text-slate2 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-slate2">Licence internationale</span>
+        <span>{places} : ouvertes à vos lignes dès le grade « Baron du rail ».</span>
+      </div>
+    );
+  }
+
+  const lockedForFree = licence.openToAllAt !== null && !licence.earlyAccess;
+  return (
+    <section className="border border-line mb-6">
+      <div className="px-4 py-3 border-b border-line flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-cobalt">Nouveau · Licence internationale</h2>
+        {licence.earlyAccess && <span className="font-mono2 text-[10px] uppercase tracking-wide px-1.5 py-0.5 bg-amber/15 text-amber">Accès anticipé Premium</span>}
+      </div>
+      <div className="px-4 py-4 grid md:grid-cols-[1fr_auto] gap-4 items-center">
+        <div className="font-body">
+          <p className="text-[13px] text-offwhite leading-snug">
+            Six gares à l'étranger : {places}. Une ligne qui passe la frontière rapporte ×{bonus} par trajet, dont {toll} % reversés en péage de sillon.
+          </p>
+          <ul className="mt-2 text-[12px] space-y-0.5">
+            <li className={licence.gradeOk ? "text-rail-green" : "text-slate2"}>{licence.gradeOk ? "✓" : "○"} Grade « Baron du rail »</li>
+            <li className="text-slate2">○ {fmtPi(licence.cost)} pi. en trésorerie, payés une fois</li>
+            {lockedForFree && (
+              <li className="text-amber">
+                ○ Ouverte à tous le {new Date(licence.openToAllAt!).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} — les abonnés Premium y ont accès dès maintenant
+              </li>
+            )}
+          </ul>
+        </div>
+        <div className="flex flex-col items-start md:items-end gap-2">
+          {lockedForFree ? (
+            <PremiumCTA company={{ isPremium: network.isPremium }} compact />
+          ) : (
+            <button
+              onClick={buy}
+              disabled={busy || !licence.canBuy}
+              className="px-4 py-2 text-[11px] bg-cobalt text-onaccent font-mono2 uppercase tracking-wide disabled:opacity-40"
+            >
+              {busy ? "Achat…" : `Acheter la licence · ${fmtPi(licence.cost)} pi.`}
+            </button>
+          )}
+          {!licence.canBuy && licence.reason && !lockedForFree && <span className="text-[11.5px] text-slate2 font-body">{licence.reason}</span>}
+        </div>
+      </div>
+    </section>
   );
 }

@@ -33,6 +33,19 @@
   <link href="https://fonts.googleapis.com/css2?family=Bitter:wght@500;600;700&family=Work+Sans:wght@400;500;600&family=Space+Mono:wght@400;700&family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 </head>
 <body class="bg-navy-950 text-offwhite font-body">
+  <!-- Écran de démarrage (1.6) : seulement quand Réseau est ouvert depuis l'écran d'accueil -->
+  <style>
+    #splash { display: none; }
+    @media (display-mode: standalone) {
+      #splash { display: flex; position: fixed; inset: 0; z-index: 9999; background: #0b0f19; flex-direction: column; align-items: center; justify-content: center; gap: 18px; transition: opacity .35s ease; }
+      #splash.gone { opacity: 0; pointer-events: none; }
+      #splash span { font: 600 13px/1 "Space Mono", monospace; letter-spacing: .32em; color: #94a3b8; }
+    }
+  </style>
+  <div id="splash" aria-hidden="true">
+    <img src="/favicon.svg" width="88" height="88" alt="" />
+    <span>RÉSEAU</span>
+  </div>
   <div id="root"></div>
   <script type="module" src="/src/main.tsx"></script>
 </body>

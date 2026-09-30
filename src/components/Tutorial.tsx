@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { TrainMark } from "./TrainMark";
+import { LogoMark } from "./Logo";
 
 type DashboardView = "trains" | "lignes" | "fret" | "missions" | "classement" | "historique" | "succes" | "carte" | "personnel" | "parametres" | "carriere" | "cours";
 
@@ -23,20 +24,24 @@ interface Step {
   waitingLabel?: string;
 }
 
+/* 1.6 : cinq étapes au lieu de huit. Le fret, le cours des marchandises et les
+   chantiers s'expliquaient ici d'une traite, avant même la première rame : ils
+   ont maintenant leur « Bon à savoir » à la première visite de leur rubrique, et
+   la liste « Premiers pas » prend le relais à la fin du guide. */
 const STEPS: Step[] = [
   {
     view: null,
     target: null,
     modalOpen: false,
     title: "Bienvenue à bord",
-    body: "Vous dirigez une compagnie ferroviaire. Trois gestes suffisent pour qu'elle commence à gagner de l'argent — on les fait ensemble maintenant.",
+    body: "Vous dirigez une compagnie ferroviaire. Trois gestes suffisent pour qu'elle commence à gagner de l'argent : tracer une ligne, acheter une rame, la mettre en service. On les fait ensemble, ça prend une minute.",
   },
   {
     view: "lignes",
-    target: "btn-new-line",
+    target: "first-line-ideas",
     modalOpen: false,
     title: "Tracez votre première ligne",
-    body: "Une ligne relie deux gares. Choisissez-les : la distance et la durée du trajet se calculent toutes seules. Une ligne longue paie mieux à la minute, et une grande gare attire plus de voyageurs — mais si une autre compagnie roule déjà sur la liaison, il faudra les lui disputer.",
+    body: "Une ligne relie deux gares, et vos rames y font l'aller-retour. Prenez une des idées proposées, ou choisissez vos gares avec « + Ligne » : la durée du trajet se calcule toute seule.",
     awaits: (s) => s.lineCount >= 1,
     waitingLabel: "En attente de votre première ligne",
   },
@@ -45,7 +50,7 @@ const STEPS: Step[] = [
     target: "btn-commander",
     modalOpen: true,
     title: "Achetez une rame",
-    body: "Le modèle Standard coûte 200 pi. et suffit largement pour démarrer. Votre dépôt a deux places au départ ; vous pourrez l'agrandir plus tard, chaque place coûtant plus cher que la précédente.",
+    body: "La Standard coûte 200 pi. et suffit largement pour démarrer. Votre dépôt a deux places ; vous pourrez l'agrandir plus tard.",
     awaits: (s) => s.trainCount >= 1,
     waitingLabel: "En attente de votre première rame",
   },
@@ -59,32 +64,11 @@ const STEPS: Step[] = [
     waitingLabel: "En attente d'une rame affectée",
   },
   {
-    view: "fret",
-    target: "freight-market",
+    view: "trains",
+    target: "first-steps",
     modalOpen: false,
-    title: "Le fret, quand vous aurez une rame libre",
-    body: "Une rame qui n'est pas sur une ligne peut livrer des marchandises. C'est plus rentable qu'une ligne, mais chaque offre expire au bout de quelques minutes — et une cargaison fragile peut être abîmée en route.",
-  },
-  {
-    view: "cours",
-    target: "cours-table",
-    modalOpen: false,
-    title: "Le cours des marchandises",
-    body: "Chaque marchandise vaut plus ou moins cher selon le moment. Livrer ce que le marché recherche paie jusqu'à un quart de plus — et avec un entrepôt, vous pouvez acheter bas, garder, revendre haut. Garder coûte des frais de garde : attendre a un prix.",
-  },
-  {
-    view: "cours",
-    target: "chantiers",
-    modalOpen: false,
-    title: "Les chantiers",
-    body: "Entrepôt et places de dépôt passent par un chantier : on paie à la commande, la livraison vient quelques dizaines de minutes plus tard, et on n'en mène qu'un à la fois. L'argent ne suffit donc pas — il faut choisir par quoi commencer.",
-  },
-  {
-    view: null,
-    target: null,
-    modalOpen: false,
-    title: "Votre compagnie tourne",
-    body: "Le reste se découvre en jouant : les donneurs d'ordre vous confient des contrats datés, le classement vous compare aux autres réseaux, et les Paramètres permettent de basculer l'interface entre Nuit et Papier. Le bouton Aide rouvre ce guide quand vous voulez.",
+    title: "Votre compagnie roule",
+    body: "Elle gagne de l'argent à chaque trajet, même jeu fermé. La suite est dans « Premiers pas » : livrer du fret, puis ouvrir une correspondance. Chaque rubrique s'explique la première fois que vous l'ouvrez, et le bouton Aide rouvre ce guide.",
   },
 ];
 
@@ -236,7 +220,12 @@ export function Tutorial({
   }
 
   const spaceBelow = window.innerHeight - rect.bottom;
-  const placeBelow = spaceBelow > 220;
+  const CARD_H = 300; // hauteur prudente de la carte compacte
+  const placeBelow = spaceBelow > CARD_H;
+  const placeAbove = !placeBelow && rect.top > CARD_H;
+  // 1.6 : cible trop haute pour loger la carte dessus ou dessous (la liste
+  // « Premiers pas ») : la carte se range en bas à droite, toujours visible
+  const docked = !placeBelow && !placeAbove;
   const padding = 6;
 
   // si la cible est déjà dans une fenêtre modale ouverte (ex. le catalogue), celle-ci a
@@ -270,11 +259,15 @@ export function Tutorial({
 
       <div
         className="absolute pointer-events-auto transition-all duration-300 ease-out"
-        style={{
-          top: placeBelow ? rect.bottom + padding + 10 : undefined,
-          bottom: !placeBelow ? window.innerHeight - rect.top + padding + 10 : undefined,
-          left: Math.min(Math.max(rect.left, 16), window.innerWidth - 336),
-        }}
+        style={
+          docked
+            ? { bottom: 16, right: 16 }
+            : {
+                top: placeBelow ? rect.bottom + padding + 10 : undefined,
+                bottom: placeAbove ? window.innerHeight - rect.top + padding + 10 : undefined,
+                left: Math.min(Math.max(rect.left, 16), window.innerWidth - 336),
+              }
+        }
       >
         <TutorialCard key={stepIndex} step={step} stepIndex={stepIndex} total={STEPS.length} onNext={next} onSkip={skip} isLast={isLast} waiting={waiting} justDone={!!step.awaits && satisfied && !wasDoneOnEntry} compact />
       </div>
@@ -306,6 +299,7 @@ function TutorialCard({
   return (
     <div className={`bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter ${compact ? "w-80" : "w-full max-w-md"}`}>
       <div className="p-6">
+        {stepIndex === 0 && <LogoMark size={44} className="mb-4" />}
         <h2 className="font-display text-2xl mb-2">{step.title}</h2>
         <p className="text-sm text-slate2 font-body leading-relaxed">{step.body}</p>
       </div>

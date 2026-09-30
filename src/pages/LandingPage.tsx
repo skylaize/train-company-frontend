@@ -98,7 +98,7 @@ const SYSTEMES = [
   { n: "01", t: "Le dépôt", s: "Matériel",
     b: "Deux places pour commencer, aucun plafond. Chaque agrandissement est un chantier, plus long et plus cher que le précédent." },
   { n: "02", t: "Les lignes", s: "Exploitation",
-    b: "Trente-huit gares, de Paris la capitale à La Rochelle. Les grandes gares attirent plus de voyageurs, et sur une ligne partagée, la meilleure compagnie les prend aux autres." },
+    b: "Trente-huit gares en France et six à l'étranger, de Paris à Londres. Les grandes gares attirent plus de voyageurs, et sur une ligne partagée, la meilleure compagnie les prend aux autres." },
   { n: "03", t: "Le fret", s: "Commerce",
     b: "Des contrats qui expirent. Les cargaisons fragiles paient double, mais arrivent parfois en morceaux." },
   { n: "04", t: "L'usure", s: "Entretien",
@@ -115,6 +115,10 @@ const SYSTEMES = [
     b: "Chaque semaine, trois régions mettent une liaison en concurrence. La compagnie qui demande la plus petite subvention l'emporte, à condition d'y faire rouler ses rames." },
   { n: "10", t: "Les correspondances", s: "Réseau",
     b: "Une gare où se croisent plusieurs de vos lignes rapporte plus. Dix lignes éparpillées valent moins que dix lignes qui se rejoignent." },
+  { n: "11", t: "L'international", s: "Frontières",
+    b: "Londres, Bruxelles, Francfort, Genève, Milan, Barcelone. Avec la licence internationale, vos lignes passent la frontière : recettes plus fortes, péage au réseau étranger." },
+  { n: "12", t: "Les trains de nuit", s: "Couchettes",
+    b: "De 22 h à 6 h, une rame couchettes rapporte trois fois plus sur les grandes lignes. Le réseau travaille pendant que vous dormez." },
 ];
 
 const CONTINU = [
@@ -454,10 +458,12 @@ export default function LandingPage() {
                 <li><b>·</b>Dépôt sans plafond — chaque place coûte plus cher que la précédente</li>
                 <li><b>·</b>Toutes les rames et tout le personnel, débloqués au grade</li>
                 <li><b>·</b>Les quatre donneurs d'ordre et leur fidélité</li>
-                <li><b>·</b>Classements, 77 succès, défi quotidien</li>
+                <li><b>·</b>Classements, 88 succès, défi quotidien</li>
                 <li><b>·</b>Carte du réseau, tracé à la souris, deux habillages</li>
                 <li><b>·</b>Gares vivantes, concurrence sur les lignes partagées</li>
                 <li><b>·</b>Appels d'offres chaque semaine, correspondances et temps forts de saison</li>
+                <li><b>·</b>Lignes internationales et trains de nuit</li>
+                <li><b>·</b>Application installable sur téléphone et ordinateur, sans store</li>
                 <li><b>·</b>Un aperçu de la vue cabine sur chaque rame</li>
               </ul>
               <div className="lp-tk-ft">
@@ -479,6 +485,7 @@ export default function LandingPage() {
                 <li><b>·</b>Vue cabine : suivez chaque rame en direct, de gare en gare</li>
                 <li><b>·</b>Veille concurrentielle et événements de gare annoncés une heure avant</li>
                 <li><b>·</b>Appels d'offres de la semaine suivante dès le dimanche, et nombre d'offres déposées</li>
+                <li><b>·</b>Licence internationale une semaine avant tout le monde</li>
                 <li><b>·</b>Rentabilité de chaque ligne et de chaque rame, sur sept jours</li>
                 <li><b>·</b>Bilan de votre absence au retour, et résumé de la nuit chaque matin</li>
                 <li><b>·</b>File de chantiers : le suivant démarre seul, même la nuit</li>

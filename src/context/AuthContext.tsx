@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
+import { clearToken, setToken } from "../authToken";
 
 interface User {
   id: string;
@@ -10,9 +11,16 @@ interface User {
 
 interface AuthContextValue {
   user: User | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, pseudo: string, password: string) => Promise<void>;
+  login: (email: string, password: string, opts?: AuthOpts) => Promise<void>;
+  register: (email: string, pseudo: string, password: string, opts?: AuthOpts) => Promise<void>;
+  /* jeton reçu d'ailleurs : retour de Discord ou Google, nouveau mot de passe */
+  adopt: (token: string, remember: boolean) => void;
   logout: () => void;
+}
+
+export interface AuthOpts {
+  remember?: boolean;
+  turnstile?: string | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -21,26 +29,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const navigate = useNavigate();
 
-  async function login(email: string, password: string) {
-    const { data } = await api.post("/auth/login", { email, password });
-    localStorage.setItem("token", data.token);
+  async function login(email: string, password: string, opts: AuthOpts = {}) {
+    const remember = opts.remember ?? true;
+    const { data } = await api.post("/auth/login", { email, password, remember, turnstile: opts.turnstile ?? undefined });
+    setToken(data.token, remember);
     setUser(data.user);
   }
 
-  async function register(email: string, pseudo: string, password: string) {
-    const { data } = await api.post("/auth/register", { email, pseudo, password });
-    localStorage.setItem("token", data.token);
+  async function register(email: string, pseudo: string, password: string, opts: AuthOpts = {}) {
+    const remember = opts.remember ?? true;
+    const { data } = await api.post("/auth/register", { email, pseudo, password, remember, turnstile: opts.turnstile ?? undefined });
+    setToken(data.token, remember);
     setUser(data.user);
+  }
+
+  function adopt(token: string, remember: boolean) {
+    setToken(token, remember);
   }
 
   function logout() {
-    localStorage.removeItem("token");
+    clearToken();
     setUser(null);
     navigate("/auth", { replace: true });
   }
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout }}>
+    <AuthContext.Provider value={{ user, login, register, adopt, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,3 +1,4 @@
+import "./install"; // en premier : l'invitation à installer arrive dès le chargement
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
@@ -12,3 +13,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <App />
   </React.StrictMode>
 );
+
+// écran de démarrage de l'application installée (voir index.html) : il s'efface une fois l'interface prête
+const splash = document.getElementById("splash");
+if (splash) {
+  window.setTimeout(() => {
+    splash.classList.add("gone");
+    window.setTimeout(() => splash.remove(), 400);
+  }, 450);
+}

@@ -19,9 +19,12 @@ export interface HintProps {
   points?: string[];
   seen: string;
   onSeen: () => void;
+  /* « Nouveau dans cette version » annonce un changement aux joueurs installés ;
+     « Bon à savoir » explique une rubrique à celui qui la découvre (1.6). */
+  tag?: string;
 }
 
-export function FirstVisitHint({ id, title, body, points, seen, onSeen }: HintProps) {
+export function FirstVisitHint({ id, title, body, points, seen, onSeen, tag = "Nouveau dans cette version" }: HintProps) {
   const alreadySeen = (seen || "").split(",").includes(id);
   const [closed, setClosed] = useState(false);
 
@@ -44,7 +47,7 @@ export function FirstVisitHint({ id, title, body, points, seen, onSeen }: HintPr
       <div className="flex items-start gap-3 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="text-[10px] font-mono2 uppercase tracking-[0.2em] text-cobalt mb-1.5">
-            Nouveau dans cette version
+            {tag}
           </div>
           <h3 className="font-display text-lg leading-tight mb-1.5">{title}</h3>
           <p className="text-sm font-body text-slate2 leading-relaxed max-w-[68ch]">{body}</p>

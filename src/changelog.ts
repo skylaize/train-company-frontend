@@ -1,4 +1,4 @@
-export const CURRENT_VERSION = "1.5.0";
+export const CURRENT_VERSION = "1.6.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -13,6 +13,32 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    version: "1.6.0",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Lignes internationales : Londres, Bruxelles, Francfort, Genève, Milan et Barcelone rejoignent la carte. Avec la licence internationale (grade « Baron du rail » et 6 000 pi., une fois pour toutes), vos lignes passent la frontière : recette ×1,6 par trajet, dont 25 % reversés en péage de sillon au réseau étranger" },
+      { type: "nouveau", text: "Trains de nuit : la rame couchettes (dès « Chef de réseau », 900 pi.) roule sur les grandes lignes de 10 minutes et plus. De 22 h à 6 h, heure de Paris, chacun de ses trajets rapporte trois fois plus ; le jour, 20 % de moins qu'une rame assise" },
+      { type: "nouveau", text: "Application installable : Réseau s'installe sur l'écran d'accueil du téléphone ou de l'ordinateur, sans passer par un store. Son icône, sa fenêtre, un écran de démarrage, et les notifications sur iPhone. Le bouton est dans le menu et dans les paramètres" },
+      { type: "nouveau", text: "Décisions : de temps en temps, une situation arrive sur votre bureau. Une grève en gare, une fissure sur une rame, un festival, un maire qui veut sa ligne, un concurrent qui casse les prix… Deux ou trois réponses, chacune avec son prix, et deux heures pour trancher. Sans réponse, le réseau tranche pour vous, rarement en votre faveur. Une notification prévient quand une décision arrive, jamais la nuit" },
+      { type: "nouveau", text: "Le fil du réseau : la barre du haut fait défiler ce qui se passe, vos rames qui arrivent, les lignes que les autres compagnies ouvrent, les salons et les grèves en gare. Et quand l'argent rentre, « +48 pi. » s'affiche au-dessus de la trésorerie" },
+      { type: "nouveau", text: "Premium — Licence internationale en avance : les abonnés peuvent l'acheter dès aujourd'hui, une semaine avant l'ouverture à tous" },
+      { type: "nouveau", text: "11 nouveaux succès, 88 en tout : passeport ferroviaire, passage de frontière, sous la Manche, tour d'Europe, train de nuit, nuit blanche, sur l'écran d'accueil, premiers pas, premier arbitrage, le bureau du directeur et promesse tenue" },
+      { type: "ameliore", text: "Nouveaux joueurs : un vrai écran de fondation (nom, livrée, ce qui vous attend), un guide plus court, trois idées de première ligne, et la liste « Premiers pas » qui mène de la première ligne à la première correspondance. Les rubriques du menu apparaissent quand elles deviennent utiles, et chacune s'explique la première fois qu'on l'ouvre" },
+      { type: "ameliore", text: "Nouvelle carte : elle occupe tout l'écran et se manipule comme celle d'un jeu. On la fait glisser, on zoome à la molette, au pincement ou aux boutons, et plus on s'approche, plus elle montre de gares et de détails. Une gare ou une rame se touche pour ouvrir sa fiche : demande, événements, correspondance, « Tracer une ligne d'ici », ou « Suivre la rame ». Échelle en kilomètres, plein écran, légende et liste des lignes en panneaux repliables" },
+      { type: "ameliore", text: "La carte prend du relief et ses vraies proportions : fleuves, massifs, quadrillage, lignes en trait plein, rames à la couleur de leur ligne qui laissent une traînée, et l'affluence d'une gare affichée en clair (« +35 % »). La nuit, la carte s'assombrit et les villes s'allument" },
+      { type: "nouveau", text: "Premium — En direct : la vue cabine s'installe en tête de votre flotte. Une de vos rames en route, filmée de profil, qui change toutes les vingt secondes, avec sa vitesse et l'heure d'arrivée. Les flèches passent à la suivante, « Agrandir » ouvre la grande vue cabine" },
+      { type: "ameliore", text: "Le nom d'une ligne devient facultatif : elle prend celui de ses deux gares" },
+      { type: "ameliore", text: "Nouvel écran de connexion : une carte, deux onglets, le mot de passe qu'on peut afficher, « Rester connecté », et selon ce qui est activé sur le serveur, « Mot de passe oublié ? », la vérification Cloudflare et la connexion avec Discord ou Google. L'adresse e-mail ne tient plus compte des majuscules" },
+      { type: "ameliore", text: "Les appels d'offres rejoignent le Commerce dans le menu, avec le fret et le cours des marchandises" },
+      { type: "ameliore", text: "Quand une nouvelle version est en ligne, un bandeau propose de recharger la page : plus besoin de fermer l'onglet pour en profiter" },
+      { type: "corrige", text: "Affecter une rame depuis le bas de l'écran pouvait ne rien faire : le menu se fermait avant que le choix ne parte. Et le tableau des rames ne se réordonne plus tout seul à chaque rafraîchissement" },
+      { type: "corrige", text: "Un double clic sur « Réviser » envoyait deux révisions ; le bouton est aussi grisé quand la trésorerie ne suffit pas" },
+      { type: "ameliore", text: "La carte s'ouvre sur l'Europe : le Royaume-Uni, la Belgique, l'Allemagne, la Suisse, l'Italie et l'Espagne entourent la France, avec la Manche, la mer du Nord et la Méditerranée, et les gares étrangères y trouvent leur place. Le formulaire de ligne indique la recette nette d'une ligne internationale et les grandes lignes où une rame couchettes peut rouler" },
+      { type: "ameliore", text: "La vue cabine montre les rames couchettes, rideaux à moitié tirés, et le bandeau du réseau signale le service de nuit" },
+      { type: "ameliore", text: "Grand livre et rentabilité : les péages de sillon et la licence ont leur ligne, et le péage est déduit de ce que rapporte une ligne internationale" },
+    ],
+  },
   {
     version: "1.5.0",
     date: "Septembre 2026",

@@ -11,6 +11,7 @@ export function createCabScene(ctx) {
     weather: "clair", livery: "#4f7fa3", express: false,
     v: 0, s: 0, dep: "", arr: "", depDist: 1e9, arrDist: 1e9,
     skin: null as string | null, // matériel de collection (boutique) : "vapeur" | "micheline" | null
+    sleeper: false, // 1.6 : rame couchettes, fenêtres de compartiments aux rideaux tirés
   };
   const puffs = []; // fumée de la locomotive à vapeur
   const hill = (x, seed, amp, freq) =>
@@ -177,9 +178,14 @@ export function createCabScene(ctx) {
       // fenêtres
       const lit = pal.light;
       ctx.fillStyle = lit ? "#ffd892" : "#2b3a4f";
-      const n = isLoco ? 2 : 6;
+      const n = isLoco ? 2 : sc.sleeper ? 4 : 6;
       const ww = (carW - 24) / (isLoco ? 4 : n) - 4;
       for (let k = 0; k < n; k++) ctx.fillRect(cx + 10 + k * (ww + 4), top + carH * 0.22, ww, carH * 0.26);
+      if (sc.sleeper && !isLoco) {
+        // rideaux à moitié tirés : le haut de chaque compartiment reste sombre
+        ctx.fillStyle = "#1b2638";
+        for (let k = 0; k < n; k++) ctx.fillRect(cx + 10 + k * (ww + 4), top + carH * 0.22, ww, carH * 0.11);
+      }
       if (isLoco) { ctx.fillStyle = "#1b2638"; ctx.fillRect(cx + carW - (sc.express ? carH * 1.05 : carH * 0.5), top + carH * 0.2, carH * 0.4, carH * 0.25); }
       // pantographe
       if (isLoco || i === 0) {
