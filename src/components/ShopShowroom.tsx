@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createCabScene } from "./cabScene";
 import { Emblem, EMBLEM_LABELS } from "./Emblem";
 import { THEMES } from "../theme";
+import { Plate, PLATE_LABELS } from "./Plate";
 
 /* ============================================================
    Vitrine de la boutique.
@@ -25,6 +26,9 @@ export interface ShowroomItem {
   titles?: string[];
   theme?: string;
   cabSkins?: string[];
+  plates?: string[];
+  isNew?: boolean;
+  worthCents?: number;
   owned: boolean;
   seasonName?: string | null;
   availableUntil?: string | null;
@@ -37,6 +41,7 @@ export interface ShowroomCompany {
   title?: string | null;
   cabSkin?: string | null;
   theme?: string;
+  plate?: string | null;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -46,6 +51,8 @@ const KIND_LABEL: Record<string, string> = {
   THEME: "Habillage",
   CABINE: "Matériel de collection",
   SAISON: "Édition limitée",
+  COFFRET: "Coffret",
+  PLAQUE: "Plaques d'honneur",
 };
 
 export const euros = (cents: number) => (cents / 100).toFixed(2).replace(".", ",") + " €";
@@ -74,6 +81,7 @@ export function ShopShowroom({
   const [emblem, setEmblem] = useState<string | null>(company.emblem ?? null);
   const [title, setTitle] = useState<string | null>(company.title ?? null);
   const [cab, setCab] = useState<string | null>(null);
+  const [plate, setPlate] = useState<string | null>(company.plate ?? null);
 
   // un nouvel article en vitrine : on montre sa première variante
   useEffect(() => {
@@ -81,6 +89,7 @@ export function ShopShowroom({
     setEmblem(item.emblems?.[0] ?? company.emblem ?? null);
     setTitle(item.titles?.[0] ?? company.title ?? null);
     setCab(item.cabSkins?.[0] ?? null);
+    setPlate(item.plates?.[0] ?? company.plate ?? null);
   }, [item.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- la scène ---------- */
@@ -153,12 +162,16 @@ export function ShopShowroom({
   if (item.emblems?.length) parts.push(emblem === company.emblem);
   if (item.titles?.length) parts.push(title === company.title);
   if (item.cabSkins?.length) parts.push(cab === company.cabSkin);
+  if (item.plates?.length) parts.push(plate === company.plate);
   const isCurrent = parts.length > 0 && parts.every(Boolean);
 
   function equipCurrent() {
     if (item.kind === "THEME" && item.theme) return onEquip({ theme: item.theme }, `Habillage ${themeInfo?.label ?? ""} appliqué`);
-    if (item.cabSkins && cab) return onEquip({ cabSkin: cab }, `${cabLabels[cab] ?? cab} en vue cabine`);
+    // un matériel seul : on le dit ; un coffret : tout ce qu'il contient se porte d'un coup
+    if (item.cabSkins && cab && item.kind === "CABINE") return onEquip({ cabSkin: cab }, `${cabLabels[cab] ?? cab} en vue cabine`);
+    if (item.plates && plate && item.kind === "PLAQUE") return onEquip({ plate }, `Plaque ${PLATE_LABELS[plate]?.toLowerCase() ?? plate} posée`);
     const patch: Record<string, string | null> = {};
+    if (item.cabSkins?.length && cab) patch.cabSkin = cab;
     if (item.liveries?.length) patch.liveryColor = livery;
     if (item.emblems?.length && emblem) patch.emblem = emblem;
     if (item.titles?.length && title) patch.title = title;
@@ -187,7 +200,15 @@ export function ShopShowroom({
         )}
 
         {/* plaque du quai : le titre de la compagnie (son nom est déjà sur le panneau de gare) */}
-        {box.w > 0 && title && (
+        {box.w > 0 && item.plates?.length ? (
+          /* 1.7 : plaque d'honneur, telle qu'on la verra au classement */
+          <div className="absolute pointer-events-none" style={{ left: box.w * 0.46, top: box.h * 0.74 + 18, transform: "translateX(-50%)" }}>
+            <Plate plate={plate} className="text-[14px] font-body shadow-lg">
+              {company.emblem && <Emblem id={company.emblem} size={13} />}
+              <span className="whitespace-nowrap">{company.name}</span>
+            </Plate>
+          </div>
+        ) : box.w > 0 && title ? (
           <div
             className="absolute pointer-events-none"
             style={{ left: box.w * 0.46, top: box.h * 0.74 + 20, transform: "translateX(-50%)" }}
@@ -196,19 +217,27 @@ export function ShopShowroom({
               <div className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-[#f4d06f] whitespace-nowrap">{title}</div>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* titre de l'article */}
         <div className="absolute top-3 left-4 right-4 flex items-start justify-between gap-3 pointer-events-none">
           <div>
             <div className="font-mono2 text-[10.5px] uppercase tracking-[0.16em] text-amber">
               {KIND_LABEL[item.kind] ?? item.kind}
+              {item.isNew && !item.owned && " · Nouveau"}
               {item.seasonName && ` · ${item.seasonName}`}
               {item.availableUntil && !item.owned && ` · plus que ${daysLeft(item.availableUntil)} j`}
             </div>
             <h2 className="font-display text-2xl md:text-3xl leading-tight text-white drop-shadow">{item.name}</h2>
           </div>
-          <div className="font-mono2 text-lg text-amber drop-shadow shrink-0">{item.owned ? "Possédé" : euros(item.priceCents)}</div>
+          <div className="text-right shrink-0">
+            <div className="font-mono2 text-lg text-amber drop-shadow">{item.owned ? "Possédé" : euros(item.priceCents)}</div>
+            {!item.owned && item.worthCents && item.worthCents > item.priceCents && (
+              <div className="font-mono2 text-[11px] text-white/70 drop-shadow">
+                <span className="line-through">{euros(item.worthCents)}</span> séparément
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -269,6 +298,20 @@ export function ShopShowroom({
                 className={`px-2.5 py-1.5 border font-mono2 text-[10.5px] uppercase ${cab === c ? "border-white text-white" : "border-line text-slate2"}`}
               >
                 {cabLabels[c] ?? c}
+              </button>
+            ))}
+          </div>
+        )}
+        {item.plates && item.plates.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Plaques">
+            {item.plates.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPlate(p)}
+                aria-pressed={plate === p}
+                className={`px-2.5 py-1.5 border font-mono2 text-[10.5px] uppercase ${plate === p ? "border-white text-white" : "border-line text-slate2"}`}
+              >
+                {PLATE_LABELS[p] ?? p}
               </button>
             ))}
           </div>
@@ -335,17 +378,37 @@ export function ShopTile({
             Limité{item.availableUntil ? ` · ${daysLeft(item.availableUntil)} j` : ""}
           </span>
         )}
+        {item.isNew && !item.owned && item.kind !== "SAISON" && (
+          <span className="absolute top-1.5 left-1.5 font-mono2 text-[9px] uppercase tracking-wide bg-cobalt text-onaccent px-1.5 py-0.5">Nouveau</span>
+        )}
+        {item.worthCents && item.worthCents > item.priceCents && !item.owned && (
+          <span className="absolute bottom-1.5 right-1.5 font-mono2 text-[9px] uppercase tracking-wide text-amber border border-amber/50 px-1.5 py-0.5">
+            −{Math.round((1 - item.priceCents / item.worthCents) * 100)} %
+          </span>
+        )}
+        {item.plates && (
+          <div className="flex flex-col items-center gap-1">
+            {item.plates.map((p) => (
+              <Plate key={p} plate={p} className="text-[10.5px] font-body">
+                Votre compagnie
+              </Plate>
+            ))}
+          </div>
+        )}
         {item.owned && (
           <span className="absolute top-1.5 right-1.5 font-mono2 text-[9px] uppercase tracking-wide text-rail-green border border-rail-green/50 px-1.5 py-0.5">Possédé</span>
         )}
-        {item.liveries?.map((c) => <MiniTrain key={c} color={c} />)}
+        {item.kind !== "COFFRET" && item.liveries?.map((c) => <MiniTrain key={c} color={c} />)}
         {!item.liveries && item.emblems?.slice(0, 6).map((e) => (
           <span key={e} className="text-offwhite"><Emblem id={e} size={20} /></span>
         ))}
-        {item.liveries && item.emblems?.map((e) => (
+        {item.liveries && item.kind !== "COFFRET" && item.emblems?.map((e) => (
           <span key={e} className="text-offwhite"><Emblem id={e} size={22} /></span>
         ))}
-        {item.titles && (
+        {item.kind === "COFFRET" && item.emblems?.map((e) => (
+          <span key={e} className="text-offwhite"><Emblem id={e} size={22} /></span>
+        ))}
+        {item.titles && item.kind !== "COFFRET" && (
           <div className="flex flex-col items-center gap-1">
             {item.titles.slice(0, 2).map((t) => (
               <span key={t} className="bg-[#0b2a4a] border border-[#e8edf5] px-2 py-0.5 font-mono2 text-[9.5px] uppercase tracking-wide text-[#f4d06f] whitespace-nowrap">{t}</span>

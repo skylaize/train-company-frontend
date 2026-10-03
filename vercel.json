@@ -1,5 +1,17 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "redirects": [
+    {
+      "source": "/:path((?!ads\\.txt$).*)",
+      "has": [{ "type": "host", "value": "skhost.fr" }],
+      "destination": "https://compagnie.skhost.fr/:path",
+      "permanent": true
+    },
+    {
+      "source": "/:path((?!ads\\.txt$).*)",
+      "has": [{ "type": "host", "value": "www.skhost.fr" }],
+      "destination": "https://compagnie.skhost.fr/:path",
+      "permanent": true
+    }
+  ],
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
 }

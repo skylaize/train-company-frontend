@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { createCabScene } from "./cabScene";
 import { PremiumCTA, PremiumInfo } from "./PremiumCTA";
 import { api } from "../api/client";
+import { routeStations, routeTimeline } from "../geo";
 
 /* ============================================================
    Vue cabine (1.4, Premium).
@@ -22,16 +23,35 @@ import { api } from "../api/client";
 export interface CabTrain {
   id: string;
   name: string;
-  model: "STANDARD" | "EXPRESS" | "FRET_LOURD";
+  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES";
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
   departedAt?: string | null;
-  line?: { departureStation: string; arrivalStation: string; durationMinutes?: number } | null;
+  line?: { departureStation: string; arrivalStation: string; durationMinutes?: number; stops?: string[]; electrified?: boolean } | null;
+  // 1.7
+  direction?: number;
+  cars?: string[];
 }
 
-const CRUISE = { STANDARD: 430, EXPRESS: 560, FRET_LOURD: 380 }; // px/s à l'écran
-const KMH = { STANDARD: 220, EXPRESS: 300, FRET_LOURD: 160 };
+/* 1.7 : l'itinéraire dans le sens de marche, découpé en tronçons et arrêts,
+   à l'échelle de la durée réelle du trajet (modèle, voitures, électrification). */
+function tripPlan(t: CabTrain) {
+  const duration =
+    (t.line?.durationMinutes ?? 10) * 60 * (t.model === "EXPRESS" ? 0.7 : 1) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1);
+  const base = t.line ? routeStations(t.line) : [];
+  const route = t.direction === 1 ? [...base].reverse() : base;
+  const { phases, total } = routeTimeline(route, 0);
+  const k = total > 0 ? duration / (total * 60) : 1;
+  return {
+    duration,
+    route,
+    phases: phases.map((p) => ({ kind: p.kind, from: p.from, to: p.to, start: p.start * 60 * k, end: p.end * 60 * k })),
+  };
+}
+
+const CRUISE = { STANDARD: 430, EXPRESS: 560, FRET_LOURD: 380, COUCHETTES: 400 }; // px/s à l'écran
+const KMH = { STANDARD: 220, EXPRESS: 300, FRET_LOURD: 160, COUCHETTES: 200 };
 const RAMP_S = 5; // secondes d'accélération au départ et de freinage à l'arrivée
 const FREE_PREVIEW_S = 12;
 
@@ -76,82 +96,11 @@ export function CabView({
   preview?: boolean; // aperçu de boutique : ne compte pas pour le succès « En cabine »
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const trainRef = useRef(train);
-  trainRef.current = train;
-  const [hud, setHud] = useState({ kmh: 0, left: "—", phase: "En route", pct: 0 });
   const [locked, setLocked] = useState(false);
   const opened = useRef(Date.now());
-
-  useEffect(() => {
-    const cv = canvasRef.current;
-    if (!cv) return;
-    const ctx = cv.getContext("2d");
-    if (!ctx) return;
-    const { sc, frame } = createCabScene(ctx);
-
-    function resize() {
-      const dpr = Math.min(2, window.devicePixelRatio || 1);
-      const r = cv!.getBoundingClientRect();
-      sc.W = r.width;
-      sc.H = r.height;
-      sc.dpr = dpr;
-      cv!.width = Math.round(r.width * dpr);
-      cv!.height = Math.round(r.height * dpr);
-      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-    resize();
-    window.addEventListener("resize", resize);
-
-    let raf = 0;
-    let last = performance.now();
-    let hudTick = 0;
-
-    const loop = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-      const t = trainRef.current;
-      const cruise = CRUISE[t.model] ?? 430;
-      const duration = (t.line?.durationMinutes ?? 10) * 60 * (t.model === "EXPRESS" ? 0.7 : 1);
-      const elapsed = t.departedAt ? (Date.now() - new Date(t.departedAt).getTime()) / 1000 : (t.progress / 100) * duration;
-      const leftS = Math.max(0, duration - elapsed);
-      const broken = t.status === "MAINTENANCE";
-
-      sc.weather = sceneWeather(weatherType);
-      sc.livery = livery;
-      sc.skin = skin;
-      sc.express = t.model === "EXPRESS";
-      sc.dep = t.line?.departureStation ?? "";
-      sc.arr = t.line?.arrivalStation ?? "";
-      sc.depDist = rampDistance(elapsed, cruise);
-      sc.arrDist = rampDistance(leftS, cruise);
-      // vitesse : rampe au départ, freinage à l'arrivée, zéro en panne
-      let v = cruise;
-      if (elapsed < RAMP_S) v = (cruise * elapsed) / RAMP_S;
-      if (leftS < RAMP_S) v = Math.min(v, (cruise * leftS) / RAMP_S);
-      if (broken) v = 0;
-      if (sc.weather === "brouillard") v *= 0.85;
-      sc.v = v;
-      sc.s += v * dt;
-
-      frame(now / 1000);
-
-      if (now - hudTick > 250) {
-        hudTick = now;
-        const pct = Math.min(100, Math.max(0, (elapsed / duration) * 100));
-        const phase = broken ? "En panne" : leftS <= 0 ? "À quai" : leftS < RAMP_S * 2 ? "Arrivée imminente" : elapsed < RAMP_S * 2 ? "Départ" : "En route";
-        const left = broken ? "à l'arrêt" : leftS <= 0 ? "à quai" : leftS >= 60 ? `${Math.ceil(leftS / 60)} min` : `${Math.ceil(leftS)} s`;
-        setHud({ kmh: Math.round((v / cruise) * (KMH[t.model] ?? 220)), left, phase, pct });
-        if (!company.isPremium && Date.now() - opened.current > FREE_PREVIEW_S * 1000) setLocked(true);
-      }
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", resize);
-    };
-  }, [weatherType, livery, skin, company.isPremium]);
+  const hud = useCabScene(canvasRef, train, { weatherType, livery, skin, premium: company.isPremium }, () => {
+    if (!company.isPremium && Date.now() - opened.current > FREE_PREVIEW_S * 1000) setLocked(true);
+  });
 
   // première montée à bord : débloque le succès « En cabine » (idempotent côté serveur)
   useEffect(() => {
@@ -165,8 +114,9 @@ export function CabView({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  const dep = train.line?.departureStation ?? "—";
-  const arr = train.line?.arrivalStation ?? "—";
+  const back = train.direction === 1;
+  const dep = (back ? train.line?.arrivalStation : train.line?.departureStation) ?? "—";
+  const arr = (back ? train.line?.departureStation : train.line?.arrivalStation) ?? "—";
   const broken = train.status === "MAINTENANCE";
 
   /* Rendue directement dans <body> : la page des trains est animée (transform),
@@ -211,22 +161,33 @@ export function CabView({
         <div className="px-5 pt-3">
           <div className="relative h-1.5 bg-line">
             <div className="absolute inset-y-0 left-0 bg-cobalt" style={{ width: `${hud.pct}%` }} />
+            {hud.marks.map((m) => (
+              <div
+                key={m.name}
+                className={`absolute top-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 border-2 ${m.pct <= hud.pct ? "bg-cobalt border-cobalt" : "bg-navy-900 border-slate2"}`}
+                style={{ left: `${m.pct}%` }}
+                title={m.name}
+              />
+            ))}
             <div
               className="absolute top-1/2 w-3 h-3 rounded-full bg-navy-950 border-2 border-cobalt -translate-x-1/2 -translate-y-1/2"
               style={{ left: `${hud.pct}%` }}
             />
           </div>
-          <div className="flex justify-between font-mono2 text-[11px] text-slate2 mt-1.5">
-            <span>{dep}</span>
-            <span>{arr}</span>
+          <div className="relative h-4 font-mono2 text-[11px] text-slate2 mt-1.5">
+            <span className="absolute left-0">{dep}</span>
+            {hud.marks.map((m) => (
+              <span key={m.name} className="absolute -translate-x-1/2 hidden sm:inline" style={{ left: `${m.pct}%` }}>{m.name}</span>
+            ))}
+            <span className="absolute right-0">{arr}</span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-line border-t border-line mt-3">
           {[
             { v: String(hud.kmh), l: "km/h", c: "text-offwhite" },
-            { v: hud.left, l: "Arrivée dans", c: "text-offwhite" },
-            { v: train.model === "EXPRESS" ? "Express" : train.model === "FRET_LOURD" ? "Fret lourd" : "Standard", l: "Matériel", c: "text-offwhite" },
+            { v: hud.left, l: hud.marks.length ? `Terminus ${arr} dans` : "Arrivée dans", c: "text-offwhite" },
+            { v: train.model === "EXPRESS" ? "Express" : train.model === "FRET_LOURD" ? "Fret lourd" : train.model === "COUCHETTES" ? "Couchettes" : "Standard", l: "Matériel", c: "text-offwhite" },
             { v: `${train.wear} %`, l: "Usure", c: train.wear >= 80 ? "text-rail-red" : train.wear >= 50 ? "text-amber" : "text-rail-green" },
           ].map((c) => (
             <div key={c.l} className="bg-navy-900 px-5 py-3">
@@ -240,3 +201,116 @@ export function CabView({
     document.body
   );
 }
+
+/* La scène animée, réutilisable (1.6) : la grande vue cabine et la vignette
+   « En direct » de la flotte dessinent la même chose, à deux tailles. */
+export function useCabScene(
+  canvasRef: React.RefObject<HTMLCanvasElement>,
+  train: CabTrain,
+  { weatherType, livery, skin, premium = false }: { weatherType?: string; livery: string; skin?: string | null; premium?: boolean },
+  onTick?: () => void
+) {
+  const trainRef = useRef(train);
+  trainRef.current = train;
+  const onTickRef = useRef(onTick);
+  onTickRef.current = onTick;
+  const [hud, setHud] = useState({ kmh: 0, left: "—", phase: "En route", pct: 0, next: "", marks: [] as { name: string; pct: number }[] });
+
+  useEffect(() => {
+    const cv = canvasRef.current;
+    if (!cv) return;
+    const ctx = cv.getContext("2d");
+    if (!ctx) return;
+    const { sc, frame } = createCabScene(ctx);
+
+    function resize() {
+      const dpr = Math.min(2, window.devicePixelRatio || 1);
+      const r = cv!.getBoundingClientRect();
+      sc.W = r.width;
+      sc.H = r.height;
+      sc.dpr = dpr;
+      cv!.width = Math.round(r.width * dpr);
+      cv!.height = Math.round(r.height * dpr);
+      ctx!.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    resize();
+    window.addEventListener("resize", resize);
+
+    let raf = 0;
+    let last = performance.now();
+    let hudTick = 0;
+
+    const loop = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      const t = trainRef.current;
+      const cruise = CRUISE[t.model] ?? 430;
+      const plan = tripPlan(t);
+      const duration = plan.duration;
+      const elapsed = t.departedAt ? (Date.now() - new Date(t.departedAt).getTime()) / 1000 : (t.progress / 100) * duration;
+      const leftTotal = Math.max(0, duration - elapsed);
+      const broken = t.status === "MAINTENANCE";
+      // tronçon ou arrêt en cours : la scène ne montre que les deux gares qui l'encadrent
+      const ph =
+        plan.phases.find((p) => elapsed >= p.start && elapsed < p.end) ??
+        (plan.phases.length ? plan.phases[plan.phases.length - 1] : { kind: "run" as const, from: t.line?.departureStation ?? "", to: t.line?.arrivalStation ?? "", start: 0, end: duration });
+      const dwelling = ph.kind === "dwell";
+      const segElapsed = dwelling ? 0 : elapsed - ph.start;
+      const segLeft = dwelling ? 0 : Math.max(0, ph.end - elapsed);
+
+      sc.weather = sceneWeather(weatherType);
+      sc.livery = livery;
+      sc.skin = skin ?? null;
+      sc.express = t.model === "EXPRESS";
+      sc.sleeper = t.model === "COUCHETTES";
+      sc.cars = t.cars ?? [];
+      sc.firstLivery = premium;
+      sc.dep = dwelling ? "" : ph.from;
+      sc.arr = ph.to;
+      sc.depDist = dwelling ? 1e9 : rampDistance(segElapsed, cruise);
+      sc.arrDist = rampDistance(segLeft, cruise);
+      // vitesse : rampe au départ, freinage à l'arrivée, zéro à quai et en panne
+      let v = cruise;
+      if (segElapsed < RAMP_S) v = (cruise * segElapsed) / RAMP_S;
+      if (segLeft < RAMP_S) v = Math.min(v, (cruise * segLeft) / RAMP_S);
+      if (broken || dwelling) v = 0;
+      if (sc.weather === "brouillard") v *= 0.85;
+      sc.v = v;
+      sc.s += v * dt;
+      const leftS = leftTotal;
+
+      frame(now / 1000);
+
+      if (now - hudTick > 250) {
+        hudTick = now;
+        const pct = Math.min(100, Math.max(0, (elapsed / duration) * 100));
+        const phase = broken
+          ? "En panne"
+          : leftS <= 0
+          ? "À quai"
+          : dwelling
+          ? `Arrêt à ${ph.from}`
+          : segLeft < RAMP_S * 2
+          ? `Arrivée à ${ph.to}`
+          : segElapsed < RAMP_S * 2
+          ? "Départ"
+          : "En route";
+        const left = broken ? "à l'arrêt" : leftS <= 0 ? "à quai" : leftS >= 60 ? `${Math.ceil(leftS / 60)} min` : `${Math.ceil(leftS)} s`;
+        const marks = plan.phases.filter((p) => p.kind === "dwell").map((p) => ({ name: p.from, pct: (p.start / duration) * 100 }));
+        setHud({ kmh: Math.round((v / cruise) * (KMH[t.model] ?? 220)), left, phase, pct, next: dwelling ? ph.from : ph.to, marks });
+        onTickRef.current?.();
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+
+    return () => {
+      cancelAnimationFrame(raf);
+      window.removeEventListener("resize", resize);
+    };
+  }, [canvasRef, weatherType, livery, skin, premium]);
+
+  return hud;
+}
+
+export { sceneWeather, WEATHER_LABEL };

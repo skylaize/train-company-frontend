@@ -1,4 +1,12 @@
 import { useEffect, useState, useRef } from "react";
+import { COUNTRIES, COUNTRY_LABELS, SEA_LABELS } from "../components/europeMap";
+import { RIVERS, RELIEF, RELIEF_LABELS, GRATICULE } from "../components/mapDecor";
+import { useMapCamera } from "../components/useMapCamera";
+import { STATION_COORDS, lineCurve, pointOnCurve, LINE_PALETTE, distanceKm, durationFromKm, lengthYieldPct, routeStations, routeMinutes, routeKm, positionOnRoute, routePath, MAX_STOPS } from "../geo";
+
+import { UpdateBanner } from "../components/UpdateBanner";
+import { useInstall, isStandalone } from "../install";
+import { InstallGuide, InstallPanel } from "../components/InstallApp";
 import { InstagramMark } from "../components/InstagramMark";
 import { INSTAGRAM } from "../social";
 import { createPortal } from "react-dom";
@@ -19,8 +27,15 @@ function formatBuildHours(hours: number) {
   if (m === 0) return `${h} h`;
   return `${h} h ${String(m).padStart(2, "0")}`;
 }
-import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, ChartMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, TenderMark, ShopMark, FogMark, SunMark, SnowMark, LockMark, FragileMark, RankMark, AnnounceMark } from "../components/TrainMark";
+import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, ChartMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, TenderMark, ShopMark, FogMark, SunMark, SnowMark, MoonMark, InstallMark, LockMark, FragileMark, RankMark, AnnounceMark, StationMark, BankMark } from "../components/TrainMark";
+import { InfrastructureSection } from "../components/InfrastructureSection";
+import { LineLoadModal } from "../components/LineLoadModal";
+import { adsEnabled, loadAds, showRewardedAd } from "../ads";
+import { AdBanner } from "../components/AdBanner";
+import { Plate } from "../components/Plate";
+import { WeeklyReportSection, BankSection, StockMarketSection } from "../components/FinanceSection";
 import { RailSchematic } from "../components/RailSchematic";
+import { LogoMark } from "../components/Logo";
 import { Tutorial } from "../components/Tutorial";
 import { SplitFlap } from "../components/SplitFlap";
 import { SteamEffect } from "../components/SteamEffect";
@@ -32,21 +47,31 @@ import { ProfitabilitySection } from "../components/ProfitabilitySection";
 import { AbsenceReport } from "../components/AbsenceReport";
 import { resyncPush } from "../push";
 import { PremiumCTA } from "../components/PremiumCTA";
-import { CabView } from "../components/CabView";
-import { NetworkData, StationEventsPanel, LineShareCell, DemandCell, RivalsDetail, stationOf, pairOf, SeasonBanner, HubCell, hubPreview } from "../components/NetworkPanels";
+import { CabView, CabTrain } from "../components/CabView";
+import { LiveCab } from "../components/LiveCab";
+import { NetworkData, StationEventsPanel, LineShareCell, DemandCell, RivalsDetail, stationOf, pairOf, SeasonBanner, HubCell, hubPreview, LicencePanel, LineMarket, RushPanel } from "../components/NetworkPanels";
 import { FirstVisitHint } from "../components/FirstVisitHint";
+import { FirstSteps, firstStepsActive, firstStepsProgress, firstStepsDone, FirstStepsInput } from "../components/FirstSteps";
+import { Decision, DecisionBanner, DecisionModal } from "../components/Decisions";
+import { NewsTicker, NewsItem } from "../components/NewsTicker";
 import { applyTheme, readLocalTheme, THEMES, ThemeId } from "../theme";
 import { CURRENT_VERSION } from "../changelog";
+import { RELEASE_171 } from "../release";
 
 interface Train {
   id: string;
   name: string;
-  model: "STANDARD" | "EXPRESS" | "FRET_LOURD";
+  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES";
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
   departedAt?: string | null;
-  line?: { id: string; name: string; departureStation: string; arrivalStation: string; durationMinutes?: number } | null;
+  line?: { id: string; name: string; departureStation: string; arrivalStation: string; durationMinutes?: number; stops?: string[]; electrified?: boolean } | null;
+  // 1.7
+  direction?: number;
+  cars?: string[];
+  lastPassengers?: number | null;
+  lastSeats?: number | null;
 }
 
 interface Weather {
@@ -131,9 +156,14 @@ interface Line {
   departureStation: string;
   arrivalStation: string;
   durationMinutes: number;
+  // 1.7
+  stops?: string[];
+  priceRatio?: number;
+  electrified?: boolean;
 }
 
 interface Company {
+  adFree?: boolean; // 1.7 : billet sans pub
   id: string;
   name: string;
   liveryColor: string;
@@ -195,6 +225,7 @@ interface LeaderEntry {
   emblem?: string | null;
   grade: string;
   title: string | null;
+  plate?: string | null; // 1.7 : plaque d'honneur
   trains: number;
   lines: number;
   metric: number;
@@ -228,7 +259,7 @@ export default function Dashboard() {
   const [lines, setLines] = useState<Line[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"lignes" | "trains" | "fret" | "missions" | "classement" | "historique" | "succes" | "carte" | "personnel" | "parametres" | "carriere" | "cours" | "boutique" | "rentabilite" | "appels">("trains");
+  const [view, setView] = useState<DashboardView>("trains");
   const [now, setNow] = useState(new Date());
   const [market, setMarket] = useState<Contract[]>([]);
   const [myContracts, setMyContracts] = useState<Contract[]>([]);
@@ -243,6 +274,13 @@ export default function Dashboard() {
   const [weather, setWeather] = useState<Weather | null>(null);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  // 1.7 : décisions à trancher, et le fil du réseau
+  const [decisions, setDecisions] = useState<Decision[]>([]);
+  const [openDecision, setOpenDecision] = useState<Decision | null>(null);
+  const [news, setNews] = useState<NewsItem[]>([]);
+  // 1.7 : la trésorerie qui monte se voit (« +48 pi. » au-dessus du compteur)
+  const lastBalance = useRef<number | null>(null);
+  const [gain, setGain] = useState<{ amount: number; key: number } | null>(null);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [editingCompany, setEditingCompany] = useState(false);
@@ -278,6 +316,9 @@ export default function Dashboard() {
      et c'est lui qu'on remet en quittant l'essai (y compris s'il vient d'être
      changé en équipant un habillage). */
   const [themeTrial, setThemeTrial] = useState<ThemeTrial | null>(null);
+  // 1.6 : application installable
+  const install = useInstall();
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
   // retour d'un achat : boutique rechargée, objet acheté en vitrine
   const [shopKey, setShopKey] = useState(0);
   const [shopFocus, setShopFocus] = useState<string | null>(null);
@@ -298,7 +339,7 @@ export default function Dashboard() {
     load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
-  }, [linesSignature, company?.isPremium]);
+  }, [linesSignature, company?.isPremium, (company as { intlLicenceAt?: string | null } | null)?.intlLicenceAt]);
 
   useEffect(() => {
     const clock = setInterval(() => setNow(new Date()), 1000);
@@ -323,6 +364,12 @@ export default function Dashboard() {
       if (boutique === "annule") {
         showToast("Achat abandonné — rien n'a été débité");
       } else {
+        // 1.7 : le billet sans pub n'est pas un objet de la boutique, on reste où on est
+        if (params.get("objet") === "sans-pub") {
+          showToast("Paiement reçu — les publicités disparaissent dans un instant");
+          for (const ms of [3000, 8000]) window.setTimeout(() => loadAll(), ms);
+          return;
+        }
         showToast("Paiement reçu — l'objet arrive dans votre compagnie");
         setView("boutique");
         setShopFocus(params.get("objet"));
@@ -380,6 +427,18 @@ export default function Dashboard() {
     try {
       const { data: c } = await api.get("/company");
       setCompany(c);
+      if (c && typeof c.balance === "number") {
+        if (lastBalance.current !== null && c.balance > lastBalance.current) {
+          setGain({ amount: c.balance - lastBalance.current, key: Date.now() });
+        }
+        lastBalance.current = c.balance;
+      }
+      api.get("/decisions").then(({ data }) => setDecisions(data?.decisions ?? [])).catch(() => undefined);
+      api.get("/news").then(({ data }) => setNews(data?.items ?? [])).catch(() => undefined);
+      // 1.6 : ouverte depuis l'écran d'accueil — une fois suffit pour le succès
+      if (isStandalone() && c && !(c.hintsSeen ?? "").split(",").includes("app")) {
+        api.patch("/company", { seenHint: "app" }).catch(() => undefined);
+      }
 
       /* Le thème du compte fait foi : il suit le joueur d'un appareil à l'autre.
          Le thème local n'a servi qu'à éviter le flash pendant cet appel. */
@@ -607,11 +666,56 @@ export default function Dashboard() {
 
   const enRoute = trains.filter((t) => t.status === "EN_ROUTE").length;
 
+  /* 1.6 : tant que la liste « Premiers pas » est ouverte, on épargne au nouveau
+     venu ce qui ne le concerne pas encore (résumé du jour vide, parrainage,
+     défi du jour, pastilles « Nouveau »). */
+  const firstSteps: FirstStepsInput = {
+    lineCount: lines.length,
+    trainCount: trains.length,
+    assignedCount: trains.filter((t) => !!t.line).length,
+    unlocked: new Set(achievements.filter((a) => a.unlocked).map((a) => a.id)),
+    hintsSeen: company.hintsSeen ?? "",
+  };
+  const onboarding = firstStepsActive(firstSteps);
+  const onboardingProgress = firstStepsProgress(firstSteps);
+  /* 1.7 : onze rubriques d'un coup, c'était « trop compliqué ». Pendant les
+     premiers pas, une rubrique n'apparaît que quand elle devient utile ; les
+     autres attendent en bas du menu, avec ce qui les débloque. Un joueur
+     installé (liste fermée) voit tout, comme avant. */
+  const stepDone = firstStepsDone(firstSteps);
+  const gradeId = career?.currentRank.id ?? 0;
+  const navOpen = {
+    appels: !onboarding || gradeId >= 1,
+    cours: !onboarding || stepDone.fret,
+    personnel: !onboarding || trains.length >= 2,
+    comptes: !onboarding || stepDone.service,
+    classement: !onboarding || stepDone.service,
+  };
+  const lockedNav = [
+    !navOpen.comptes && { label: "Comptes", hint: "à la première rame en service" },
+    !navOpen.classement && { label: "Classement", hint: "à la première rame en service" },
+    !navOpen.personnel && { label: "Personnel", hint: "avec une deuxième rame" },
+    !navOpen.cours && { label: "Cours", hint: "après une livraison de fret" },
+    !navOpen.appels && { label: "Appels d'offres", hint: "au grade « Gestionnaire confirmé »" },
+  ].filter(Boolean) as { label: string; hint: string }[];
+  function goFirstStep(go: "lignes" | "catalogue" | "trains" | "fret") {
+    if (go === "catalogue") {
+      setView("trains");
+      setShowCatalog(true);
+    } else if (go === "trains") {
+      setView("trains");
+      setTimeout(() => document.querySelector('[data-tutorial="trains-table"]')?.scrollIntoView({ behavior: "smooth", block: "center" }), 60);
+    } else {
+      setView(go);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-navy-950 grid grid-cols-1 md:grid-cols-[220px_1fr] relative overflow-x-clip">
       <RailSchematic className="fixed inset-0 w-full h-full opacity-[0.10] pointer-events-none" />
       <WeatherOverlay type={weather?.type} />
       {themeTrial && <ThemeTrialBanner trial={themeTrial} onEnd={() => setThemeTrial(null)} />}
+      <UpdateBanner />
       {/* Sidebar */}
       <aside className={`border-b md:border-b-0 md:border-r border-line flex flex-col relative bg-navy-950/30 backdrop-blur-[1px] md:sticky md:top-0 md:self-start md:h-screen ${themeTrial ? "md:pb-[52px]" : ""}`}>
         <button
@@ -643,25 +747,66 @@ export default function Dashboard() {
         <div className="flex flex-row md:flex-col md:flex-1 overflow-x-auto md:overflow-y-auto md:min-h-0">
           {/* 1.5 : les rubriques sont rangées par thème, comme les services d'une vraie compagnie */}
           <nav className="flex flex-row md:flex-col md:flex-1 md:pb-2">
+            {onboarding && (
+              <button
+                onClick={() => setView("trains")}
+                className="hidden md:block text-left mx-5 mt-4 mb-1 border border-amber/40 bg-amber/[0.06] px-3 py-2 hover:bg-amber/10 transition-colors"
+              >
+                <div className="flex items-center justify-between font-mono2 text-[10.5px] uppercase tracking-[0.14em] text-amber">
+                  <span>Premiers pas</span>
+                  <span>{onboardingProgress.done}/{onboardingProgress.total}</span>
+                </div>
+                <div className="h-[2px] bg-line mt-1.5">
+                  <div className="h-full bg-amber transition-all duration-700" style={{ width: `${(onboardingProgress.done / onboardingProgress.total) * 100}%` }} />
+                </div>
+              </button>
+            )}
             <SidebarGroup label="Exploitation">
               <SidebarItem icon={<TrainMark size={14} />} label="Trains" count={trains.length} active={view === "trains"} onClick={() => setView("trains")} />
               <SidebarItem icon={<TrackMark size={14} />} label="Lignes" count={lines.length} active={view === "lignes"} onClick={() => setView("lignes")} />
               <SidebarItem icon={<MapMark size={14} />} label="Carte" active={view === "carte"} onClick={() => setView("carte")} />
-              <SidebarItem icon={<TenderMark size={14} />} label="Appels d'offres" badge="Nouveau" active={view === "appels"} onClick={() => setView("appels")} />
+              {lines.length > 0 && <SidebarItem icon={<StationMark size={14} />} label="Infrastructures" active={view === "infrastructures"} onClick={() => setView("infrastructures")} />}
             </SidebarGroup>
             <SidebarGroup label="Commerce">
               <SidebarItem icon={<CargoMark size={14} />} label="Fret" count={myContracts.filter((c) => c.status === "EN_COURS").length + missionCount} active={view === "fret" || view === "missions"} onClick={() => setView("fret")} />
-              <SidebarItem icon={<SwapMark size={14} />} label="Cours" active={view === "cours"} onClick={() => setView("cours")} dataTutorial="nav-cours" />
+              {navOpen.cours && <SidebarItem icon={<SwapMark size={14} />} label="Cours" active={view === "cours"} onClick={() => setView("cours")} dataTutorial="nav-cours" />}
+              {/* 1.6 : les appels d'offres sont un marché, ils rejoignent le Commerce */}
+              {navOpen.appels && <SidebarItem icon={<TenderMark size={14} />} label="Appels d'offres" active={view === "appels"} onClick={() => setView("appels")} />}
             </SidebarGroup>
             <SidebarGroup label="Compagnie">
-              <SidebarItem icon={<StaffMark size={14} />} label="Personnel" alert={staff.some((s) => s.raiseRequested)} count={staff.length} active={view === "personnel"} onClick={() => setView("personnel")} />
-              <SidebarItem icon={<ChartMark size={14} />} label="Comptes" active={view === "rentabilite" || view === "historique"} onClick={() => setView("rentabilite")} />
+              {navOpen.personnel && <SidebarItem icon={<StaffMark size={14} />} label="Personnel" alert={staff.some((s) => s.raiseRequested)} count={staff.length} active={view === "personnel"} onClick={() => setView("personnel")} />}
+              {navOpen.comptes && <SidebarItem icon={<BankMark size={14} />} label="Finances" active={FINANCE_VIEWS.includes(view)} onClick={() => setView("rapport")} />}
               <SidebarItem icon={<RankMark size={14} />} label="Progression" count={achievements.filter((a) => a.unlocked).length} active={view === "carriere" || view === "succes"} onClick={() => setView("carriere")} />
-              <SidebarItem icon={<TrophyMark size={14} />} label="Classement" count={leaderTotal} active={view === "classement"} onClick={() => setView("classement")} dataTutorial="nav-classement" />
+              {navOpen.classement && <SidebarItem icon={<TrophyMark size={14} />} label="Classement" count={leaderTotal} active={view === "classement"} onClick={() => setView("classement")} dataTutorial="nav-classement" />}
             </SidebarGroup>
+            {lockedNav.length > 0 && (
+              <div className="hidden md:block mx-5 mt-4 pt-3 border-t border-line/60">
+                <div className="font-mono2 text-[10px] uppercase tracking-[0.16em] text-slate2/60 mb-1.5">Bientôt</div>
+                {lockedNav.map((n) => (
+                  <div key={n.label} className="flex items-start gap-2 py-1">
+                    <LockMark size={11} className="text-slate2/50 mt-[3px] shrink-0" />
+                    <div className="min-w-0">
+                      <div className="font-body text-[12.5px] text-slate2/70 leading-tight">{n.label}</div>
+                      <div className="font-body text-[10.5px] text-slate2/50 leading-tight">{n.hint}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </nav>
 
           <div className="flex flex-row md:flex-col border-l md:border-l-0 md:border-t border-line shrink-0">
+            {!install.installed && (
+              <SidebarItem
+                icon={<InstallMark size={14} />}
+                label="Installer l'app"
+                active={false}
+                onClick={async () => {
+                  if (install.canPrompt) await install.prompt();
+                  else setShowInstallGuide(true);
+                }}
+              />
+            )}
             <SidebarItem icon={<ShopMark size={14} />} label="Boutique" accent active={view === "boutique"} onClick={() => setView("boutique")} />
             <SidebarItem icon={<GearMark size={14} />} label="Paramètres" active={view === "parametres"} onClick={() => setView("parametres")} />
             <div className="flex items-center md:border-t border-line font-mono2 text-[11px] uppercase tracking-wide text-slate2">
@@ -709,17 +854,28 @@ export default function Dashboard() {
       {editingCompany && (
         <EditCompanyModal company={company} onClose={() => setEditingCompany(false)} onChange={loadAll} />
       )}
+      {showInstallGuide && <InstallGuide onClose={() => setShowInstallGuide(false)} />}
       {showCatalog && (
         <TrainCatalogModal buying={buyingTrain} gradeId={career?.currentRank.id ?? 0} onBuy={buyTrain} onClose={() => setShowCatalog(false)} />
       )}
 
       {/* Main */}
-      <div className="relative bg-navy-950/30 backdrop-blur-[1px]">
+      <div className="relative min-w-0 bg-navy-950/30 backdrop-blur-[1px]">
         <div className="flex items-center justify-between px-6 py-2 border-b border-line font-mono2 text-[11px] text-slate2 uppercase tracking-wide gap-3">
-          <span className="flex items-center gap-1.5 shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full bg-rail-green blink-dot" />
-            Réseau opérationnel
-          </span>
+          {news.length > 0 ? (
+            <NewsTicker items={news} />
+          ) : (
+            <span className="flex items-center gap-1.5 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-rail-green blink-dot" />
+              Réseau opérationnel
+            </span>
+          )}
+          {network?.night?.active && (
+            <span className="flex items-center gap-1.5 text-cobalt shrink-0" title="De 22 h à 6 h, les rames couchettes rapportent trois fois plus">
+              <MoonMark size={12} />
+              Service de nuit
+            </span>
+          )}
           {weather && weather.type !== "CLAIR" && (
             <span className={`flex items-center gap-1.5 truncate ${
               weather.type === "CANICULE" ? "text-rail-red" : weather.type === "VERGLAS" || weather.type === "NEIGE" ? "text-cobalt" : "text-slate2"
@@ -750,6 +906,7 @@ export default function Dashboard() {
             accent="#c99a3e"
             flap
             className="col-span-2 md:col-span-1 border-b md:border-b-0"
+            pop={gain}
           />
           <StatCell label="Trains" value={String(trains.length)} color="text-offwhite" accent="#4a3f2e" />
           <StatCell label="En circulation" value={String(enRoute)} color="text-rail-green" accent="#5c8a68" />
@@ -762,7 +919,16 @@ export default function Dashboard() {
           />
         </div>
 
-        {dailyChallenge && <DailyChallengeBanner challenge={dailyChallenge} onChange={loadAll} />}
+        <DecisionBanner decisions={decisions} onOpen={setOpenDecision} />
+        {openDecision && (
+          <DecisionModal
+            key={openDecision.id}
+            decision={openDecision}
+            onClose={() => setOpenDecision(null)}
+            onDone={loadAll}
+          />
+        )}
+        {dailyChallenge && !onboarding && <DailyChallengeBanner challenge={dailyChallenge} onChange={loadAll} />}
 
         <main className={`p-4 md:p-8 ${themeTrial ? "pb-28 md:pb-28" : ""}`}>
           {/* une rubrique réunie garde la même clé d'un onglet à l'autre : l'en-tête
@@ -773,14 +939,35 @@ export default function Dashboard() {
             {(view === "fret" || view === "missions") && (
               <SubTabs value={view} onChange={setView} tabs={[{ id: "fret", label: "Contrats" }, { id: "missions", label: "Donneurs d'ordre", count: missionCount }]} />
             )}
-            {(view === "rentabilite" || view === "historique") && (
-              <SubTabs value={view} onChange={setView} tabs={[{ id: "rentabilite", label: "Rentabilité" }, { id: "historique", label: "Grand livre", count: transactions.length }]} />
+            {FINANCE_VIEWS.includes(view) && (
+              <SubTabs
+                value={view}
+                onChange={setView}
+                tabs={[
+                  { id: "rapport", label: "Rapport de la semaine" },
+                  { id: "rentabilite", label: "Rentabilité" },
+                  { id: "banque", label: "Banque" },
+                  { id: "bourse", label: "Bourse" },
+                  { id: "historique", label: "Grand livre", count: transactions.length },
+                ]}
+              />
+            )}
+            {view === "rapport" && <WeeklyReportSection isPremium={company.isPremium} />}
+            {view === "banque" && <BankSection balance={company.balance} onChange={loadAll} />}
+            {view === "bourse" && <StockMarketSection balance={company.balance} onChange={loadAll} />}
+            {view === "infrastructures" && (
+              <InfrastructureSection
+                balance={company.balance}
+                stationSizes={Object.fromEntries((network?.stations ?? []).map((st) => [st.name, { size: st.size, sizeLabel: st.sizeLabel }]))}
+                onChange={loadAll}
+              />
             )}
             {(view === "carriere" || view === "succes") && (
               <SubTabs value={view} onChange={setView} tabs={[{ id: "carriere", label: "Grades" }, { id: "succes", label: "Succès", count: achievements.filter((a) => a.unlocked).length }]} />
             )}
-            {view === "trains" && todaySummary && <TodaySummaryCard summary={todaySummary} />}
-            {view === "trains" && import.meta.env.VITE_ADS_ENABLED === "true" && <AdWatchCard onChange={loadAll} />}
+            {view === "trains" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
+            {view === "trains" && todaySummary && !onboarding && (RELEASE_171 ? <TodaySummaryCard summary={todaySummary} /> : <TodaySummaryGrid summary={todaySummary} />)}
+            {view === "trains" && adsEnabled && !onboarding && <AdWatchCard onChange={loadAll} isPremium={company.isPremium || Boolean(company.adFree)} />}
             {view === "trains" && !!company.upkeepPerHour && (
               <FirstVisitHint
                 id="entretien"
@@ -817,9 +1004,52 @@ export default function Dashboard() {
                 )}
               </div>
             )}
-            {view === "trains" && referral && <ReferralBanner referral={referral} />}
+            {view === "trains" && (
+              <FirstVisitHint
+                id="trains-de-nuit"
+                seen={company.hintsSeen ?? ""}
+                onSeen={loadAll}
+                title="Les trains de nuit arrivent"
+                body="La rame couchettes (dès « Chef de réseau ») ne roule que sur les grandes lignes, de 10 minutes de trajet ou plus. De 22 h à 6 h, heure de Paris, chacun de ses trajets rapporte trois fois plus."
+                points={[
+                  "Le jour, elle roule aussi, mais rapporte 20 % de moins qu'une rame assise.",
+                  "Sur une journée, elle rapporte environ une fois et demie une rame Standard.",
+                  "Paris–Nice, Paris–Toulouse, Paris–Barcelone : les longues lignes sont faites pour elle.",
+                ]}
+              />
+            )}
+            {view === "trains" && referral && !onboarding && <ReferralBanner referral={referral} />}
             {view === "trains" && <TrainsSection trains={trains} lines={lines} incidents={incidents} company={company} staff={staff} weatherType={weather?.type} onChange={loadAll} onOpenCatalog={() => setShowCatalog(true)} />}
             {/* conseils de première visite : au-dessus du contenu, pas sous une page qu'on ne fait pas défiler */}
+            {view === "lignes" && lines.length > 0 && (
+              <FirstVisitHint
+                id="gares"
+                tag="Bon à savoir"
+                seen={company.hintsSeen ?? ""}
+                onSeen={loadAll}
+                title="Ce qui fait une bonne ligne"
+                body="Une ligne rapporte selon ses deux gares : Paris attire plus de voyageurs que Chartres. Les colonnes Demande et Voyageurs du tableau vous disent où vous en êtes."
+                points={[
+                  "Correspondance : deux de vos lignes qui partent de la même gare rapportent plus, jusqu'à +12 % par gare.",
+                  "Concurrence : si une autre compagnie roule sur la même liaison, la plus attractive prend des voyageurs à l'autre.",
+                  "Une ligne longue paie mieux à la minute, mais une panne en route y coûte plus cher.",
+                ]}
+              />
+            )}
+            {view === "lignes" && (
+              <FirstVisitHint
+                id="international"
+                seen={company.hintsSeen ?? ""}
+                onSeen={loadAll}
+                title="Le réseau passe la frontière"
+                body="Londres, Bruxelles, Francfort, Genève, Milan et Barcelone rejoignent la carte. Une ligne qui passe la frontière rapporte bien plus par trajet, mais paie un péage au réseau étranger."
+                points={[
+                  "Il faut la licence internationale : grade « Baron du rail » et 6 000 pi., une fois pour toutes.",
+                  "Recette ×1,6 par trajet, dont 25 % reversés en péage de sillon : net, c'est la meilleure ligne du jeu.",
+                  "Les gares étrangères comptent comme les autres pour les correspondances.",
+                ]}
+              />
+            )}
             {view === "lignes" && (
               <FirstVisitHint
                 id="correspondances"
@@ -838,6 +1068,7 @@ export default function Dashboard() {
             {view === "appels" && (
               <FirstVisitHint
                 id="appels-offres"
+                tag="Bon à savoir"
                 seen={company.hintsSeen ?? ""}
                 onSeen={loadAll}
                 title="Les régions cherchent des exploitants"
@@ -866,6 +1097,21 @@ export default function Dashboard() {
             {view === "appels" && <TendersSection company={company} onChange={loadAll} onOpenLines={() => setView("lignes")} />}
             {view === "lignes" && <LinesSection lines={lines} onChange={loadAll} network={network} company={company} onOpenShop={() => setView("boutique")} />}
             {view === "fret" && (
+              <FirstVisitHint
+                id="fret"
+                tag="Bon à savoir"
+                seen={company.hintsSeen ?? ""}
+                onSeen={loadAll}
+                title="Le fret, pour une rame qui n'a pas de ligne"
+                body="Chaque contrat dit quoi transporter, d'où, où et en combien de temps. Une rame libre l'accepte, part, et la paie tombe à la livraison. C'est plus rentable qu'une ligne, mais il faut revenir en choisir d'autres."
+                points={[
+                  "Les offres expirent au bout de quelques minutes : ce qui est là maintenant ne le sera plus tout à l'heure.",
+                  "Une cargaison fragile peut arriver abîmée ; une prime « risquée » paie plus pour ce risque.",
+                  "Les donneurs d'ordre, dans l'onglet voisin, paient votre fidélité : plus vous livrez pour eux, plus ils paient.",
+                ]}
+              />
+            )}
+            {view === "fret" && (
               <FreightSection
                 market={market}
                 myContracts={myContracts}
@@ -876,6 +1122,7 @@ export default function Dashboard() {
             {view === "missions" && (
               <FirstVisitHint
                 id="missions"
+                tag="Bon à savoir"
                 seen={company.hintsSeen ?? ""}
                 onSeen={loadAll}
                 title="Quatre chargeurs vous confient du fret"
@@ -894,9 +1141,14 @@ export default function Dashboard() {
               <>
                 <FirstVisitHint
                   id="cours"
+                tag="Bon à savoir"
                   seen={company.hintsSeen ?? ""}
                   title="Le cours des marchandises"
                   body="Chaque marchandise a un cours qui monte et descend. Achetez quand il est bas, gardez la marchandise dans votre entrepôt, revendez quand il remonte — et livrez de préférence ce que le marché recherche : une livraison paie jusqu'à un quart de plus. Garder du stock coûte des frais de garde, donc attendre a un prix."
+                  points={[
+                    "L'entrepôt et les places de dépôt passent par un chantier : payé à la commande, livré quelques dizaines de minutes plus tard.",
+                    "Un seul chantier à la fois : l'argent ne suffit pas, il faut choisir par quoi commencer.",
+                  ]}
                   onSeen={loadAll}
                 />
                 <MarketSection onChange={loadAll} />
@@ -941,7 +1193,7 @@ export default function Dashboard() {
                     "En contrepartie elle immobilise la rame plus longtemps, et une panne en route fait perdre bien plus de trajet.",
                   ]}
                 />
-                <NetworkMap lines={lines} trains={trains} contracts={myContracts} onChange={loadAll} network={network} />
+                <NetworkMap lines={lines} trains={trains} contracts={myContracts} onChange={loadAll} network={network} livery={company.liveryColor} />
               </>
             )}
             {view === "personnel" && (
@@ -950,6 +1202,8 @@ export default function Dashboard() {
             {view === "parametres" && (
               <SettingsSection company={company} referral={referral} onChange={loadAll} onOpenShop={() => setView("boutique")} />
             )}
+            {/* 1.7 : une bannière en pied de page, seulement sur les pages qu'on lit */}
+            {adsEnabled && !company.isPremium && !company.adFree && !onboarding && BANNER_VIEWS.includes(view) && <AdBanner placement={view} />}
           </div>
         </main>
       </div>
@@ -963,8 +1217,13 @@ const PAGE_COPY = {
   fret: { title: "Fret", subtitle: "Contrats de marchandises au comptant, et ordres des donneurs d'ordre qui paient votre fidélité." },
   missions: { title: "Fret", subtitle: "Contrats de marchandises au comptant, et ordres des donneurs d'ordre qui paient votre fidélité." },
   classement: { title: "Classement", subtitle: "Les compagnies les plus prospères du réseau." },
-  historique: { title: "Comptes", subtitle: "Ce que rapporte chaque ligne, et le registre de tous les mouvements de trésorerie." },
-  rentabilite: { title: "Comptes", subtitle: "Ce que rapporte chaque ligne, et le registre de tous les mouvements de trésorerie." },
+  historique: { title: "Finances", subtitle: "Le registre de tous les mouvements de trésorerie." },
+  rentabilite: { title: "Finances", subtitle: "Ce que rapporte chaque ligne et chaque rame, sur sept jours." },
+  // 1.7
+  rapport: { title: "Finances", subtitle: "Le bilan de la semaine : ce qui est entré, ce qui est sorti, et d'où." },
+  banque: { title: "Finances", subtitle: "Emprunter pour investir plus tôt, et rembourser heure par heure." },
+  bourse: { title: "Finances", subtitle: "Les compagnies du réseau cotées entre joueurs : cours, dividendes et portefeuille." },
+  infrastructures: { title: "Infrastructures", subtitle: "Gares, ateliers et caténaires : ce qui ne roule pas mais rapporte." },
   succes: { title: "Progression", subtitle: "Votre carrière grade après grade, et les étapes franchies par la compagnie." },
   carte: { title: "Carte du réseau", subtitle: "Vos lignes et vos trains, positionnés en temps réel." },
   personnel: { title: "Personnel", subtitle: "Une équipe qui prend de l'expérience et doit suivre la taille de votre flotte." },
@@ -976,24 +1235,62 @@ const PAGE_COPY = {
 };
 
 export type DashboardView = keyof typeof PAGE_COPY;
+const FINANCE_VIEWS: string[] = ["rapport", "rentabilite", "banque", "bourse", "historique"];
+// pages de consultation où une bannière en bas ne gêne pas : ni la carte, ni la flotte, ni les formulaires
+const BANNER_VIEWS: string[] = ["classement", "historique", "rentabilite", "rapport", "carriere", "succes", "appels", "cours"];
+
+/* 1.7 : l'en-tête de page est un panneau de gare. Le pictogramme de la
+   rubrique dans son carré, le nom en grand, et l'exploitant sur le côté. */
+const PAGE_ICON: Partial<Record<DashboardView, (p: { size: number }) => JSX.Element>> = {
+  trains: TrainMark,
+  lignes: TrackMark,
+  carte: MapMark,
+  infrastructures: StationMark,
+  fret: CargoMark,
+  missions: CargoMark,
+  cours: SwapMark,
+  appels: TenderMark,
+  personnel: StaffMark,
+  rapport: BankMark,
+  rentabilite: BankMark,
+  banque: BankMark,
+  bourse: BankMark,
+  historique: BankMark,
+  carriere: RankMark,
+  succes: RankMark,
+  classement: TrophyMark,
+  boutique: ShopMark,
+  parametres: GearMark,
+};
 
 function PageHeader({ view, company }: { view: DashboardView; company: Company }) {
   const copy = PAGE_COPY[view];
+  const Icon = PAGE_ICON[view] ?? TrainMark;
   return (
-    <div className="mb-8 flex items-end justify-between gap-6 flex-wrap">
-      <div>
-        <h1 className="font-display text-3xl md:text-4xl leading-none mb-2">{copy.title}</h1>
-        <p className="text-sm text-slate2 font-body max-w-md">{copy.subtitle}</p>
+    <header className="mb-7 flex items-stretch border border-line bg-navy-900/50">
+      <div className="w-12 md:w-[68px] shrink-0 bg-cobalt text-onaccent flex items-center justify-center">
+        <Icon size={26} />
       </div>
-      <div className="text-right shrink-0">
-        <div className="text-[11px] text-slate2 font-body uppercase tracking-[0.14em]">Exploitant</div>
-        <div className="font-mono2 text-sm" style={{ color: company.liveryColor }}>{company.name}</div>
+      <div className="px-4 md:px-5 py-3 md:py-4 flex-1 min-w-0">
+        <h1 className="font-display text-2xl md:text-[34px] leading-none">{copy.title}</h1>
+        <p className="text-[13px] text-slate2 font-body mt-1.5 max-w-xl">{copy.subtitle}</p>
       </div>
-    </div>
+      <div className="hidden md:flex flex-col justify-center items-end px-5 border-l border-line shrink-0">
+        <div className="text-[10px] text-slate2 font-mono2 uppercase tracking-[0.16em]">Exploitant</div>
+        <div className="flex items-center gap-2 mt-1">
+          <span className="w-2.5 h-2.5" style={{ background: company.liveryColor }} />
+          <span className="font-mono2 text-sm text-offwhite">{company.name}</span>
+        </div>
+      </div>
+    </header>
   );
 }
 
-function TodaySummaryCard({ summary }: { summary: TodaySummary }) {
+/* 1.7 : le résumé du jour tient sur une ligne, comme un bandeau de gare.
+   Le solde net d'abord (c'est le chiffre qu'on cherche), le reste à la suite,
+   et le détail recettes / dépenses se déplie à la demande. Le choix est retenu. */
+/* 1.7.0 : le résumé du jour en grille (il passe sur une ligne en 1.7.1) */
+function TodaySummaryGrid({ summary }: { summary: TodaySummary }) {
   const items = [
     { label: "Recettes", value: `+${summary.income} pi.`, color: "text-rail-green" },
     { label: "Dépenses", value: `${summary.expenses} pi.`, color: "text-rail-red" },
@@ -1021,59 +1318,146 @@ function TodaySummaryCard({ summary }: { summary: TodaySummary }) {
   );
 }
 
-function AdWatchCard({ onChange }: { onChange: () => void }) {
+const SUMMARY_OPEN_KEY = "reseau.resume-ouvert";
+
+function TodaySummaryCard({ summary }: { summary: TodaySummary }) {
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(SUMMARY_OPEN_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  function toggle() {
+    setOpen((v) => {
+      try {
+        localStorage.setItem(SUMMARY_OPEN_KEY, v ? "0" : "1");
+      } catch {
+        // stockage refusé : le choix vaut pour la session
+      }
+      return !v;
+    });
+  }
+  const fmt = (n: number) => Math.abs(n).toLocaleString("fr-FR");
+  const netUp = summary.net >= 0;
+
+  return (
+    <div className="border border-line mb-6 font-mono2">
+      <button onClick={toggle} aria-expanded={open} className="w-full flex items-center gap-x-4 gap-y-1 px-4 py-2 text-left hover:bg-navy-900/40 transition-colors">
+        <span className="flex items-center gap-2 shrink-0">
+          <LedgerMark size={13} className="text-cobalt" />
+          <span className="text-[10.5px] uppercase tracking-[0.16em] text-slate2">Aujourd'hui</span>
+        </span>
+        <span className={`text-sm tabular-nums shrink-0 ${netUp ? "text-rail-green" : "text-rail-red"}`}>
+          {netUp ? "+" : "−"}
+          {fmt(summary.net)} pi. <span className="text-[10.5px] text-slate2">net</span>
+        </span>
+        <span className="hidden sm:flex items-center gap-3 text-[12px] text-slate2 tabular-nums min-w-0 truncate">
+          <span>·</span>
+          <span>{summary.lineTrips} trajet{summary.lineTrips > 1 ? "s" : ""}</span>
+          <span>·</span>
+          <span>{summary.freightDeliveries} livraison{summary.freightDeliveries > 1 ? "s" : ""}</span>
+          <span>·</span>
+          <span className={summary.incidents > 0 ? "text-rail-red" : ""}>
+            {summary.incidents} incident{summary.incidents > 1 ? "s" : ""}
+          </span>
+        </span>
+        <span className="ml-auto text-[10.5px] uppercase tracking-wide text-slate2 shrink-0">
+          Détails <span className={`inline-block transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
+        </span>
+      </button>
+      {open && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2 border-t border-line text-[12px] tabular-nums">
+          <span>
+            <span className="text-slate2">recettes </span>
+            <span className="text-rail-green">+{fmt(summary.income)} pi.</span>
+          </span>
+          <span>
+            <span className="text-slate2">dépenses </span>
+            <span className="text-rail-red">−{fmt(summary.expenses)} pi.</span>
+          </span>
+          {/* sur téléphone, les compteurs du bandeau passent ici */}
+          <span className="sm:hidden text-slate2">
+            {summary.lineTrips} trajets · {summary.freightDeliveries} livraisons ·{" "}
+            <span className={summary.incidents > 0 ? "text-rail-red" : ""}>{summary.incidents} incidents</span>
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* 1.7 : vidéos récompensées (Google AdSense). Le joueur choisit d'en regarder
+   une contre des pièces ; rien d'autre dans le jeu n'est une publicité. Un
+   abonné Premium ne charge même pas le script tant qu'il ne le demande pas. */
+function AdWatchCard({ onChange, isPremium }: { onChange: () => void; isPremium: boolean }) {
   const [status, setStatus] = useState<{ watchedToday: number; remaining: number; maxPerDay: number; rewardPerAd: number } | null>(null);
-  const [playing, setPlaying] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "loading" | "playing">("idle");
   const { showToast, showComposter } = useToast();
 
   useEffect(() => {
     api.get("/ads/status").then(({ data }) => setStatus(data)).catch(() => {});
-  }, []);
+    // préchargement pour les joueurs gratuits : la vidéo démarre sans attente
+    if (!isPremium) loadAds();
+  }, [isPremium]);
 
   async function watchAd() {
-    setPlaying(true);
+    if (phase !== "idle") return;
+    setPhase("loading");
     try {
-      // ==========================================================================
-      // ESPACE RÉSERVÉ pour le vrai script publicitaire (ex. AppLixir, AdinPlay...).
-      // À remplacer par l'appel réel du SDK une fois un compte créé chez un réseau
-      // publicitaire compatible web. Le principe à respecter impérativement :
-      // n'appeler /ads/claim QUE dans le callback "publicité terminée avec succès"
-      // du SDK — jamais si elle est fermée en avance, en erreur, ou non chargée.
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      // ==========================================================================
-
-      const { data } = await api.post("/ads/claim");
-      showToast(`+${data.reward} pi. — merci d'avoir regardé la publicité`);
-      showComposter("Publicité regardée");
+      const { data: start } = await api.post("/ads/start");
+      const outcome = await showRewardedAd(() => setPhase("playing"));
+      if (outcome === "viewed") {
+        const { data } = await api.post("/ads/claim", { token: start.token });
+        showComposter(`+${data.reward} pi. — merci d'avoir regardé la publicité`);
+        onChange();
+      } else if (outcome === "dismissed") {
+        showToast("Publicité fermée avant la fin : pas de récompense cette fois", "error");
+      } else if (outcome === "blocked") {
+        showToast("Les publicités ne se chargent pas (bloqueur de publicité ?)", "error");
+      } else {
+        showToast("Aucune publicité disponible pour le moment, réessayez dans quelques minutes", "error");
+      }
       const { data: newStatus } = await api.get("/ads/status");
       setStatus(newStatus);
-      onChange();
     } catch (err: any) {
       showToast(err?.response?.data?.error || "Erreur", "error");
     } finally {
-      setPlaying(false);
+      setPhase("idle");
     }
   }
 
   if (!status) return null;
+  // un abonné ne voit qu'une ligne discrète : la vidéo reste possible, jamais mise en avant
+  if (isPremium) {
+    return status.remaining > 0 ? (
+      <div className="mb-6 flex items-center justify-end gap-2 text-[11.5px] font-body text-slate2">
+        <span>Envie de pièces en plus ? Une vidéo facultative rapporte {status.rewardPerAd} pi.</span>
+        <button onClick={watchAd} disabled={phase !== "idle"} className="font-mono2 uppercase text-[10.5px] text-cobalt hover:underline disabled:opacity-50">
+          {phase === "idle" ? "Regarder" : "Chargement…"}
+        </button>
+      </div>
+    ) : null;
+  }
 
   return (
     <div className="border border-line mb-6 p-4 flex items-center justify-between gap-4 flex-wrap">
       <div>
         <div className="flex items-center gap-2 mb-1">
           <AnnounceMark size={15} className="text-cobalt shrink-0" />
-          <span className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em]">Regarder une publicité</span>
+          <span className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em]">Vidéo récompensée</span>
         </div>
         <p className="text-xs text-slate2 font-body">
-          +{status.rewardPerAd} pi. par publicité, jusqu'à {status.maxPerDay} par jour — {status.watchedToday}/{status.maxPerDay} aujourd'hui
+          +{status.rewardPerAd} pi. par vidéo regardée jusqu'au bout, jusqu'à {status.maxPerDay} par jour — {status.watchedToday}/{status.maxPerDay} aujourd'hui.
+          <span className="text-slate2/70"> Le Premium n'affiche aucune publicité.</span>
         </p>
       </div>
       <button
         onClick={watchAd}
-        disabled={playing || status.remaining === 0}
+        disabled={phase !== "idle" || status.remaining === 0}
         className="text-xs font-mono2 uppercase text-cobalt border border-cobalt/40 px-3 py-2 hover:bg-cobalt/10 transition-colors disabled:opacity-50 shrink-0"
       >
-        {playing ? "Lecture…" : status.remaining === 0 ? "Revenez demain" : `Regarder (+${status.rewardPerAd} pi.)`}
+        {phase === "loading" ? "Chargement…" : phase === "playing" ? "Lecture…" : status.remaining === 0 ? "Revenez demain" : `Regarder (+${status.rewardPerAd} pi.)`}
       </button>
     </div>
   );
@@ -1126,7 +1510,10 @@ function AssignDropdown({
       const width = Math.max(rect.width, 200);
       // évite de dépasser le bord droit de l'écran
       const left = Math.min(rect.left, window.innerWidth - width - 12);
-      setCoords({ top: rect.bottom + 4, left, width });
+      // près du bas de l'écran, le menu s'ouvre vers le haut au lieu de déborder
+      const menuH = Math.min(240, options.length * 33 + 4);
+      const top = rect.bottom + 4 + menuH > window.innerHeight - 8 ? Math.max(8, rect.top - 4 - menuH) : rect.bottom + 4;
+      setCoords({ top, left, width });
     }
     setOpen(true);
   }
@@ -1139,8 +1526,19 @@ function AssignDropdown({
       if (triggerRef.current?.contains(target) || menuRef.current?.contains(target)) return;
       setOpen(false);
     }
-    function handleScrollOrResize() {
-      setOpen(false);
+    /* 1.6 : un défilement ne ferme plus le menu. Cliquer une option près du
+       bas de l'écran fait défiler la page (le navigateur amène le bouton en
+       vue) : le menu se fermait avant que le clic n'arrive, et l'affectation
+       n'était jamais envoyée. On le recale sous son bouton à la place, et on
+       ne le ferme que si le bouton sort de l'écran. */
+    function handleScrollOrResize(e: Event) {
+      if (menuRef.current && e.target instanceof Node && menuRef.current.contains(e.target)) return;
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect || rect.bottom < 0 || rect.top > window.innerHeight) {
+        setOpen(false);
+        return;
+      }
+      setCoords((c) => (c ? { ...c, top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - c.width - 12) } : c));
     }
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -1184,7 +1582,15 @@ function AssignDropdown({
             <button
               key={opt.id}
               type="button"
-              onClick={() => handlePick(opt.id)}
+              // la sélection part dès l'appui : rien ne peut fermer le menu entre l'appui et le clic
+              onPointerDown={(e) => {
+                e.preventDefault();
+                handlePick(opt.id);
+              }}
+              onClick={(e) => {
+                // clavier (Entrée, Espace) : pas d'appui de pointeur
+                if (e.detail === 0) handlePick(opt.id);
+              }}
               className="w-full text-left px-3 py-2 text-xs font-body text-offwhite hover:bg-cobalt/15 hover:text-cobalt transition-colors border-b border-line last:border-0"
             >
               {opt.label}
@@ -1223,20 +1629,23 @@ function WearGauge({ value }: { value: number }) {
 
 type SubTab<T extends string> = { id: T; label: string; count?: number };
 function SubTabs<T extends string>({ value, onChange, tabs }: { value: string; onChange: (v: T) => void; tabs: SubTab<T>[] }) {
+  // 1.7 : des onglets comme des voies de quai : l'onglet actif se détache du panneau
   return (
-    <div role="tablist" className="flex gap-1 border-b border-line mb-6 -mt-3 overflow-x-auto">
+    <div role="tablist" className="flex border-b border-line mb-6 -mt-2 overflow-x-auto">
       {tabs.map((t) => (
         <button
           key={t.id}
           role="tab"
           aria-selected={value === t.id}
           onClick={() => onChange(t.id)}
-          className={`shrink-0 px-4 py-2.5 text-sm font-body border-b-2 -mb-px transition-colors ${
-            value === t.id ? "border-cobalt text-offwhite" : "border-transparent text-slate2 hover:text-offwhite"
+          className={`shrink-0 px-4 py-2 text-[13.5px] font-body border -mb-px transition-colors ${
+            value === t.id
+              ? "border-line border-b-navy-950 bg-navy-950 text-offwhite shadow-[inset_0_2px_0_rgb(var(--c-cobalt))]"
+              : "border-transparent text-slate2 hover:text-offwhite"
           }`}
         >
           {t.label}
-          {t.count !== undefined && <span className="ml-2 font-mono2 text-xs text-slate2 tabular-nums">{t.count}</span>}
+          {t.count !== undefined && <span className="ml-2 font-mono2 text-[11px] text-slate2 tabular-nums">{t.count}</span>}
         </button>
       ))}
     </div>
@@ -1245,8 +1654,11 @@ function SubTabs<T extends string>({ value, onChange, tabs }: { value: string; o
 
 function SidebarGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-row md:flex-col md:pt-3 border-l md:border-l-0 border-line first:border-l-0">
-      <div className="hidden md:block px-5 pb-1 font-mono2 text-[10px] uppercase tracking-[0.16em] text-slate2/70">{label}</div>
+    <div className="flex flex-row md:flex-col md:pt-4 border-l md:border-l-0 border-line first:border-l-0">
+      <div className="hidden md:flex items-center gap-2 px-5 pb-1.5">
+        <span className="font-mono2 text-[10px] uppercase tracking-[0.18em] text-slate2/80">{label}</span>
+        <span className="flex-1 h-px bg-line" />
+      </div>
       {children}
     </div>
   );
@@ -1277,15 +1689,25 @@ function SidebarItem({
     <button
       data-tutorial={dataTutorial}
       onClick={onClick}
-      className={`shrink-0 whitespace-nowrap md:w-full flex items-center gap-2 md:gap-2.5 px-3.5 md:px-5 py-3 md:py-2 text-sm font-body border-l-2 transition-colors ${
-        active ? "border-cobalt text-cobalt bg-navy-900/60" : accent ? "border-transparent text-amber hover:text-offwhite" : "border-transparent text-slate2 hover:text-offwhite"
+      aria-current={active ? "page" : undefined}
+      className={`group shrink-0 whitespace-nowrap md:w-full flex items-center gap-2.5 px-3 md:px-4 py-2 md:py-[7px] text-sm font-body transition-colors ${
+        active ? "text-offwhite md:bg-navy-900/80" : accent ? "text-amber hover:text-offwhite" : "text-slate2 hover:text-offwhite hover:bg-navy-900/40"
       }`}
     >
-      <span className="shrink-0 inline-flex">{icon}</span>
+      <span
+        className={`shrink-0 inline-flex items-center justify-center w-[26px] h-[26px] border transition-colors ${
+          active ? "bg-cobalt border-cobalt text-onaccent" : accent ? "border-amber/50 text-amber" : "border-line text-slate2 group-hover:border-slate2 group-hover:text-offwhite"
+        }`}
+      >
+        {icon}
+      </span>
       <span className="md:flex-1 text-left">{label}</span>
       {alert && <span className="w-1.5 h-1.5 rounded-full bg-amber" aria-label="demande en attente" />}
       {badge && <span className="font-mono2 text-[9px] uppercase tracking-wide px-1.5 py-0.5 bg-amber/15 text-amber">{badge}</span>}
-      {count !== undefined && <span className="text-xs font-mono2 tabular-nums opacity-80">{count}</span>}
+      {count !== undefined && (
+        <span className={`text-[11px] font-mono2 tabular-nums min-w-[22px] text-center px-1 leading-[18px] ${active ? "text-cobalt" : "text-slate2/80"}`}>{count}</span>
+      )}
+      {active && <span className="hidden md:block w-[3px] self-stretch -my-[7px] -mr-4 bg-cobalt" aria-hidden="true" />}
     </button>
   );
 }
@@ -1298,6 +1720,7 @@ function StatCell({
   accent,
   flap,
   className = "",
+  pop,
 }: {
   label: string;
   value: string;
@@ -1306,10 +1729,16 @@ function StatCell({
   accent: string;
   flap?: boolean;
   className?: string;
+  pop?: { amount: number; key: number } | null;
 }) {
   return (
     <div className={`px-4 py-4 md:px-6 md:py-6 border-r border-line last:border-0 overflow-hidden relative min-w-0 ${className}`}>
       <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: accent }} />
+      {pop && (
+        <span key={pop.key} className="gain-pop absolute right-4 md:right-6 top-3 font-mono2 text-sm text-rail-green pointer-events-none" aria-hidden="true">
+          +{pop.amount} pi.
+        </span>
+      )}
       {flap ? (
         <div className="flex items-end gap-2">
           {/* au-delà du million, les palettes rapetissent plutôt que de sortir du cadre */}
@@ -1324,20 +1753,57 @@ function StatCell({
   );
 }
 
+/* 1.6 : l'écran de fondation. C'était un cadre nu, un champ et un bouton :
+   le premier écran du jeu, et celui qui « faisait brut ». Il dit maintenant ce
+   qu'on va faire, laisse choisir une livrée, et propose des noms à qui n'en a pas. */
+const NAME_IDEAS = [
+  "Compagnie du Nord", "Rail Atlantique", "Ligne Bleue", "Express du Midi", "Transalpin",
+  "Compagnie des Deux Mers", "Rail d'Armor", "Voies de l'Est", "Étoile du Sud", "Compagnie du Léman",
+  "Rail Normand", "Les Trains d'Occitanie", "Grande Ceinture", "Compagnie Rhône-Méditerranée", "Rail du Couchant",
+];
+const pickIdeas = () => [...NAME_IDEAS].sort(() => Math.random() - 0.5).slice(0, 3);
+const FOUNDING_LIVERIES = ["#c99a3e", "#4f7fa3", "#5c8a68", "#a8483a", "#8a6ba3", "#c97a3e"];
+
+function FoundingScene({ color }: { color: string }) {
+  // deux gares, une voie, une rame à la couleur choisie qui fait l'aller-retour
+  return (
+    <svg viewBox="0 0 320 96" className="w-full h-auto" aria-hidden="true">
+      <path d="M40 60 C 110 60, 130 30, 200 30 S 270 44, 284 44" fill="none" stroke="#1e293b" strokeWidth="7" strokeLinecap="round" />
+      <path id="found-track" d="M40 60 C 110 60, 130 30, 200 30 S 270 44, 284 44" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeDasharray="1 7" />
+      <g>
+        <rect x="-11" y="-4.5" width="22" height="9" rx="2.5" fill={color} />
+        <rect x="3" y="-2.4" width="5" height="3" rx="0.8" fill="#0b0f19" opacity="0.7" />
+        <animateMotion dur="5.5s" repeatCount="indefinite" rotate="auto" keyPoints="0;1;0" keyTimes="0;0.5;1" calcMode="spline" keySplines="0.45 0 0.55 1;0.45 0 0.55 1">
+          <mpath href="#found-track" />
+        </animateMotion>
+      </g>
+      <rect x="34" y="54" width="12" height="12" rx="1.2" transform="rotate(45 40 60)" fill="#f8fafc" />
+      <rect x="278" y="38" width="12" height="12" rx="1.2" transform="rotate(45 284 44)" fill="#f8fafc" />
+      <text x="40" y="88" textAnchor="middle" className="fill-slate2" style={{ font: "10px 'Space Mono', monospace", letterSpacing: "0.12em" }}>PARIS</text>
+      <text x="284" y="72" textAnchor="middle" className="fill-slate2" style={{ font: "10px 'Space Mono', monospace", letterSpacing: "0.12em" }}>LYON</text>
+    </svg>
+  );
+}
+
 function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onLogout: () => void }) {
   const [name, setName] = useState("");
+  const [livery, setLivery] = useState(FOUNDING_LIVERIES[0]);
+  const [ideas, setIdeas] = useState(pickIdeas);
   const [referralCode, setReferralCode] = useState(() => new URLSearchParams(window.location.search).get("ref") ?? "");
+  const [showReferral, setShowReferral] = useState(() => !!new URLSearchParams(window.location.search).get("ref"));
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const clean = name.trim();
+    if (!clean) return;
     setError(null);
     setSubmitting(true);
     try {
-      await api.post("/company", { name, referralCode: referralCode.trim() || undefined });
-      showToast(`Compagnie "${name}" fondée`);
+      await api.post("/company", { name: clean, liveryColor: livery, referralCode: referralCode.trim() || undefined });
+      showToast(`Compagnie « ${clean} » fondée`);
       onCreated();
     } catch (err: any) {
       const message = err?.response?.data?.error || "Erreur";
@@ -1348,40 +1814,138 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
     }
   }
 
+  const label = "block text-[10.5px] font-mono2 uppercase tracking-[0.18em] text-slate2 mb-2";
+
   return (
-    <div className="min-h-screen flex items-center justify-center px-6 bg-navy-950">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm border border-line p-6 space-y-4">
-        <h1 className="font-display uppercase text-lg">Fondez votre compagnie</h1>
-        <input
-          className="w-full bg-transparent border border-line px-3 py-2.5 text-sm focus:outline-none focus:border-cobalt"
-          placeholder="Nom de la compagnie"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <div>
-          <input
-            className="w-full bg-transparent border border-line px-3 py-2.5 text-sm font-mono2 uppercase tracking-wide focus:outline-none focus:border-cobalt"
-            placeholder="Code de parrainage (optionnel)"
-            value={referralCode}
-            onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
-            maxLength={6}
-          />
-          {referralCode && (
-            <p className="text-[11px] text-amber font-body mt-1.5">+100 pi. de bonus de bienvenue si le code est valide</p>
-          )}
+    <div className="min-h-screen relative flex items-center justify-center px-4 py-10 bg-navy-950 overflow-hidden">
+      <RailSchematic className="absolute inset-0 w-full h-full opacity-[0.08] pointer-events-none" />
+      <div className="relative w-full max-w-4xl grid md:grid-cols-[1.05fr_1fr] border border-line bg-navy-900/80 backdrop-blur-sm view-transition">
+        {/* ce qui vous attend */}
+        <div className="p-6 md:p-9 border-b md:border-b-0 md:border-r border-line flex flex-col">
+          <div className="flex items-center gap-3">
+            <LogoMark size={34} />
+            <div>
+              <div className="font-display text-lg leading-none">Réseau</div>
+              <div className="font-mono2 text-[9.5px] uppercase tracking-[0.24em] text-slate2 mt-1">Compagnie ferroviaire</div>
+            </div>
+          </div>
+          <h1 className="font-display text-3xl md:text-[40px] leading-[1.05] mt-8 md:mt-10">Fondez votre compagnie</h1>
+          <p className="font-body text-[14px] text-slate2 leading-relaxed mt-3 max-w-[40ch]">
+            Vous partez avec <span className="text-amber font-mono2">500 pi.</span> et un dépôt de deux places. Le reste, c'est vous qui le tracez.
+          </p>
+          <div className="mt-6 md:mt-8">
+            <FoundingScene color={livery} />
+          </div>
+          <ol className="mt-5 md:mt-6 space-y-2.5">
+            {[
+              "Tracez une ligne entre deux gares",
+              "Achetez une rame et mettez-la en service",
+              "Elle roule et rapporte, même jeu fermé",
+            ].map((t, i) => (
+              <li key={t} className="flex items-baseline gap-3 font-body text-[13.5px] text-offwhite/90">
+                <span className="font-mono2 text-[11px] text-amber w-4 shrink-0">{i + 1}</span>
+                {t}
+              </li>
+            ))}
+          </ol>
+          <p className="mt-auto pt-6 font-body text-[12px] text-slate2">Un guide vous accompagne pour les premiers gestes.</p>
         </div>
-        {error && <p className="text-rail-red text-sm">{error}</p>}
-        <button
-          disabled={submitting}
-          className="w-full bg-cobalt text-onaccent font-semibold py-2.5 text-sm uppercase tracking-wide hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-60 disabled:active:scale-100"
-        >
-          {submitting ? "Création…" : "Créer"}
-        </button>
-        <button type="button" onClick={onLogout} className="text-xs text-slate2 hover:text-offwhite">
-          Déconnexion
-        </button>
-      </form>
+
+        {/* le formulaire */}
+        <form onSubmit={handleSubmit} className="p-6 md:p-9 flex flex-col">
+          <label htmlFor="co-name" className={label}>Nom de la compagnie</label>
+          <input
+            id="co-name"
+            className="w-full bg-navy-950/60 border border-line px-3.5 py-3 text-[15px] font-body focus:outline-none focus:border-cobalt"
+            placeholder="Ex. Compagnie du Nord"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            maxLength={40}
+            autoFocus
+            required
+          />
+          <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+            <span className="font-body text-[11.5px] text-slate2 mr-0.5">Idées :</span>
+            {ideas.map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setName(n)}
+                className="font-body text-[11.5px] text-slate2 border border-line px-2 py-0.5 hover:text-offwhite hover:border-slate2 transition-colors"
+              >
+                {n}
+              </button>
+            ))}
+            <button type="button" onClick={() => setIdeas(pickIdeas())} className="font-mono2 text-[12px] text-slate2 hover:text-offwhite px-1" title="D'autres idées" aria-label="D'autres idées">
+              ↻
+            </button>
+          </div>
+
+          <div className="mt-7">
+            <span className={label}>Couleur de livrée</span>
+            <div className="flex gap-2.5">
+              {FOUNDING_LIVERIES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setLivery(c)}
+                  aria-label={`Livrée ${c}`}
+                  aria-pressed={livery === c}
+                  className={`w-9 h-9 border-2 transition-transform ${livery === c ? "border-offwhite scale-105" : "border-transparent hover:scale-105"}`}
+                  style={{ background: c }}
+                />
+              ))}
+            </div>
+            <p className="font-body text-[11.5px] text-slate2 mt-2">Vos rames, votre nom sur la carte. Modifiable plus tard.</p>
+          </div>
+
+          {/* comme l'en-tête du jeu : c'est ce que verront les autres */}
+          <div className="mt-7 border border-line border-t-[3px] px-4 py-3 flex items-center gap-3" style={{ borderTopColor: livery }}>
+            <TrainMark size={20} style={{ color: livery }} className="shrink-0" />
+            <div className="min-w-0">
+              <div className="font-mono2 text-[9.5px] uppercase tracking-[0.2em] text-slate2">Exploitant</div>
+              <div className="font-display text-lg leading-tight truncate" style={{ color: name.trim() ? livery : undefined }}>
+                {name.trim() || <span className="text-slate2/60">Votre compagnie</span>}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5">
+            {showReferral ? (
+              <div>
+                <label htmlFor="co-ref" className={label}>Code de parrainage</label>
+                <input
+                  id="co-ref"
+                  className="w-full bg-navy-950/60 border border-line px-3 py-2.5 text-sm font-mono2 uppercase tracking-[0.2em] focus:outline-none focus:border-cobalt"
+                  placeholder="ABC123"
+                  value={referralCode}
+                  onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                  maxLength={6}
+                />
+                {referralCode && <p className="text-[11.5px] text-amber font-body mt-1.5">+100 pi. de bienvenue si le code est valide</p>}
+              </div>
+            ) : (
+              <button type="button" onClick={() => setShowReferral(true)} className="font-body text-[12.5px] text-slate2 hover:text-offwhite underline underline-offset-4 decoration-line">
+                Un ami vous a donné un code ?
+              </button>
+            )}
+          </div>
+
+          {error && <p className="text-rail-red text-sm mt-4">{error}</p>}
+
+          <div className="mt-auto pt-7">
+            <button
+              disabled={submitting || !name.trim()}
+              className="w-full bg-cobalt text-onaccent font-semibold py-3 text-sm uppercase tracking-wide hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
+            >
+              {submitting ? "Fondation…" : "Fonder la compagnie"}
+            </button>
+            <button type="button" onClick={onLogout} className="block mx-auto mt-3 text-xs text-slate2 hover:text-offwhite">
+              Se déconnecter
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -1394,18 +1958,31 @@ const STATIONS = [
   "Nice", "Orléans", "Paris", "Pau", "Perpignan", "Poitiers", "Reims", "Rennes",
   "Rouen", "Saint-Étienne", "Strasbourg", "Toulouse", "Tours", "Troyes",
 ];
+// 1.6 : les gares à l'étranger, à part dans la liste (il faut la licence internationale)
+const INTL_STATIONS = ["Barcelone", "Bruxelles", "Francfort", "Genève", "Londres", "Milan"];
+const INTL_CODE: Record<string, string> = { Barcelone: "ES", Bruxelles: "BE", Francfort: "DE", "Genève": "CH", Londres: "GB", Milan: "IT" };
+const isIntl = (s: string) => INTL_STATIONS.includes(s);
+
+/* 1.6 : service de nuit, de 22 h à 6 h à Paris (comme le serveur) */
+function isParisNight(at = new Date()) {
+  const h = Number(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Paris", hour: "2-digit", hourCycle: "h23" }).format(at));
+  return h >= 22 || h < 6;
+}
 
 function StationPicker({
   label,
   value,
   onChange,
   exclude,
+  intlLocked,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
-  exclude?: string;
+  exclude?: string | string[];
+  intlLocked?: boolean; // pas encore de licence internationale
 }) {
+  const excluded = new Set(Array.isArray(exclude) ? exclude : exclude ? [exclude] : []);
   function handlePick(e: React.MouseEvent<HTMLButtonElement>, station: string) {
     onChange(station);
     const details = e.currentTarget.closest("details");
@@ -1414,14 +1991,14 @@ function StationPicker({
 
   return (
     <div className="flex-1">
-      <label className="block text-[11px] uppercase tracking-wide text-slate2 mb-1.5 font-body">{label}</label>
+      {label && <label className="block text-[11px] uppercase tracking-wide text-slate2 mb-1.5 font-body">{label}</label>}
       <details className="relative">
         <summary className="cursor-pointer select-none list-none w-full flex items-center justify-between bg-transparent border border-line px-3 py-2 text-sm hover:border-cobalt transition-colors [&::-webkit-details-marker]:hidden">
           <span className={value ? "text-offwhite" : "text-slate2"}>{value || "Choisir une gare…"}</span>
           <span className="text-[10px] text-slate2">▾</span>
         </summary>
         <div className="absolute z-30 mt-1 w-full max-h-52 overflow-y-auto bg-navy-900 border border-line shadow-[0_8px_20px_-6px_rgba(0,0,0,0.6)]">
-          {STATIONS.filter((s) => s !== exclude).map((s) => (
+          {STATIONS.filter((s) => !excluded.has(s)).map((s) => (
             <button
               key={s}
               type="button"
@@ -1429,6 +2006,21 @@ function StationPicker({
               className="w-full text-left px-3 py-2 text-xs font-body text-offwhite hover:bg-cobalt/15 hover:text-cobalt transition-colors border-b border-line last:border-0"
             >
               {s}
+            </button>
+          ))}
+          <div className="px-3 py-1.5 bg-navy-950 border-b border-line font-mono2 text-[10px] uppercase tracking-[0.14em] text-slate2">
+            À l'étranger{intlLocked ? " · licence requise" : ""}
+          </div>
+          {INTL_STATIONS.filter((s) => !excluded.has(s)).map((s) => (
+            <button
+              key={s}
+              type="button"
+              disabled={intlLocked}
+              onClick={(e) => handlePick(e, s)}
+              className="w-full text-left px-3 py-2 text-xs font-body text-offwhite hover:bg-cobalt/15 hover:text-cobalt transition-colors border-b border-line last:border-0 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-offwhite disabled:cursor-not-allowed flex items-center justify-between"
+            >
+              {s}
+              <span className="font-mono2 text-[10px] text-slate2">{INTL_CODE[s]}</span>
             </button>
           ))}
         </div>
@@ -1455,25 +2047,32 @@ function LinesSection({
   const [name, setName] = useState("");
   const [departure, setDeparture] = useState("");
   const [arrival, setArrival] = useState("");
-  /* La durée n'est plus un champ : elle est déduite des deux gares, comme sur la
+  // 1.7 : arrêts intermédiaires, dans l'ordre du trajet aller
+  const [stops, setStops] = useState<string[]>([]);
+  /* La durée n'est plus un champ : elle est déduite de l'itinéraire, comme sur la
      carte, et le serveur la recalcule de son côté. */
+  const route = [departure, ...stops, arrival];
   const plan =
-    departure && arrival && STATION_COORDS[departure] && STATION_COORDS[arrival]
+    departure && arrival && route.every((s) => STATION_COORDS[s])
       ? (() => {
-          const km = distanceKm(STATION_COORDS[departure], STATION_COORDS[arrival]);
-          const minutes = durationFromKm(km);
-          const d1 = stationOf(network, departure)?.demand ?? 1;
-          const d2 = stationOf(network, arrival)?.demand ?? 1;
-          const demand = (d1 + d2) / 2;
-          return { km, minutes, yieldPct: lengthYieldPct(minutes), hourly: Math.round(hourlyRevenue(minutes) * demand), demand };
+          const km = routeKm(route);
+          const minutes = routeMinutes(route);
+          const demand = route.reduce((a, n) => a + (stationOf(network, n)?.demand ?? 1), 0) / route.length;
+          // 1.6 : une ligne qui passe la frontière rapporte plus, péage déduit
+          const intl = route.some(isIntl);
+          const intlFactor = intl && network?.international ? network.international.revenueBonus * (1 - network.international.tollRate) : 1;
+          // 1.7 : chaque arrêt amène 20 % de voyageurs en plus, dans la limite des places d'une rame standard
+          const stopFactor = 1 + 0.2 * stops.length;
+          return { km, minutes, yieldPct: lengthYieldPct(minutes), hourly: Math.round(hourlyRevenue(minutes) * demand * intlFactor * Math.min(stopFactor, 1.35)), demand, intl };
         })()
       : null;
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [loadLine, setLoadLine] = useState<Line | null>(null);
   const { showToast } = useToast();
 
   function startCreate() {
     setEditingId(null);
-    setName(""); setDeparture(""); setArrival("");
+    setName(""); setDeparture(""); setArrival(""); setStops([]);
     setOpen((v) => !v);
   }
 
@@ -1482,7 +2081,7 @@ function LinesSection({
     setName(line.name ?? "");
     setDeparture(line.departureStation);
     setArrival(line.arrivalStation);
-
+    setStops(line.stops ?? []);
     setOpen(true);
   }
 
@@ -1492,22 +2091,22 @@ function LinesSection({
       if (editingId) {
         await api.patch("/lines", {
           lineId: editingId,
-          name,
+          name: name.trim() || `${departure} — ${arrival}`,
           departureStation: departure,
           arrivalStation: arrival,
-
+          stops,
         });
         showToast(`Ligne ${departure} → ${arrival} mise à jour`);
       } else {
         await api.post("/lines", {
-          name,
+          name: name.trim() || `${departure} — ${arrival}`,
           departureStation: departure,
           arrivalStation: arrival,
-
+          stops,
         });
         showToast(`Ligne ${departure} → ${arrival} créée`);
       }
-      setName(""); setDeparture(""); setArrival("");
+      setName(""); setDeparture(""); setArrival(""); setStops([]);
       setEditingId(null);
       setOpen(false);
       onChange();
@@ -1538,36 +2137,81 @@ function LinesSection({
       {open && (
         <form onSubmit={handleSubmit} className="border border-line border-t-2 border-t-cobalt p-5 mb-5 space-y-4">
           <div>
-            <label className="block text-[11px] uppercase tracking-wide text-slate2 mb-1.5 font-body">Nom de la ligne</label>
+            <label className="block text-[11px] uppercase tracking-wide text-slate2 mb-1.5 font-body">
+              Nom de la ligne <span className="normal-case tracking-normal text-slate2/70">(facultatif)</span>
+            </label>
+            {/* 1.6 : facultatif. Un champ obligatoire en tête du tout premier formulaire
+                bloquait le nouveau venu avant même qu'il ait choisi ses gares. */}
             <input
               className="w-full bg-transparent border border-line px-3 py-2 text-sm focus:outline-none focus:border-cobalt"
-              placeholder="Ex. Ligne du Littoral"
+              placeholder={departure && arrival ? `${departure} — ${arrival}` : "Ex. Ligne du Littoral"}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              required
+              maxLength={60}
             />
           </div>
 
           <div className="flex items-end gap-2">
-            <StationPicker label="Gare de départ" value={departure} onChange={setDeparture} exclude={arrival} />
+            <StationPicker label="Gare de départ" value={departure} onChange={setDeparture} exclude={arrival} intlLocked={!network?.international?.licence.owned} />
             <button
               type="button"
-              onClick={() => { const tmp = departure; setDeparture(arrival); setArrival(tmp); }}
+              onClick={() => { const tmp = departure; setDeparture(arrival); setArrival(tmp); setStops((st) => [...st].reverse()); }}
               title="Inverser départ et arrivée"
               className="mb-0.5 p-2 border border-line text-slate2 hover:text-cobalt hover:border-cobalt transition-colors shrink-0"
             >
               <SwapMark size={16} />
             </button>
-            <StationPicker label="Gare d'arrivée" value={arrival} onChange={setArrival} exclude={departure} />
+            <StationPicker label="Gare d'arrivée" value={arrival} onChange={setArrival} exclude={departure} intlLocked={!network?.international?.licence.owned} />
           </div>
+
+          {/* 1.7 : arrêts intermédiaires. La rame dessert chaque gare à l'aller
+              puis au retour, et chaque arrêt amène sa part de voyageurs. */}
+          {departure && arrival && (
+            <div>
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span className="text-[11px] uppercase tracking-wide text-slate2 font-body">
+                  Arrêts intermédiaires <span className="normal-case tracking-normal text-slate2/70">({stops.length}/{MAX_STOPS} · +20 % de voyageurs par arrêt, 1 min à quai)</span>
+                </span>
+              </div>
+              <ol className="border-l-2 border-line ml-1.5 pl-4 space-y-1.5">
+                {stops.map((st, i) => (
+                  <li key={st} className="relative flex items-center gap-2 text-sm font-body">
+                    <span className="absolute -left-[22px] w-2.5 h-2.5 rounded-full bg-navy-950 border-2 border-cobalt" />
+                    <span className="text-offwhite">{st}</span>
+                    <span className="ml-auto flex items-center gap-1">
+                      <button type="button" disabled={i === 0} onClick={() => setStops((a) => { const b = [...a]; [b[i - 1], b[i]] = [b[i], b[i - 1]]; return b; })} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label={`Avancer ${st}`}>↑</button>
+                      <button type="button" disabled={i === stops.length - 1} onClick={() => setStops((a) => { const b = [...a]; [b[i + 1], b[i]] = [b[i], b[i + 1]]; return b; })} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label={`Reculer ${st}`}>↓</button>
+                      <button type="button" onClick={() => setStops((a) => a.filter((x) => x !== st))} className="w-6 h-6 border border-line text-slate2 hover:text-rail-red hover:border-rail-red/50" aria-label={`Retirer ${st}`}>×</button>
+                    </span>
+                  </li>
+                ))}
+                {stops.length < MAX_STOPS && (
+                  <li className="relative">
+                    <span className="absolute -left-[22px] top-[13px] w-2.5 h-2.5 rounded-full bg-navy-950 border-2 border-dashed border-slate2" />
+                    <StationPicker
+                      key={stops.length}
+                      label=""
+                      value=""
+                      onChange={(v) => setStops((a) => [...a, v])}
+                      exclude={[departure, arrival, ...stops]}
+                      intlLocked={!network?.international?.licence.owned}
+                    />
+                  </li>
+                )}
+              </ol>
+            </div>
+          )}
 
           {(departure || arrival) && (
             <div className="border border-dashed border-line px-3 py-2.5 text-sm font-mono2 text-slate2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <TrainMark size={14} className="text-cobalt shrink-0" />
-                <span className="text-offwhite">{departure || "?"}</span>
-                <span>→</span>
-                <span className="text-offwhite">{arrival || "?"}</span>
+                {(departure && arrival ? route : [departure || "?", arrival || "?"]).map((st, i, all) => (
+                  <span key={st + i} className="flex items-center gap-2">
+                    <span className={i === 0 || i === all.length - 1 ? "text-offwhite" : "text-slate2"}>{st}</span>
+                    {i < all.length - 1 && <span>→</span>}
+                  </span>
+                ))}
                 {plan && <span className="ml-auto text-amber">{plan.minutes} min</span>}
               </div>
               {/* La durée n'est plus saisie : elle découle de la distance entre les
@@ -1579,6 +2223,14 @@ function LinesSection({
                     <> · rendement <span className="text-rail-green">+{plan.yieldPct} %</span></>
                   )}
                   {" "}· ~<span className="text-amber">{plan.hourly} pi./h</span> par rame
+                  {plan.intl && network?.international && (
+                    <div className="text-cobalt mt-0.5 font-body">
+                      Ligne internationale : recette ×{String(network.international.revenueBonus).replace(".", ",")}, dont {Math.round(network.international.tollRate * 100)} % reversés en péage de sillon (déjà déduits).
+                    </div>
+                  )}
+                  {plan.minutes >= (network?.night?.minDuration ?? 10) && (
+                    <div className="text-slate2 mt-0.5 font-body">Grande ligne : une rame couchettes peut y faire des trains de nuit.</div>
+                  )}
                 </div>
               )}
               {/* 1.4 : ce que valent les deux gares, et qui roule déjà sur cette liaison */}
@@ -1596,7 +2248,7 @@ function LinesSection({
                   })}
                   {" "}· demande <DemandCell demand={plan.demand} />
                   {/* 1.5 : correspondances ouvertes ou renforcées par cette ligne */}
-                  {hubPreview(lines, departure, arrival, network.hubRule, editingId).map((h) => (
+                  {hubPreview(lines, route, network.hubRule, editingId).map((h) => (
                     <div key={h.station} className="text-cobalt mt-0.5">
                       {h.before === 1 ? "Nouvelle correspondance" : "Correspondance renforcée"} à {h.station} : {h.after} destinations, +{h.total} % sur chaque trajet qui y passe
                       {h.gain === 0 && " (plafond atteint)"}, dès qu'une rame y roule
@@ -1627,33 +2279,66 @@ function LinesSection({
         </form>
       )}
 
+      {/* 1.6 : une page Lignes vide proposait un tableau vide sous trois encarts.
+          Le nouveau venu y trouve maintenant trois tracés pour commencer. */}
+      {lines.length === 0 && !open && (
+        <FirstLineIdeas
+          network={network}
+          onPick={(a, b) => {
+            setEditingId(null);
+            setName("");
+            setDeparture(a);
+            setArrival(b);
+            setOpen(true);
+          }}
+        />
+      )}
+
+      {loadLine && (
+        <LineLoadModal
+          lineId={loadLine.id}
+          title={`${loadLine.departureStation} ⇄ ${loadLine.arrivalStation}`}
+          isPremium={company.isPremium}
+          onClose={() => setLoadLine(null)}
+        />
+      )}
       {network && <SeasonBanner network={network} onOpenShop={onOpenShop} />}
+      {network && <LicencePanel network={network} onChange={onChange} />}
+      {network && <RushPanel network={network} premium={company.isPremium} />}
       {network && <StationEventsPanel network={network} company={company} onChange={onChange} />}
 
       <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-      <table className="w-full text-sm min-w-[820px]">
+      <table className="w-full text-sm min-w-[980px]">
         <thead>
           <tr className="text-left text-[11px] text-slate2 font-body uppercase tracking-[0.14em] border-b border-line">
-            <th className="py-2.5 font-normal">Départ</th>
-            <th className="py-2.5 font-normal">Arrivée</th>
+            <th className="py-2.5 font-normal">Itinéraire</th>
             <th className="py-2.5 font-normal text-right">Durée</th>
             <th className="py-2.5 font-normal text-right pl-4">Demande</th>
+            <th className="py-2.5 font-normal pl-4" title="Voyageurs par trajet rapportés aux places offertes">Remplissage</th>
+            <th className="py-2.5 font-normal pl-4" title="Prix du billet, par rapport au tarif de base">Billet</th>
             <th className="py-2.5 font-normal text-right pl-4" title="Bonus des gares où plusieurs de vos lignes se croisent">Correspondance</th>
-            <th className="py-2.5 font-normal pl-4">Voyageurs</th>
+            <th className="py-2.5 font-normal pl-4 min-w-[130px]">Voyageurs</th>
             <th className="py-2.5 font-normal w-44"></th>
           </tr>
         </thead>
         <tbody>
           {lines.length === 0 && (
-            <tr><td colSpan={7} className="py-6 text-center text-slate2 font-body">Aucune ligne tracée — dessinez votre premier trajet.</td></tr>
+            <tr><td colSpan={8} className="py-6 text-center text-slate2 font-body">Aucune ligne tracée pour l'instant.</td></tr>
           )}
           {lines.map((l) => (
             <tr key={l.id} className="border-b border-line last:border-0 hover:bg-navy-900/40 transition-colors">
-              <td className="py-3.5 font-body align-top">{l.departureStation}</td>
-              <td className="py-3.5 font-body align-top">{l.arrivalStation}</td>
-              <td className="py-3.5 text-right text-slate2 font-mono2 align-top">{l.durationMinutes} min</td>
+              <td className="py-3.5 font-body align-top">
+                <RouteCell line={l} />
+              </td>
+              <td className="py-3.5 text-right text-slate2 font-mono2 align-top whitespace-nowrap">{l.durationMinutes} min</td>
               <td className="py-3.5 text-right pl-4 align-top">
                 <DemandCell demand={network?.lines.find((m) => m.lineId === l.id)?.demand} />
+              </td>
+              <td className="py-3.5 pl-4 align-top">
+                <FillCell ridership={network?.lines.find((m) => m.lineId === l.id)?.ridership} onDetail={() => setLoadLine(l)} premium={company.isPremium} />
+              </td>
+              <td className="py-3.5 pl-4 align-top">
+                <PriceControl line={l} ridership={network?.lines.find((m) => m.lineId === l.id)?.ridership} premium={company.isPremium} onChange={onChange} />
               </td>
               <td className="py-3.5 text-right pl-4 align-top">
                 <HubCell hub={network?.lines.find((m) => m.lineId === l.id)?.hub} />
@@ -1696,6 +2381,329 @@ function LinesSection({
   );
 }
 
+/* ---------------- 1.7 : itinéraire, remplissage, prix du billet ---------------- */
+
+type Ridership = NonNullable<LineMarket["ridership"]>;
+
+function RouteCell({ line }: { line: Line }) {
+  const stops = line.stops ?? [];
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 text-offwhite whitespace-nowrap">
+        {line.departureStation}
+        <span className="text-slate2 text-xs">⇄</span>
+        {line.arrivalStation}
+      </div>
+      {(stops.length > 0 || line.electrified) && (
+        <div className="text-[11px] text-slate2 mt-0.5 flex items-center gap-1.5 flex-wrap">
+          {stops.length > 0 && <span>via {stops.join(", ")}</span>}
+          {line.electrified && (
+            <span className="font-mono2 text-[10px] uppercase text-amber" title="Ligne électrifiée : trajets 10 % plus rapides, usure réduite">
+              ϟ électrifiée
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Jauge de remplissage : on lit d'un coup d'œil si la ligne manque de places
+   (voyageurs laissés à quai) ou si les rames roulent à moitié vides. */
+function FillCell({ ridership, onDetail, premium }: { ridership?: Ridership; onDetail: () => void; premium: boolean }) {
+  if (!ridership) return <span className="text-slate2 font-mono2 text-xs">—</span>;
+  const { fill, carried, seats, left, estimated } = ridership;
+  const tone = left > 0 ? "bg-rail-red" : fill >= 70 ? "bg-rail-green" : fill >= 40 ? "bg-amber" : "bg-slate2";
+  return (
+    <div className="w-32">
+      <div className="flex items-baseline justify-between font-mono2 text-xs">
+        <span className="text-offwhite tabular-nums">{fill} %</span>
+        <span className="text-slate2 tabular-nums">{carried}/{seats}</span>
+      </div>
+      <div className="h-1.5 bg-navy-900 border border-line mt-1">
+        <div className={`h-full ${tone}`} style={{ width: `${Math.min(100, fill)}%` }} />
+      </div>
+      <div className="text-[10.5px] font-body mt-1 leading-tight">
+        {estimated ? (
+          <span className="text-slate2">estimation, aucune rame en route</span>
+        ) : left > 0 ? (
+          <span className="text-rail-red">{left} voyageurs restés à quai</span>
+        ) : fill < 40 ? (
+          <span className="text-slate2">rames peu remplies</span>
+        ) : null}
+      </div>
+      {/* 1.7 — Premium : la courbe des 24 dernières heures */}
+      <button onClick={onDetail} className="mt-0.5 text-[10.5px] font-mono2 uppercase tracking-wide text-cobalt hover:underline flex items-center gap-1">
+        {!premium && <LockMark size={9} />} 24 h
+      </button>
+    </div>
+  );
+}
+
+const fmtPrice = (r: number) => `×${r.toFixed(2).replace(".", ",")}`;
+
+/* Prix du billet, de ×0,6 à ×2 du tarif de base. Plus cher, chaque voyageur
+   rapporte plus mais il en vient moins : le bon prix remplit juste les rames. */
+function PriceControl({ line, ridership, premium, onChange }: { line: Line; ridership?: Ridership; premium: boolean; onChange: () => void }) {
+  const saved = line.priceRatio ?? 1;
+  const [value, setValue] = useState(saved);
+  const [saving, setSaving] = useState(false);
+  const { showToast } = useToast();
+  useEffect(() => setValue(saved), [saved]);
+
+  async function save(next: number) {
+    const v = Math.round(Math.min(2, Math.max(0.6, next)) * 20) / 20;
+    setValue(v);
+    setSaving(true);
+    try {
+      await api.patch("/lines", { lineId: line.id, priceRatio: v });
+      onChange();
+    } catch (err: any) {
+      setValue(saved);
+      showToast(err?.response?.data?.error || "Erreur", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // 1.7 — Premium : le prix se cale tout seul, chaque heure, sur le prix conseillé
+  const auto = Boolean(ridership?.auto);
+  async function toggleAuto() {
+    if (!premium) {
+      showToast("Le prix automatique est réservé aux abonnés Premium", "error");
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.patch("/lines", { lineId: line.id, autoPrice: !auto });
+      onChange();
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || "Erreur", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const ideal = ridership?.idealPrice;
+  const gap = ideal == null ? 0 : ideal - value;
+  return (
+    <div className="w-36">
+      <div className="flex items-center gap-1">
+        <button type="button" disabled={saving || value <= 0.6} onClick={() => save(value - 0.05)} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label="Baisser le prix">−</button>
+        <input
+          type="range"
+          min={0.6}
+          max={2}
+          step={0.05}
+          value={value}
+          disabled={saving}
+          onChange={(e) => setValue(Number(e.target.value))}
+          onPointerUp={() => value !== saved && save(value)}
+          onKeyUp={() => value !== saved && save(value)}
+          className="flex-1 accent-[rgb(var(--c-cobalt))] h-1"
+          aria-label="Prix du billet"
+        />
+        <button type="button" disabled={saving || value >= 2} onClick={() => save(value + 0.05)} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label="Monter le prix">+</button>
+      </div>
+      <div className="flex items-baseline justify-between font-mono2 text-xs mt-1">
+        <span className={value > 1 ? "text-amber" : value < 1 ? "text-cobalt" : "text-offwhite"}>{fmtPrice(value)}</span>
+        {ideal != null && (
+          <button
+            type="button"
+            onClick={() => save(ideal)}
+            disabled={saving || Math.abs(gap) < 0.05}
+            className={`text-[10.5px] disabled:cursor-default ${Math.abs(gap) < 0.05 ? "text-rail-green" : "text-slate2 hover:text-cobalt"}`}
+            title={
+              Math.abs(gap) < 0.05
+                ? "Bon prix : il remplit juste vos rames"
+                : gap > 0
+                ? "Les rames sont pleines : vous pouvez monter le prix. Cliquer pour l'appliquer."
+                : "Trop cher pour remplir les rames. Cliquer pour appliquer le prix conseillé."
+            }
+          >
+            {Math.abs(gap) < 0.05 ? "✓ bon prix" : `${gap > 0 ? "↑" : "↓"} ${fmtPrice(ideal)}`}
+          </button>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={toggleAuto}
+        disabled={saving}
+        title={premium ? "Chaque heure, le prix se cale sur le prix conseillé. Régler le prix à la main désactive le mode automatique." : "Premium : le prix se règle tout seul, chaque heure"}
+        className={`mt-1 flex items-center gap-1.5 text-[10.5px] font-mono2 uppercase tracking-wide ${auto ? "text-rail-green" : "text-slate2 hover:text-offwhite"}`}
+      >
+        <span className={`w-6 h-3 border relative ${auto ? "border-rail-green bg-rail-green/20" : "border-line"}`}>
+          <span className={`absolute top-[1px] w-2 h-2 ${auto ? "right-[1px] bg-rail-green" : "left-[1px] bg-slate2"}`} />
+        </span>
+        {!premium && <LockMark size={9} />}
+        Prix auto
+      </button>
+    </div>
+  );
+}
+
+/* ---------------- 1.7 : composition des rames ---------------- */
+
+// doit rester aligné sur ridership.service.ts
+const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250 };
+const CAR_TYPES: { id: string; label: string; short: string; seats: number; first: boolean; price: number; unique?: boolean; blurb: string }[] = [
+  { id: "SECONDE", label: "Voiture de 2de classe", short: "2", seats: 100, first: false, price: 150, blurb: "+100 places. Pour les lignes où des voyageurs restent à quai." },
+  { id: "PREMIERE", label: "Voiture de 1re classe", short: "1", seats: 60, first: true, price: 300, blurb: "+60 places payées 1,8 fois le billet. Rentable sur les lignes chargées." },
+  { id: "BAR", label: "Voiture-bar", short: "B", seats: 0, first: false, price: 250, unique: true, blurb: "+8 % de recette par trajet. Une seule par rame." },
+];
+const MAX_CARS = 3;
+const CAR_SLOWDOWN = 0.03;
+
+function seatsOf(model: string, cars: string[]) {
+  const second = (MODEL_SEATS[model] ?? 400) + cars.reduce((n, c) => n + (c === "SECONDE" ? 100 : 0), 0);
+  const first = cars.filter((c) => c === "PREMIERE").length * 60;
+  return { second, first, total: second + first };
+}
+
+/* Petit schéma de la rame : la motrice, puis une case par voiture. */
+function ConsistMini({ model, cars }: { model: string; cars: string[] }) {
+  return (
+    <span className="inline-flex items-center gap-[2px]" aria-hidden>
+      <span className={`h-2 w-3.5 rounded-l-[3px] ${model === "EXPRESS" ? "bg-amber" : "bg-cobalt"}`} />
+      <span className="h-2 w-3 bg-slate2/70" />
+      {cars.map((c, i) => (
+        <span key={i} className={`h-2 w-3 ${c === "PREMIERE" ? "bg-amber/80" : c === "BAR" ? "bg-rail-green/80" : "bg-slate2/70"}`} />
+      ))}
+    </span>
+  );
+}
+
+function CompositionModal({ train, balance, livery, onClose, onChange }: { train: Train; balance: number; livery: string | null; onClose: () => void; onChange: () => void }) {
+  const cars = train.cars ?? [];
+  const seats = seatsOf(train.model, cars);
+  const [busy, setBusy] = useState<string | null>(null);
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  async function change(car: string, action: "add" | "remove") {
+    if (busy) return;
+    setBusy(car + action);
+    try {
+      await api.post("/trains/cars", { trainId: train.id, car, action });
+      const def = CAR_TYPES.find((c) => c.id === car)!;
+      showToast(action === "add" ? `${def.label} attelée à ${train.name}` : `${def.label} dételée, ${Math.floor(def.price / 2)} pi. récupérées`);
+      onChange();
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || "Erreur", "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const fill = train.lastSeats ? Math.round(((train.lastPassengers ?? 0) / train.lastSeats) * 100) : null;
+  const modelName = train.model === "EXPRESS" ? "Express" : train.model === "FRET_LOURD" ? "Fret Lourd" : train.model === "COUCHETTES" ? "Couchettes" : "Standard";
+
+  /* dans <body> : la page est animée (transform), ce qui décalerait une fenêtre « fixed » */
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="w-full max-w-xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Composition de ${train.name}`}>
+        <div className="flex items-start justify-between px-5 pt-4 pb-3 border-b border-line">
+          <div>
+            <div className="font-mono2 text-[10px] uppercase tracking-[0.18em] text-slate2">Composition · {modelName}</div>
+            <h3 className="font-display text-xl leading-tight">{train.name}</h3>
+          </div>
+          <button onClick={onClose} className="text-slate2 hover:text-offwhite text-lg leading-none px-1" aria-label="Fermer">×</button>
+        </div>
+
+        {/* la rame, de profil */}
+        <div className="px-5 py-5 bg-navy-950 border-b border-line overflow-x-auto">
+          <div className="flex items-end gap-1 min-w-max">
+            <div className={`h-11 w-20 rounded-l-[14px] rounded-r-[2px] flex items-center justify-center font-mono2 text-[10px] uppercase text-onaccent ${train.model === "EXPRESS" ? "bg-amber" : "bg-cobalt"}`}>
+              Motrice
+            </div>
+            <div className="h-11 w-24 bg-line/70 border border-line flex flex-col items-center justify-center font-mono2 text-[10px] text-offwhite">
+              <span>{MODEL_SEATS[train.model] ?? 400} pl.</span>
+              <span className="text-slate2">d'origine</span>
+            </div>
+            {cars.map((c, i) => {
+              const def = CAR_TYPES.find((d) => d.id === c)!;
+              return (
+                <div
+                  key={i}
+                  // Premium : la 1re classe à la livrée de la compagnie
+                  style={c === "PREMIERE" && livery ? { background: livery, borderColor: "#d9a441", color: "#fff" } : undefined}
+                  className={`group relative h-11 w-24 border flex flex-col items-center justify-center font-mono2 text-[10px] ${c === "PREMIERE" ? "bg-amber/15 border-amber/50 text-amber" : c === "BAR" ? "bg-rail-green/15 border-rail-green/50 text-rail-green" : "bg-line/40 border-line text-offwhite"}`}
+                >
+                  <span>{c === "BAR" ? "Bar" : c === "PREMIERE" ? "1re" : "2de"}</span>
+                  <span className="text-slate2">{def.seats ? `+${def.seats} pl.` : "+8 %"}</span>
+                  <button
+                    onClick={() => change(c, "remove")}
+                    disabled={!!busy}
+                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-navy-900 border border-line text-slate2 hover:text-rail-red hover:border-rail-red/60 text-[11px] leading-none"
+                    title={`Dételer (${Math.floor(def.price / 2)} pi. récupérées)`}
+                    aria-label={`Dételer ${def.label}`}
+                  >
+                    ×
+                  </button>
+                </div>
+              );
+            })}
+            {Array.from({ length: MAX_CARS - cars.length }).map((_, i) => (
+              <div key={`e${i}`} className="h-11 w-24 border border-dashed border-line/70 flex items-center justify-center font-mono2 text-[10px] text-slate2/60">
+                libre
+              </div>
+            ))}
+          </div>
+          <div className="h-[3px] bg-line mt-1.5 min-w-max" />
+        </div>
+
+        <div className="grid grid-cols-3 border-b border-line text-center">
+          <div className="py-3 border-r border-line">
+            <div className="font-mono2 text-lg tabular-nums">{seats.total}</div>
+            <div className="text-[10.5px] uppercase tracking-wide text-slate2 font-body">places{seats.first ? ` · ${seats.first} en 1re` : ""}</div>
+          </div>
+          <div className="py-3 border-r border-line">
+            <div className="font-mono2 text-lg tabular-nums">{fill == null ? "—" : `${fill} %`}</div>
+            <div className="text-[10.5px] uppercase tracking-wide text-slate2 font-body">remplissage</div>
+          </div>
+          <div className="py-3">
+            <div className="font-mono2 text-lg tabular-nums">{cars.length ? `−${Math.round(CAR_SLOWDOWN * cars.length * 100)} %` : "—"}</div>
+            <div className="text-[10.5px] uppercase tracking-wide text-slate2 font-body">vitesse</div>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-2">
+          {CAR_TYPES.map((c) => {
+            const full = cars.length >= MAX_CARS;
+            const dup = c.unique && cars.includes(c.id);
+            const poor = balance < c.price;
+            return (
+              <div key={c.id} className="flex items-center gap-3 border border-line px-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-body text-offwhite">{c.label}</div>
+                  <div className="text-[11.5px] text-slate2 font-body">{c.blurb}</div>
+                </div>
+                <button
+                  onClick={() => change(c.id, "add")}
+                  disabled={!!busy || full || dup || poor}
+                  title={full ? `${MAX_CARS} voitures au plus` : dup ? "Une seule par rame" : poor ? "Trésorerie insuffisante" : undefined}
+                  className="shrink-0 text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-2.5 py-1.5 hover:bg-cobalt/10 disabled:opacity-35 disabled:hover:bg-transparent"
+                >
+                  Atteler · {c.price} pi.
+                </button>
+              </div>
+            );
+          })}
+          <p className="text-[11px] text-slate2 font-body pt-1">
+            Chaque voiture ralentit la rame de {Math.round(CAR_SLOWDOWN * 100)} %. Une voiture dételée rend la moitié de son prix.
+          </p>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 function TrainsSection({
   trains,
   lines,
@@ -1718,6 +2726,8 @@ function TrainsSection({
   // vue cabine (1.4) : la rame suivie, relue à chaque rafraîchissement du tableau de bord
   const [cabId, setCabId] = useState<string | null>(null);
   const cabTrain = cabId ? trains.find((x) => x.id === cabId) ?? null : null;
+  const [compoId, setCompoId] = useState<string | null>(null);
+  const compoTrain = compoId ? trains.find((x) => x.id === compoId) ?? null : null;
   const [expanding, setExpanding] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -1773,13 +2783,19 @@ function TrainsSection({
     }
   }
 
+  const [repairing, setRepairing] = useState<string | null>(null);
   async function repair(trainId: string, preventive = false) {
+    // un double clic envoyait deux réparations : la seconde revenait en 409
+    if (repairing) return;
+    setRepairing(trainId);
     try {
       await api.post("/trains/repair", { trainId });
       showComposter(preventive ? "Révision effectuée — usure remise à zéro" : "Rame réparée et remise en service");
       onChange();
     } catch (err: any) {
       showToast(err?.response?.data?.error || "Erreur lors de la réparation", "error");
+    } finally {
+      setRepairing(null);
     }
   }
 
@@ -1809,6 +2825,18 @@ function TrainsSection({
           onClose={() => setCabId(null)}
         />
       )}
+      {compoTrain && <CompositionModal train={compoTrain} balance={company.balance} livery={company.isPremium ? company.liveryColor : null} onClose={() => setCompoId(null)} onChange={onChange} />}
+      {/* 1.6 : la vue cabine s'installe en tête de la flotte (Premium) */}
+      <LiveCab
+        trains={trains as unknown as CabTrain[]}
+        isPremium={company.isPremium}
+        livery={company.liveryColor}
+        skin={company.cabSkin ?? null}
+        weatherType={weatherType}
+        hintsSeen={company.hintsSeen ?? ""}
+        onOpen={(id) => setCabId(id)}
+        onSeen={onChange}
+      />
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
           <span className="text-[11px] font-mono2 text-slate2 border border-line px-2 py-1">
@@ -1892,11 +2920,29 @@ function TrainsSection({
                     {t.name}
                   </button>
                 )}
+                {/* 1.7 : composition de la rame */}
+                <button
+                  onClick={() => setCompoId(t.id)}
+                  className="mt-1 flex items-center gap-1.5 text-[10.5px] font-mono2 text-slate2 hover:text-cobalt transition-colors"
+                  title="Composition : ajouter ou retirer des voitures"
+                >
+                  <ConsistMini model={t.model} cars={t.cars ?? []} />
+                  {seatsOf(t.model, t.cars ?? []).total} pl.
+                </button>
               </td>
               <td className="py-3.5">
                 <span className={`text-xs font-mono2 uppercase ${t.model === "STANDARD" ? "text-slate2" : "text-amber"}`}>
-                  {t.model === "EXPRESS" ? "Express" : t.model === "FRET_LOURD" ? "Fret Lourd" : "Standard"}
+                  {t.model === "EXPRESS" ? "Express" : t.model === "FRET_LOURD" ? "Fret Lourd" : t.model === "COUCHETTES" ? "Couchettes" : "Standard"}
                 </span>
+                {t.model === "COUCHETTES" && (
+                  <span
+                    className={`ml-2 inline-flex items-center gap-1 text-[10px] font-mono2 uppercase ${isParisNight() ? "text-cobalt" : "text-slate2"}`}
+                    title="Recette ×3 de 22 h à 6 h (heure de Paris), ×0,8 le jour"
+                  >
+                    <MoonMark size={11} />
+                    {isParisNight() ? "Nuit ×3" : "Jour ×0,8"}
+                  </span>
+                )}
               </td>
               <td className={`py-3.5 font-body ${t.status === "EN_ROUTE" ? "text-rail-green" : t.status === "MAINTENANCE" ? "text-rail-red" : "text-slate2"}`}>
                 <span className="flex items-center gap-1.5">
@@ -1918,7 +2964,19 @@ function TrainsSection({
                   </button>
                 ) : t.line ? (
                   <span className="flex items-center gap-2 flex-wrap">
-                    {t.line.departureStation} → {t.line.arrivalStation}
+                    <span>
+                      {t.direction === 1 ? `${t.line.arrivalStation} → ${t.line.departureStation}` : `${t.line.departureStation} → ${t.line.arrivalStation}`}
+                      {(t.line.stops?.length ?? 0) > 0 && (
+                        <span className="block text-[10.5px] text-slate2 font-body">
+                          via {(t.direction === 1 ? [...t.line.stops!].reverse() : t.line.stops!).join(", ")}
+                        </span>
+                      )}
+                      {t.lastSeats ? (
+                        <span className="block text-[10.5px] text-slate2" title="Voyageurs au dernier trajet / places">
+                          dernier trajet : <span className="text-offwhite">{t.lastPassengers ?? 0}</span>/{t.lastSeats} voyageurs
+                        </span>
+                      ) : null}
+                    </span>
                     <button
                       onClick={() => setCabId(t.id)}
                       className="text-[11px] text-cobalt hover:bg-cobalt/10 border border-cobalt/40 px-1.5 py-0.5 uppercase transition-colors font-body"
@@ -1936,7 +2994,10 @@ function TrainsSection({
                 ) : t.status === "IDLE" ? (
                   <AssignDropdown
                     placeholder="Affecter…"
-                    options={lines.map((l) => ({ id: l.id, label: `${l.departureStation} → ${l.arrivalStation}` }))}
+                    options={lines
+                      // 1.6 : une rame couchettes ne fait que les grandes lignes
+                      .filter((l) => t.model !== "COUCHETTES" || l.durationMinutes >= 10)
+                      .map((l) => ({ id: l.id, label: `${l.departureStation} → ${l.arrivalStation}` }))}
                     onSelect={(lineId) => assign(t.id, lineId)}
                   />
                 ) : (
@@ -1952,10 +3013,11 @@ function TrainsSection({
                 {t.wear > 0 && t.wear < 100 && t.status !== "MAINTENANCE" && (
                   <button
                     onClick={() => repair(t.id, true)}
-                    title="Remet l'usure à zéro sans arrêter la rame"
-                    className="mt-1 text-[10.5px] font-mono2 text-slate2 hover:text-amber uppercase tracking-wide transition-colors"
+                    disabled={repairing === t.id || company.balance < Math.ceil(t.wear * repairCostPerPoint)}
+                    title={company.balance < Math.ceil(t.wear * repairCostPerPoint) ? "Trésorerie insuffisante" : "Remet l'usure à zéro sans arrêter la rame"}
+                    className="mt-1 text-[10.5px] font-mono2 text-slate2 hover:text-amber uppercase tracking-wide transition-colors disabled:opacity-40 disabled:hover:text-slate2"
                   >
-                    Réviser · {Math.ceil(t.wear * repairCostPerPoint)} pi.
+                    {repairing === t.id ? "Révision…" : `Réviser · ${Math.ceil(t.wear * repairCostPerPoint)} pi.`}
                   </button>
                 )}
               </td>
@@ -2019,7 +3081,7 @@ function FreightSection({
   const { showToast } = useToast();
   const [insuredSelections, setInsuredSelections] = useState<Record<string, boolean>>({});
 
-  const freeTrains = trains.filter((t) => t.status === "IDLE" && !t.line && t.wear < 100);
+  const freeTrains = trains.filter((t) => t.status === "IDLE" && !t.line && t.wear < 100 && t.model !== "COUCHETTES"); // 1.6 : la couchettes ne fait pas de fret
   const activeContracts = myContracts.filter((c) => c.status === "EN_COURS");
   const deliveredContracts = myContracts.filter((c) => c.status === "LIVREE").slice(0, 5);
 
@@ -2854,8 +3916,10 @@ function LeaderRowView({ c, fmt }: { c: LeaderEntry; fmt: (v: number) => string 
       <td className="py-3.5 font-body">
         <span className="flex items-center gap-2 flex-wrap">
           <span className="w-2 h-2 shrink-0" style={{ background: c.liveryColor }} />
-          {c.emblem && <Emblem id={c.emblem} size={13} className="text-slate2" />}
-          {c.name}
+          <Plate plate={c.plate}>
+            {c.emblem && <Emblem id={c.emblem} size={13} className={c.plate ? "" : "text-slate2"} />}
+            {c.name}
+          </Plate>
           {c.title && (
             <span className="text-[10px] text-amber font-mono2 uppercase border border-amber/40 px-1.5">
               {c.title}
@@ -3033,6 +4097,15 @@ const CATALOG = [
     price: 450,
     minGradeId: 2,
   },
+  {
+    id: "COUCHETTES",
+    name: "Rame Couchettes",
+    spec: "Train de nuit : recette ×3 de 22 h à 6 h, ×0,8 le jour. Grandes lignes seulement (10 min et plus)",
+    speedLevel: 2,
+    capacityLevel: 2,
+    price: 900,
+    minGradeId: 2,
+  },
 ];
 
 function StatBars({ level, max = 3, active }: { level: number; max?: number; active: boolean }) {
@@ -3054,6 +4127,7 @@ function StatBars({ level, max = 3, active }: { level: number; max?: number; act
 const GRADE_NAMES = [
   "Apprenti exploitant", "Gestionnaire confirmé", "Chef de réseau", "Baron du rail", "Magnat",
   "Directeur régional", "Directeur national", "Administrateur des chemins de fer", "Président de compagnie", "Légende du rail",
+  "Bâtisseur de gares", "Maître des caténaires", "Magnat européen", "Empereur du rail",
 ];
 
 function TrainCatalogModal({
@@ -3069,7 +4143,7 @@ function TrainCatalogModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-6">
-      <div className="w-full max-w-3xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter">
+      <div className="w-full max-w-5xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[92vh] overflow-y-auto">
         <div className="px-6 py-5 border-b border-line">
           <h2 className="font-display text-2xl">Catalogue du matériel roulant</h2>
           <p className="text-sm text-slate2 font-body mt-1">
@@ -3077,7 +4151,7 @@ function TrainCatalogModal({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-line">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-line">
           {CATALOG.map((model) => {
             const locked = (model.minGradeId ?? 0) > gradeId;
             return (
@@ -3158,6 +4232,21 @@ const TYPE_LABEL: Record<string, string> = {
   CHANTIER: "Chantier",
   SUBVENTION: "Appel d'offres",
   BOUTIQUE: "Boutique",
+  PEAGE: "Péage de sillon",
+  LICENCE: "Licence internationale",
+  EVENEMENT: "Décision",
+  COMPENSATION: "Geste commercial",
+  // 1.7
+  COMPOSITION: "Composition des rames",
+  ELECTRIFICATION: "Électrification",
+  GARE: "Achat de gare",
+  REDEVANCE_QUAI: "Redevances de quai",
+  COMMERCES: "Commerces en gare",
+  ATELIER: "Atelier régional",
+  EMPRUNT: "Emprunt bancaire",
+  REMBOURSEMENT: "Remboursement d'emprunt",
+  BOURSE: "Bourse",
+  DIVIDENDE: "Dividendes",
 };
 
 function BalanceChart({ transactions, currentBalance }: { transactions: Transaction[]; currentBalance: number }) {
@@ -3414,22 +4503,13 @@ function AchievementsSection({ achievements }: { achievements: Achievement[] }) 
   );
 }
 
-/* Contour de la France dans le même repère que les gares.
-   Les points viennent des coordonnées réelles, projetées avec la formule que
-   les gares respectent : x = 190 + (lon − 3,06) × 22,4, y = 20 + (50,63 − lat) × 42,97.
-   Le tracé est ensuite lissé en Béziers (Catmull-Rom) : une côte en segments
-   droits se lit comme un brouillon tracé à la règle, pas comme une carte. */
-const FRANCE_OUTLINE =
-  "M 162.9,5.8 C 165.8,1.7 170.0,1.5 174.5,2.8 C 179.0,4.1 185.0,8.6 189.8,13.6 C 194.6,18.6 199.1,28.9 203.4,32.5 C 207.7,36.1 211.0,31.1 215.5,35.0 C 220.0,38.9 225.5,50.7 230.3,56.1 C 235.1,61.5 240.3,64.9 244.2,67.3 C 248.1,69.7 250.3,70.2 253.6,70.7 C 256.9,71.2 260.8,68.2 263.9,70.3 C 267.0,72.4 268.9,80.8 272.4,83.2 C 275.9,85.6 280.6,83.7 285.0,84.5 C 289.4,85.3 295.6,86.8 299.1,87.9 C 302.6,89.0 305.5,89.2 305.8,91.3 C 306.1,93.4 302.3,97.5 300.7,100.8 C 299.1,104.1 297.8,106.6 296.2,111.1 C 294.6,115.6 292.0,123.0 291.2,127.9 C 290.4,132.8 291.4,136.4 291.2,140.3 C 291.0,144.2 292.0,149.1 289.9,151.5 C 287.8,153.9 281.0,152.8 278.3,154.9 C 275.6,157.0 275.9,159.9 273.8,163.9 C 271.7,167.9 268.3,174.3 265.9,179.0 C 263.5,183.7 260.5,188.6 259.2,192.3 C 257.9,196.0 258.1,198.3 258.1,201.3 C 258.1,204.3 256.4,207.8 259.0,210.4 C 261.6,213.0 271.1,214.2 273.8,216.8 C 276.5,219.5 274.3,222.4 275.1,226.3 C 275.9,230.2 278.9,235.5 278.5,240.4 C 278.1,245.3 274.3,251.6 272.9,255.9 C 271.5,260.2 269.1,262.6 270.0,266.2 C 270.9,269.8 275.6,273.1 278.3,277.4 C 281.0,281.7 284.4,287.3 286.3,292.0 C 288.2,296.7 289.3,302.1 289.9,305.8 C 290.5,309.5 291.9,311.0 290.1,314.3 C 288.4,317.6 283.6,321.0 279.4,325.5 C 275.2,330.0 269.0,338.3 264.8,341.4 C 260.6,344.5 258.2,344.8 254.3,344.4 C 250.4,344.0 245.5,341.3 241.5,339.3 C 237.5,337.3 234.4,334.2 230.1,332.4 C 225.8,330.6 220.0,328.4 215.5,328.5 C 211.0,328.6 207.5,329.4 203.2,332.8 C 198.9,336.2 191.9,343.0 189.8,348.7 C 187.8,354.4 193.7,363.6 190.9,367.2 C 188.1,370.8 179.0,370.2 173.0,370.2 C 167.0,370.2 160.5,368.9 155.1,367.2 C 149.7,365.5 145.7,362.0 140.5,359.9 C 135.3,357.8 129.7,355.6 123.7,354.3 C 117.7,353.0 110.1,353.9 104.7,352.2 C 99.3,350.5 95.1,347.6 91.2,344.4 C 87.3,341.2 82.3,337.2 81.6,332.8 C 80.8,328.4 85.3,323.9 86.7,317.8 C 88.1,311.7 89.0,303.1 90.1,296.3 C 91.2,289.5 92.4,282.7 93.5,277.0 C 94.6,271.3 96.1,266.9 96.8,261.9 C 97.5,256.9 98.1,251.2 97.9,246.9 C 97.7,242.6 95.7,240.1 95.7,236.1 C 95.7,232.1 98.1,227.2 97.9,223.2 C 97.7,219.2 96.5,215.3 94.6,212.1 C 92.7,208.9 89.5,206.7 86.7,203.9 C 83.9,201.1 80.0,198.9 77.8,195.3 C 75.6,191.7 74.4,186.7 73.3,182.4 C 72.2,178.1 72.6,173.1 71.1,169.5 C 69.6,165.9 67.7,163.1 64.3,160.9 C 60.9,158.8 55.8,159.4 50.9,156.6 C 46.0,153.8 39.5,146.7 35.2,143.8 C 30.9,141.0 28.6,141.6 25.1,139.5 C 21.6,137.4 15.3,134.5 14.4,131.3 C 13.5,128.1 19.4,123.8 19.5,120.1 C 19.6,116.4 13.0,112.6 15.1,109.4 C 17.2,106.2 26.9,102.7 31.9,100.8 C 36.9,98.9 40.8,96.9 45.3,97.8 C 49.8,98.7 54.2,105.0 58.7,106.4 C 63.2,107.8 68.7,107.0 72.2,106.4 C 75.8,105.8 77.8,105.6 80.0,102.9 C 82.2,100.2 85.6,95.4 85.6,90.0 C 85.6,84.6 80.4,75.6 80.0,70.7 C 79.6,65.8 81.2,60.8 83.4,60.8 C 85.7,60.8 90.0,68.3 93.5,70.7 C 97.0,73.1 100.6,74.1 104.7,75.0 C 108.8,75.9 114.8,77.0 118.1,76.3 C 121.4,75.6 123.5,73.6 124.8,70.7 C 126.1,67.8 123.7,62.2 125.9,59.1 C 128.2,56.0 133.8,54.9 138.3,52.2 C 142.8,49.5 149.6,46.9 152.8,42.8 C 156.0,38.7 155.6,33.9 157.3,27.7 C 159.0,21.5 160.0,9.9 162.9,5.8 Z";
-
-// la Corse : sans elle, la silhouette ne se lit pas au premier coup d'œil
-const CORSE_OUTLINE =
-  "M 337.2,347.9 C 338.2,349.3 340.1,355.3 340.5,359.9 C 341.0,364.5 340.7,370.3 339.8,375.8 C 338.9,381.3 336.9,387.8 335.6,393.0 C 334.3,398.2 332.8,403.3 331.7,407.2 C 330.5,411.1 330.8,415.9 328.5,416.6 C 326.2,417.3 320.2,415.2 317.8,411.5 C 315.3,407.8 315.2,399.5 313.6,394.3 C 312.0,389.1 308.2,384.6 308.3,380.1 C 308.5,375.6 311.4,370.6 314.1,367.2 C 316.9,363.8 321.2,362.5 324.6,359.9 C 327.9,357.3 332.3,353.3 334.3,351.3 C 336.5,349.3 336.2,346.5 337.2,347.9 Z";
+// contour de la France, même source que ses voisins : les frontières se raccordent
+const FRANCE_D = COUNTRIES.find((c) => c.id === "France")?.d ?? "";
 
 /* Quelques gares se touchent (Le Havre / Rouen, Metz / Nancy) : leur étiquette
    part à gauche pour ne pas se chevaucher. */
 const LABEL_LEFT = new Set([
-  "Le Havre", "Rennes", "Nantes", "Bordeaux", "Chartres", "Le Mans", "Toulouse",
+  "Lille", "Le Havre", "Rennes", "Nantes", "Bordeaux", "Chartres", "Le Mans", "Toulouse",
   "Angers", "La Rochelle", "Limoges", "Saint-Étienne", "Dijon", "Bayonne",
 ]);
 /* Au centre du pays, les gares sont trop serrées pour une étiquette de côté :
@@ -3438,103 +4518,57 @@ const LABEL_ABOVE = new Set(["Clermont-Ferrand"]);
 const LABEL_BELOW = new Set(["Montpellier"]);
 
 // Positions approximatives des gares sur une carte stylisée de France (viewBox 0 0 340 380)
-const STATION_COORDS: Record<string, { x: number; y: number }> = {
-  "Lille": { x: 190, y: 20 },
-  "Le Havre": { x: 128, y: 71 },
-  "Rouen": { x: 146, y: 71 },
-  "Metz": { x: 260, y: 85 },
-  "Paris": { x: 174, y: 96 },
-  "Nancy": { x: 260, y: 103 },
-  "Strasbourg": { x: 292, y: 109 },
-  "Chartres": { x: 155, y: 114 },
-  "Rennes": { x: 84, y: 128 },
-  "Le Mans": { x: 126, y: 133 },
-  "Mulhouse": { x: 286, y: 144 },
-  "Dijon": { x: 234, y: 162 },
-  "Nantes": { x: 87, y: 167 },
-  "Lyon": { x: 230, y: 229 },
-  "Grenoble": { x: 250, y: 254 },
-  "Bordeaux": { x: 108, y: 269 },
-  "Toulouse": { x: 154, y: 322 },
-  "Marseille": { x: 242, y: 335 },
-  // v1.3 — mêmes positions que côté serveur (geography.service), même projection
-  "Brest": { x: 21, y: 116 },
-  "Caen": { x: 113, y: 82 },
-  "Amiens": { x: 173, y: 52 },
-  "Reims": { x: 212, y: 79 },
-  "Troyes": { x: 213, y: 120 },
-  "Orléans": { x: 164, y: 137 },
-  "Tours": { x: 137, y: 159 },
-  "Angers": { x: 109, y: 156 },
-  "Poitiers": { x: 129, y: 194 },
-  "La Rochelle": { x: 96, y: 212 },
-  "Limoges": { x: 150, y: 226 },
-  "Clermont-Ferrand": { x: 190, y: 228 },
-  "Saint-Étienne": { x: 220, y: 243 },
-  "Besançon": { x: 256, y: 166 },
-  "Avignon": { x: 229, y: 307 },
-  "Montpellier": { x: 208, y: 322 },
-  "Nice": { x: 284, y: 318 },
-  "Perpignan": { x: 186, y: 361 },
-  "Pau": { x: 113, y: 335 },
-  "Bayonne": { x: 89, y: 327 },
-};
+/* Trois premières lignes sûres : de grandes gares, un trajet court pour voir
+   la rame revenir vite. Un clic ouvre le formulaire déjà rempli. */
+const FIRST_LINE_IDEAS: [string, string][] = [["Paris", "Lille"], ["Paris", "Lyon"], ["Lyon", "Marseille"]];
 
-/* Géométrie d'une ligne sur la carte : un léger arc (courbe de Bézier
-   quadratique), alterné selon la parité pour que deux lignes qui se croisent ne
-   se superposent pas. La même fonction sert à tracer la ligne ET à placer les
-   trains dessus : sinon un train roule en ligne droite à côté de sa voie. */
-function lineCurve(index: number, from: { x: number; y: number }, to: { x: number; y: number }) {
-  const mx = (from.x + to.x) / 2;
-  const my = (from.y + to.y) / 2;
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const dist = Math.hypot(dx, dy) || 1;
-  const bend = (index % 2 === 0 ? 1 : -1) * Math.min(dist * 0.12, 22);
-  return { cx: mx - (dy / dist) * bend, cy: my + (dx / dist) * bend };
+function FirstLineIdeas({ network, onPick }: { network: NetworkData | null; onPick: (a: string, b: string) => void }) {
+  return (
+    <section className="border border-line mb-6" data-tutorial="first-line-ideas">
+      <div className="px-5 pt-4 pb-3 border-b border-line">
+        <div className="text-[10px] font-mono2 uppercase tracking-[0.2em] text-amber mb-1">Pour commencer</div>
+        <h2 className="font-display text-xl leading-tight">Votre première ligne</h2>
+        <p className="text-[13px] font-body text-slate2 mt-1 max-w-[62ch]">
+          Une ligne relie deux gares ; vos rames y feront l'aller-retour. Les grandes villes attirent plus de voyageurs.
+          Prenez une idée ci-dessous, ou choisissez vos gares avec « + Ligne ».
+        </p>
+      </div>
+      <div className="grid sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-line">
+        {FIRST_LINE_IDEAS.map(([a, b]) => {
+          const pa = STATION_COORDS[a];
+          const pb = STATION_COORDS[b];
+          const minutes = pa && pb ? durationFromKm(distanceKm(pa, pb)) : 0;
+          const demand = ((stationOf(network, a)?.demand ?? 1) + (stationOf(network, b)?.demand ?? 1)) / 2;
+          const hourly = Math.round(hourlyRevenue(minutes) * demand);
+          const pair = pairOf(network, a, b);
+          return (
+            <button
+              key={a + b}
+              onClick={() => onPick(a, b)}
+              className="group text-left px-5 py-4 hover:bg-cobalt/[0.06] transition-colors"
+            >
+              <div className="font-body text-[15px] text-offwhite">
+                {a} <span className="text-slate2">→</span> {b}
+              </div>
+              <div className="font-mono2 text-[11.5px] text-slate2 mt-1">
+                {minutes} min · <span className="text-rail-green">≈ {hourly} pi./h</span>
+              </div>
+              <div className="font-body text-[11.5px] mt-1 text-slate2/80">
+                {pair && pair.companies > 0 ? `Déjà ${pair.companies} compagnie${pair.companies > 1 ? "s" : ""} dessus` : "Personne dessus pour l'instant"}
+              </div>
+              <div className="font-mono2 text-[10.5px] uppercase tracking-wide text-cobalt mt-2.5 group-hover:underline">Tracer cette ligne</div>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
 }
 
-// point et direction sur la courbe, à la fraction t du trajet (0 → 1)
-function pointOnCurve(from: { x: number; y: number }, c: { cx: number; cy: number }, to: { x: number; y: number }, t: number) {
-  const u = 1 - t;
-  const x = u * u * from.x + 2 * u * t * c.cx + t * t * to.x;
-  const y = u * u * from.y + 2 * u * t * c.cy + t * t * to.y;
-  const tx = 2 * u * (c.cx - from.x) + 2 * t * (to.x - c.cx);
-  const ty = 2 * u * (c.cy - from.y) + 2 * t * (to.y - c.cy);
-  return { x, y, angle: (Math.atan2(ty, tx) * 180) / Math.PI };
-}
-
-const LINE_PALETTE = ["#4f7fa3", "#c99a3e", "#5c8a68", "#a8483a", "#8a6ba3", "#c97a3e"];
-
-/* Projection inverse de STATION_COORDS : on remonte aux degrés pour calculer une
-   vraie distance. Les constantes sont celles qui ont servi à placer les gares. */
-function toLonLat(p: { x: number; y: number }) {
-  return { lon: 3.06 + (p.x - 190) / 22.4, lat: 50.63 - (p.y - 20) / 42.97 };
-}
-
-/* Distance à vol d'oiseau, en kilomètres. Équirectangulaire : sur l'emprise de
-   la France l'écart avec une vraie orthodromie est de l'ordre du kilomètre. */
-function distanceKm(a: { x: number; y: number }, b: { x: number; y: number }) {
-  const A = toLonLat(a), B = toLonLat(b);
-  const midLat = ((A.lat + B.lat) / 2) * (Math.PI / 180);
-  const dx = (B.lon - A.lon) * 111.32 * Math.cos(midLat);
-  const dy = (B.lat - A.lat) * 110.57;
-  return Math.round(Math.hypot(dx, dy));
-}
-
-/* Durée de trajet déduite de la distance. La recette valant 8 pi. par minute
-   quelle que soit la longueur, ce calcul ne déplace pas l'équilibre : il rend
-   seulement le réseau cohérent — Paris–Lille ne peut plus durer autant que
-   Lille–Marseille. */
-export function durationFromKm(km: number) {
-  return Math.max(3, Math.min(20, Math.round(km / 55)));
-}
-
-/* Doit rester aligné sur lengthYield() dans simulation.job.ts. Un long-courrier
-   rapporte plus à la minute qu'un omnibus : +0 % à 3 min, +25 % à 20 min. */
-export function lengthYieldPct(durationMinutes: number) {
-  const d = Math.max(3, Math.min(20, durationMinutes));
-  return Math.round(25 * ((d - 3) / 17));
+/* 1.7 : durée réelle d'un trajet, comme la simulation la calcule : Express
+   plus rapide, chaque voiture ajoutée ralentit, l'électrification fait gagner 10 %. */
+function tripDurationMs(t: { model: string; cars?: string[]; line?: { durationMinutes?: number; electrified?: boolean } | null }) {
+  return (t.line?.durationMinutes ?? 0) * 60_000 * (t.model === "EXPRESS" ? 0.7 : 1) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1);
 }
 
 /* Recette horaire théorique d'une rame sur la ligne, réputation parfaite.
@@ -3544,58 +4578,97 @@ function hourlyRevenue(durationMinutes: number) {
   return Math.round((60 / durationMinutes) * perTrip);
 }
 
+/* ============================================================
+   La carte du réseau (1.6, refonte).
+
+   « On dirait une image mal posée sur un document » : la carte était un
+   SVG figé dans un cadre, légende à côté. Elle occupe maintenant tout
+   l'espace et se manipule comme la carte d'un jeu de conduite : on la
+   fait glisser, on zoome vers ce qu'on regarde, et plus on s'approche,
+   plus elle montre de détails (toutes les gares, leurs noms, les
+   fleuves). Les pastilles et les étiquettes gardent leur taille à
+   l'écran quel que soit le zoom. Un clic sur une gare ou une rame ouvre
+   sa fiche ; la légende et la liste des lignes sont des panneaux
+   repliables posés sur la carte.
+   ============================================================ */
+const MAP_WORLD = { x: -93, y: -72, w: 560, h: 512 };
+const MAP_HOME = { cx: 172, cy: 200, zoom: 1.15 };
+const KM_PER_UNIT = 2.59; // 111,32 × cos 46,5° / 29,58
+
+function niceScale(kmPerPx: number) {
+  for (const km of [10, 20, 25, 50, 100, 200, 250, 500]) {
+    const px = km / kmPerPx;
+    if (px >= 70) return { km, px };
+  }
+  return { km: 500, px: 500 / kmPerPx };
+}
+
+type MapSelection = { kind: "gare"; name: string } | { kind: "rame"; id: string } | null;
+
 function NetworkMap({
   lines,
   trains,
   contracts,
   onChange,
   network,
+  livery,
 }: {
   lines: Line[];
   trains: Train[];
   contracts: Contract[];
   onChange: () => void;
   network: NetworkData | null;
+  livery?: string;
 }) {
   const { showToast } = useToast();
+  // 1.7 — Premium : vos gares à vos couleurs sur la carte
+  const myOwned = new Map(
+    network?.isPremium ? (network.ownedStations ?? []).filter((o) => o.mine).map((o) => [o.station, o.level] as [string, number]) : []
+  );
   // horloge de la carte : fait avancer les trains en continu entre deux rafraîchissements
   const [clock, setClock] = useState(Date.now());
   useEffect(() => {
-    const t = setInterval(() => setClock(Date.now()), 500);
+    const t = setInterval(() => setClock(Date.now()), 250);
     return () => clearInterval(t);
   }, []);
+  const camera = useMapCamera(MAP_WORLD, MAP_HOME);
+  const { k, cam } = camera;
   const [drawing, setDrawing] = useState(false);
-  const [from, setFrom] = useState<string | null>(null);
-  const [to, setTo] = useState<string | null>(null);
+  /* 1.7 : le tracé est une suite de gares : départ, arrêts, terminus */
+  const [picks, setPicks] = useState<string[]>([]);
+  const from = picks[0] ?? null;
+  const to = picks.length >= 2 ? picks[picks.length - 1] : null;
   const [lineName, setLineName] = useState("");
   const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<MapSelection>(null);
+  const [follow, setFollow] = useState<string | null>(null);
+  const [legendOpen, setLegendOpen] = useState(false);
+  const [linesOpen, setLinesOpen] = useState(false);
+  const frameRef = useRef<HTMLDivElement | null>(null);
 
   function resetDraw() {
-    setFrom(null);
-    setTo(null);
+    setPicks([]);
     setLineName("");
   }
 
   function pickStation(name: string) {
-    if (!drawing) return;
-    if (from === name) return resetDraw();
-    if (!from) {
-      setFrom(name);
-      setTo(null);
+    if (camera.wasDrag()) return;
+    if (!drawing) {
+      setSelected({ kind: "gare", name });
+      setFollow(null);
       return;
     }
-    if (to === name) return setTo(null);
-    setTo(name);
-    setLineName(`${from} — ${name}`);
+    // retoucher la dernière gare l'enlève ; une gare déjà prise ne revient pas ; au plus 4 arrêts
+    if (picks[picks.length - 1] === name) return setPicks((p) => p.slice(0, -1));
+    if (picks.includes(name)) return;
+    if (picks.length >= MAX_STOPS + 2) return showToast(`Une ligne s'arrête dans ${MAX_STOPS} gares au plus`, "error");
+    const next = [...picks, name];
+    setPicks(next);
+    if (next.length >= 2) setLineName(`${next[0]} — ${name}`);
   }
 
   const draft =
-    from && to && STATION_COORDS[from] && STATION_COORDS[to]
-      ? (() => {
-          const km = distanceKm(STATION_COORDS[from], STATION_COORDS[to]);
-          return { km, minutes: durationFromKm(km) };
-        })()
-      : null;
+    picks.length >= 2 ? { km: routeKm(picks), minutes: routeMinutes(picks), stops: picks.length - 2 } : null;
 
   async function createFromMap() {
     if (!from || !to || !draft) return;
@@ -3605,6 +4678,7 @@ function NetworkMap({
         name: lineName.trim() || `${from} — ${to}`,
         departureStation: from,
         arrivalStation: to,
+        stops: picks.slice(1, -1),
         durationMinutes: draft.minutes,
       });
       showToast(`Ligne ${from} — ${to} ouverte (${draft.minutes} min)`);
@@ -3624,97 +4698,79 @@ function NetworkMap({
     ...activeFreight.flatMap((c) => [c.originStation, c.destinationStation]),
   ]);
   const activeStations = new Set([
-    ...trains
-      .filter((t) => t.status === "EN_ROUTE" && t.line)
-      .flatMap((t) => [t.line!.departureStation, t.line!.arrivalStation]),
+    ...trains.filter((t) => t.status === "EN_ROUTE" && t.line).flatMap((t) => [t.line!.departureStation, t.line!.arrivalStation]),
     ...activeFreight.flatMap((c) => [c.originStation, c.destinationStation]),
   ]);
   const enRouteCount = trains.filter((t) => t.status === "EN_ROUTE").length;
+  const night = !!network?.night?.active;
+
+  /* Position courante de chaque rame en ligne : sert au dessin, à la fiche et au suivi. */
+  /* 1.7 : la rame suit son itinéraire (arrêts compris) dans son sens de marche */
+  type TrainPos = { x: number; y: number; angle: number; ratio: number; color: string; lineIndex: number; route: string[]; direction: number; stoppedAt: string | null; next: string };
+  const trainPos = new Map<string, TrainPos>();
+  for (const t of trains) {
+    if (!t.line || t.status !== "EN_ROUTE") continue;
+    const lineIndex = Math.max(0, lines.findIndex((l) => l.id === t.line!.id));
+    const route = routeStations(t.line);
+    const duration = tripDurationMs(t);
+    const ratio = t.departedAt && duration > 0 ? Math.min(1, Math.max(0, (clock - new Date(t.departedAt).getTime()) / duration)) : t.progress / 100;
+    const direction = t.direction ?? 0;
+    const p = positionOnRoute(route, lineIndex, direction, ratio);
+    if (!p) continue;
+    trainPos.set(t.id, { x: p.x, y: p.y, angle: p.angle, ratio, color: LINE_PALETTE[lineIndex % LINE_PALETTE.length], lineIndex, route, direction, stoppedAt: p.stoppedAt, next: p.to });
+  }
+
+  // suivi d'une rame : la caméra reste sur elle
+  const followed = follow ? trainPos.get(follow) : undefined;
+  useEffect(() => {
+    if (followed) camera.flyTo(followed.x, followed.y);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followed?.x, followed?.y]);
+
+  // niveau de détail : de loin, seules les grandes gares et les vôtres ont un nom
+  const showAllLabels = cam.zoom >= 1.9;
+  const showMinor = cam.zoom >= 1.3;
+  const scaleBar = niceScale(KM_PER_UNIT / camera.scale);
+
+  const selStation = selected?.kind === "gare" ? selected.name : null;
+  const selTrain = selected?.kind === "rame" ? trains.find((t) => t.id === selected.id) ?? null : null;
+  const cardAnchor = (() => {
+    if (selStation && STATION_COORDS[selStation]) return camera.toScreen(STATION_COORDS[selStation].x, STATION_COORDS[selStation].y);
+    if (selTrain && trainPos.get(selTrain.id)) {
+      const p = trainPos.get(selTrain.id)!;
+      return camera.toScreen(p.x, p.y);
+    }
+    return null;
+  })();
+
+  async function toggleFullscreen() {
+    const el = frameRef.current;
+    if (!el) return;
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await el.requestFullscreen();
+    } catch {
+      // plein écran refusé (certains navigateurs mobiles) : la carte reste utilisable
+    }
+  }
+
+  const ctrl = "w-9 h-9 flex items-center justify-center bg-navy-900/90 border border-line text-slate2 hover:text-offwhite hover:border-slate2 backdrop-blur-sm transition-colors";
 
   return (
-    <div className="border border-line bg-navy-950/40">
-      {/* bandeau de statistiques en direct */}
-      <div className="flex items-center gap-6 px-4 py-2.5 border-b border-line font-mono2 text-[11px] text-slate2 uppercase tracking-wide">
-        <span className="text-cobalt">{lines.length} ligne{lines.length !== 1 ? "s" : ""}</span>
-        <span className="text-rail-green">{enRouteCount} train{enRouteCount !== 1 ? "s" : ""} en circulation</span>
-        <span className="text-amber">{activeFreight.length} fret{activeFreight.length !== 1 ? "s" : ""} en cours</span>
-        <span>{usedStations.size} gare{usedStations.size !== 1 ? "s" : ""} desservie{usedStations.size !== 1 ? "s" : ""}</span>
-
-        <button
-          onClick={() => {
-            resetDraw();
-            setDrawing((d) => !d);
-          }}
-          className={`ml-auto shrink-0 font-mono2 text-[11px] uppercase tracking-[0.14em] border px-3 py-1 transition-colors ${
-            drawing
-              ? "border-cobalt text-cobalt bg-cobalt/10"
-              : "border-line text-slate2 hover:text-offwhite"
-          }`}
-        >
-          {drawing ? "Annuler le tracé" : "Tracer une ligne"}
-        </button>
-      </div>
-
-      {/* Bandeau de tracé : la carte devient un outil au lieu d'un poster.
-          La durée n'est plus saisie à la main, elle découle de la distance. */}
-      {drawing && (
-        <div className="px-4 py-3 border-b border-line bg-cobalt/5">
-          {!from && (
-            <p className="text-xs font-body text-slate2">
-              Cliquez la gare de départ sur la carte.
-            </p>
-          )}
-          {from && !to && (
-            <p className="text-xs font-body text-slate2">
-              Départ : <span className="text-offwhite">{from}</span> — cliquez maintenant la gare d'arrivée.
-            </p>
-          )}
-          {from && to && draft && (
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className="text-xs font-body text-slate2">
-                <span className="text-offwhite">{from}</span> → <span className="text-offwhite">{to}</span>
-              </span>
-              <span className="font-mono2 text-[11px] text-slate2">
-                {draft.km} km · <span className="text-amber">{draft.minutes} min</span>
-                {lengthYieldPct(draft.minutes) > 0 && (
-                  <> · rendement <span className="text-rail-green">+{lengthYieldPct(draft.minutes)} %</span></>
-                )}
-                <> · ~<span className="text-amber">{hourlyRevenue(draft.minutes)} pi./h</span></>
-              </span>
-              <input
-                value={lineName}
-                onChange={(e) => setLineName(e.target.value)}
-                className="flex-1 min-w-[180px] bg-navy-950 border border-line px-3 py-1.5 text-sm font-body text-offwhite focus:border-cobalt outline-none"
-                placeholder="Nom de la ligne"
-              />
-              <button
-                onClick={createFromMap}
-                disabled={saving}
-                className="bg-cobalt text-onaccent font-mono2 text-[11px] uppercase tracking-[0.14em] px-4 py-2 hover:bg-cobalt/90 active:scale-[0.97] transition-transform disabled:opacity-50"
-              >
-                Ouvrir la ligne
-              </button>
-              <button
-                onClick={resetDraw}
-                className="font-mono2 text-[11px] uppercase tracking-[0.14em] px-3 py-2 border border-line text-slate2 hover:text-offwhite transition-colors"
-              >
-                Recommencer
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="relative p-3 lg:flex lg:gap-5">
-        <svg viewBox="8 -10 348 440" className="w-full max-w-[470px] h-auto max-h-[560px] mx-auto block">
+    <div ref={frameRef} className="relative -mx-4 md:mx-0 border-y md:border border-line bg-navy-950 overflow-hidden h-[72vh] md:h-[calc(100vh-230px)] min-h-[460px] select-none">
+      <div ref={camera.ref} className="absolute inset-0 touch-none" style={{ cursor: drawing ? "crosshair" : "grab" }}>
+        <svg viewBox={camera.viewBox} width={camera.size.w} height={camera.size.h} className="block" onClick={() => { if (!camera.wasDrag()) setSelected(null); }}>
           <defs>
-            <marker id="arrow-active" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-              <path d="M0,0 L6,3 L0,6 Z" fill="rgb(var(--c-cobalt))" />
-            </marker>
-
-            {/* Halo au large : convention cartographique classique, le trait de côte
-                se détache sans avoir besoin d'être épais. C'est ce qui sépare une
-                carte dessinée d'un contour posé à plat. */}
+            <filter id="map-relief" x="-40%" y="-40%" width="180%" height="180%">
+              <feGaussianBlur stdDeviation="7" />
+            </filter>
+            <filter id="map-glow" x="-100%" y="-100%" width="300%" height="300%">
+              <feGaussianBlur stdDeviation={2.4 * k} />
+            </filter>
+            <radialGradient id="map-city-light">
+              <stop offset="0" stopColor="rgb(var(--c-amber))" stopOpacity="0.55" />
+              <stop offset="1" stopColor="rgb(var(--c-amber))" stopOpacity="0" />
+            </radialGradient>
             <filter id="map-halo" x="-12%" y="-12%" width="124%" height="124%">
               <feGaussianBlur in="SourceAlpha" stdDeviation="3.2" result="b" />
               <feComponentTransfer in="b" result="h">
@@ -3726,32 +4782,62 @@ function NetworkMap({
             </filter>
           </defs>
 
-          {/* Le territoire : il sert de fond aux tracés, et c'est lui qui fait
-              des gares des lieux plutôt que des points en suspension. */}
-          <g>
-            {/* le halo est posé en premier : il borde les terres depuis la mer */}
-            <g filter="url(#map-halo)" opacity="0.45">
-              <path d={FRANCE_OUTLINE} fill="rgb(var(--c-slate2))" />
-              <path d={CORSE_OUTLINE} fill="rgb(var(--c-slate2))" />
-            </g>
-            <path
-              d={FRANCE_OUTLINE}
-              fill="rgb(var(--c-navy-900))"
-              stroke="rgb(var(--c-slate2))"
-              strokeWidth="0.9"
-              opacity="0.95"
-            />
-            <path
-              d={CORSE_OUTLINE}
-              fill="rgb(var(--c-navy-900))"
-              stroke="rgb(var(--c-slate2))"
-              strokeWidth="0.9"
-              opacity="0.95"
-            />
+          {/* la mer, jusqu'aux bords du monde */}
+          <rect x={-200} y={-200} width={800} height={800} fill="rgb(var(--c-cobalt))" opacity="0.05" />
+          <g stroke="rgb(var(--c-slate2))" strokeWidth={0.35 * k} opacity="0.12">
+            {GRATICULE.meridians.map((x) => <line key={`m${x}`} x1={x} y1={-200} x2={x} y2={600} />)}
+            {GRATICULE.parallels.map((p) => <line key={`p${p.lat}`} x1={-200} y1={p.y} x2={600} y2={p.y} />)}
           </g>
 
-          {/* 1.4 : liaisons exploitées par d'autres compagnies, en pointillé discret —
-              on voit où sont les concurrents, et les liaisons encore libres */}
+          {/* l'Europe autour, la France par-dessus */}
+          <g>
+            {COUNTRIES.filter((c) => c.id !== "France").map((c) => (
+              <path key={c.id} d={c.d} fill="rgb(var(--c-navy-900))" fillOpacity="0.75" stroke="rgb(var(--c-slate2))" strokeOpacity="0.4" strokeWidth={0.6 * k} strokeLinejoin="round" />
+            ))}
+          </g>
+          <g>
+            <g filter="url(#map-halo)" opacity="0.45">
+              <path d={FRANCE_D} fill="rgb(var(--c-slate2))" />
+            </g>
+            <path d={FRANCE_D} fill="rgb(var(--c-navy-900))" stroke="rgb(var(--c-slate2))" strokeWidth={0.9 * k} opacity="0.97" strokeLinejoin="round" />
+          </g>
+
+          {/* massifs et fleuves : discrets, ils situent sans concurrencer les lignes */}
+          <g filter="url(#map-relief)" pointerEvents="none">
+            {RELIEF.map((r, i) => (
+              <ellipse key={i} cx={r.cx} cy={r.cy} rx={r.rx} ry={r.ry} transform={`rotate(${r.rot} ${r.cx} ${r.cy})`} fill="rgb(var(--c-slate2))" opacity={0.11 * r.strength} />
+            ))}
+          </g>
+          <g fill="none" stroke="rgb(var(--c-cobalt))" strokeLinecap="round" strokeLinejoin="round" pointerEvents="none">
+            {RIVERS.filter((r) => r.major || showMinor).map((r) => (
+              <path key={r.name} d={r.d} strokeWidth={(r.major ? 1.1 : 0.75) * k} opacity={r.major ? 0.45 : 0.32} />
+            ))}
+          </g>
+
+          {/* noms des pays, des mers et des massifs : ils s'effacent quand on s'approche */}
+          <g pointerEvents="none" fontFamily="var(--font-mono2)">
+            {cam.zoom < 3.2 &&
+              COUNTRY_LABELS.map((l) => (
+                <text key={l.name} x={l.x} y={l.y} textAnchor="middle" fontSize={8 * k} fill="rgb(var(--c-slate2))" opacity="0.5" letterSpacing={2 * k}>
+                  {l.name.toUpperCase()}
+                </text>
+              ))}
+            {SEA_LABELS.map((l) => (
+              <text key={l.name} x={l.x} y={l.y} textAnchor="middle" fontSize={8.5 * k} fontStyle="italic" fontFamily="var(--font-display)" fill="rgb(var(--c-cobalt))" opacity="0.55" letterSpacing={0.8 * k}>
+                {l.name}
+              </text>
+            ))}
+            {showMinor &&
+              RELIEF_LABELS.map((l) => (
+                <text key={l.name} x={l.x} y={l.y} textAnchor="middle" fontSize={7 * k} fontStyle="italic" fontFamily="var(--font-display)" fill="rgb(var(--c-slate2))" opacity="0.55" letterSpacing={0.8 * k}>
+                  {l.name}
+                </text>
+              ))}
+          </g>
+
+          {night && <rect x={-200} y={-200} width={800} height={800} fill="rgb(var(--c-navy-950))" opacity="0.28" pointerEvents="none" />}
+
+          {/* liaisons exploitées par d'autres compagnies */}
           {network?.pairs
             .filter((p) => !p.mine || p.companies > 1)
             .map((p) => {
@@ -3759,270 +4845,394 @@ function NetworkMap({
               const b = STATION_COORDS[p.b];
               if (!a || !b) return null;
               return (
-                <line
-                  key={`rival-${p.a}-${p.b}`}
-                  x1={a.x}
-                  y1={a.y}
-                  x2={b.x}
-                  y2={b.y}
-                  stroke="rgb(var(--c-slate2))"
-                  strokeWidth={Math.min(2.2, 0.7 + 0.3 * p.companies)}
-                  strokeDasharray="2 3"
-                  opacity="0.45"
-                >
+                <line key={`rival-${p.a}-${p.b}`} x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke="rgb(var(--c-slate2))" strokeWidth={Math.min(2.2, 0.7 + 0.3 * p.companies) * k} strokeDasharray={`${2 * k} ${3 * k}`} opacity="0.45">
                   <title>{`${p.a} — ${p.b} : ${p.companies} compagnie${p.companies > 1 ? "s" : ""}, ${p.trains} rame${p.trains > 1 ? "s" : ""}`}</title>
                 </line>
               );
             })}
 
-          {/* voies tracées entre les gares desservies, en courbe, une couleur par ligne */}
+          {/* vos lignes : trait plein bordé de la couleur du fond, pointillé sans rame */}
           {lines.map((l, i) => {
-            const from = STATION_COORDS[l.departureStation];
-            const to = STATION_COORDS[l.arrivalStation];
-            if (!from || !to) return null;
-            const hasActiveTrain = trains.some((t) => t.line?.id === l.id && t.status === "EN_ROUTE");
+            const a = STATION_COORDS[l.departureStation];
+            const b = STATION_COORDS[l.arrivalStation];
+            if (!a || !b) return null;
+            const running = trains.some((t) => t.line?.id === l.id && t.status === "EN_ROUTE");
             const color = LINE_PALETTE[i % LINE_PALETTE.length];
-
-            const { cx, cy } = lineCurve(i, from, to);
-            const path = `M ${from.x},${from.y} Q ${cx},${cy} ${to.x},${to.y}`;
-
+            // 1.7 : un arc par tronçon, arrêts compris
+            const path = routePath(routeStations(l), i);
             return (
-              <path
-                key={l.id}
-                d={path}
-                fill="none"
-                stroke={color}
-                strokeWidth={hasActiveTrain ? 2 : 1.3}
-                strokeDasharray={hasActiveTrain ? "6 5" : "3 4"}
-                opacity={hasActiveTrain ? 0.95 : 0.4}
-                className={hasActiveTrain ? "line-flow" : undefined}
-                markerEnd={hasActiveTrain ? "url(#arrow-active)" : undefined}
-              />
+              <g key={l.id}>
+                {running && <path d={path} fill="none" stroke="rgb(var(--c-navy-950))" strokeWidth={5 * k} strokeLinecap="round" opacity="0.9" />}
+                <path d={path} fill="none" stroke={color} strokeWidth={(running ? 2.8 : 1.4) * k} strokeLinecap="round" strokeDasharray={running ? undefined : `${3 * k} ${4 * k}`} opacity={running ? 1 : 0.5}>
+                  <title>{`${l.name}${running ? "" : " · sans rame"}`}</title>
+                </path>
+              </g>
             );
           })}
 
-          {/* trajets de fret actifs : ligne pointillée ambre, distincte des lignes voyageurs */}
+          {/* fret en cours */}
           {activeFreight.map((c) => {
-            const from = STATION_COORDS[c.originStation];
-            const to = STATION_COORDS[c.destinationStation];
-            if (!from || !to) return null;
-            const path = `M ${from.x},${from.y} L ${to.x},${to.y}`;
-            return (
-              <path
-                key={c.id}
-                d={path}
-                fill="none"
-                stroke="rgb(var(--c-amber))"
-                strokeWidth="1.6"
-                strokeDasharray="2 5"
-                strokeLinecap="round"
-                opacity="0.8"
-              />
-            );
+            const a = STATION_COORDS[c.originStation];
+            const b = STATION_COORDS[c.destinationStation];
+            if (!a || !b) return null;
+            return <path key={c.id} d={`M ${a.x},${a.y} L ${b.x},${b.y}`} fill="none" stroke="rgb(var(--c-amber))" strokeWidth={1.6 * k} strokeDasharray={`${2 * k} ${5 * k}`} strokeLinecap="round" opacity="0.8" />;
           })}
 
-          {/* tracé en cours : le joueur voit la ligne avant de la payer */}
-          {from && to && STATION_COORDS[from] && STATION_COORDS[to] && (
-            <line
-              x1={STATION_COORDS[from].x}
-              y1={STATION_COORDS[from].y}
-              x2={STATION_COORDS[to].x}
-              y2={STATION_COORDS[to].y}
+          {/* tracé en cours */}
+          {picks.length >= 2 && (
+            <polyline
+              points={picks.filter((n) => STATION_COORDS[n]).map((n) => `${STATION_COORDS[n].x},${STATION_COORDS[n].y}`).join(" ")}
+              fill="none"
               stroke="rgb(var(--c-cobalt))"
-              strokeWidth="2"
-              strokeDasharray="5 4"
-              opacity="0.9"
+              strokeWidth={2.4 * k}
+              strokeDasharray={`${5 * k} ${4 * k}`}
+              strokeLinejoin="round"
+              opacity="0.95"
             />
           )}
 
-          {/* gares : discrètes si non desservies, marquées si utilisées, pulsées si un train y transite actuellement */}
+          {/* les gares */}
           {Object.entries(STATION_COORDS).map(([name, pos]) => {
             const active = usedStations.has(name);
             const pulsing = activeStations.has(name);
+            const size = stationOf(network, name)?.size ?? 2;
+            const picked = picks.includes(name) || selStation === name;
+            const big = size >= 4;
+            const showLabel = active || picked || big || showAllLabels || drawing;
             const left = LABEL_LEFT.has(name);
-            const picked = from === name || to === name;
+            const above = LABEL_ABOVE.has(name);
+            const below = LABEL_BELOW.has(name);
+            const ev = stationOf(network, name)?.events ?? [];
+            const hub = network?.hubs?.find((h) => h.station === name);
+            const r = ((active || drawing ? 3.6 : 2.2) + 0.4 * (size - 2)) * k;
             return (
-              <g
-                key={name}
-                onClick={() => pickStation(name)}
-                style={{ cursor: drawing ? "pointer" : "default" }}
-              >
-                {/* cible de clic généreuse : une pastille de 3,6 unités est intouchable au doigt */}
-                {drawing && <circle cx={pos.x} cy={pos.y} r={11} fill="transparent" />}
-                {picked && (
-                  <circle
-                    cx={pos.x}
-                    cy={pos.y}
-                    r={8}
-                    fill="none"
-                    stroke="rgb(var(--c-cobalt))"
-                    strokeWidth="1.6"
-                  />
-                )}
-                {pulsing && (
-                  <circle cx={pos.x} cy={pos.y} r={7} fill="none" stroke="rgb(var(--c-rail-green))" strokeWidth="1" opacity="0.6" className="blink-dot" />
-                )}
-                {/* événement de gare : anneau ambre si la demande monte, rouge si elle baisse */}
-                {(() => {
-                  const ev = stationOf(network, name)?.events ?? [];
-                  if (ev.length === 0) return null;
-                  const up = ev.some((e) => e.multiplier > 1);
+              <g key={name} onClick={(e) => { e.stopPropagation(); pickStation(name); }} style={{ cursor: "pointer" }}>
+                <circle cx={pos.x} cy={pos.y} r={12 * k} fill="transparent" />
+                {night && <circle cx={pos.x} cy={pos.y} r={(6 + 2.4 * size) * k} fill="url(#map-city-light)" opacity={active ? 0.9 : 0.45} pointerEvents="none" />}
+                {picked && <circle cx={pos.x} cy={pos.y} r={8.5 * k} fill="none" stroke="rgb(var(--c-cobalt))" strokeWidth={1.8 * k} />}
+                {pulsing && <circle cx={pos.x} cy={pos.y} r={7 * k} fill="none" stroke="rgb(var(--c-rail-green))" strokeWidth={0.9 * k} opacity="0.5" className="blink-dot" />}
+                {ev.length > 0 && (() => {
+                  const e0 = ev[0];
+                  const up = e0.multiplier > 1;
+                  const pct = `${up ? "+" : "−"}${Math.abs(Math.round((e0.multiplier - 1) * 100))} %`;
+                  const color = up ? "rgb(var(--c-amber))" : "rgb(var(--c-rail-red))";
+                  const w = (4 + pct.length * 4.1) * k;
                   return (
-                    <circle cx={pos.x} cy={pos.y} r={9} fill="none" stroke={up ? "rgb(var(--c-amber))" : "rgb(var(--c-rail-red))"} strokeWidth="1.3" strokeDasharray="2 2">
-                      <title>{`${name} : ${ev.map((e) => e.label).join(", ")}`}</title>
-                    </circle>
-                  );
-                })()}
-                {/* 1.5 : correspondance — un losange autour des gares où se croisent plusieurs de vos lignes */}
-                {(() => {
-                  const hub = network?.hubs?.find((h) => h.station === name);
-                  if (!hub) return null;
-                  const r = 6.5;
-                  return (
-                    <g>
-                      <rect x={pos.x - r} y={pos.y - r} width={r * 2} height={r * 2} transform={`rotate(45 ${pos.x} ${pos.y})`} fill="none" stroke="rgb(var(--c-cobalt))" strokeWidth="1.2" />
-                      <text x={pos.x + 8.5} y={pos.y - 6} fontSize="6.5" fontFamily="var(--font-mono2)" fill="rgb(var(--c-cobalt))" stroke="rgb(var(--c-navy-950))" strokeWidth="2" paintOrder="stroke">
-                        ×{hub.lines}
-                      </text>
-                      <title>{`Correspondance à ${name} : ${hub.lines} destinations, +${hub.bonus} % par trajet`}</title>
+                    <g pointerEvents="none">
+                      <circle cx={pos.x} cy={pos.y} r={8.5 * k} fill="none" stroke={color} strokeWidth={1 * k} opacity="0.8" />
+                      <g transform={`translate(${pos.x} ${pos.y - 17 * k})`}>
+                        <rect x={-w / 2} y={-6 * k} width={w} height={10.5 * k} rx={1.5 * k} fill="rgb(var(--c-navy-950))" stroke={color} strokeWidth={0.8 * k} />
+                        <text x="0" y={1.9 * k} textAnchor="middle" fontSize={6.4 * k} fontFamily="var(--font-mono2)" fill={color}>{pct}</text>
+                      </g>
                     </g>
                   );
                 })()}
-                <circle
-                  cx={pos.x}
-                  cy={pos.y}
-                  r={(active || drawing ? 3.6 : 2) + 0.35 * ((stationOf(network, name)?.size ?? 2) - 2)}
-                  fill={active ? "rgb(var(--c-offwhite))" : "rgb(var(--c-slate2))"}
-                  stroke={active ? "rgb(var(--c-cobalt))" : "none"}
-                  strokeWidth="1.5"
-                  opacity={active ? 1 : drawing ? 0.85 : 0.5}
-                />
-                {/* liseré de la couleur du fond : le texte reste lisible par-dessus une voie */}
-                <text
-                  x={LABEL_ABOVE.has(name) || LABEL_BELOW.has(name) ? pos.x : pos.x + (left ? -6 : 6)}
-                  y={LABEL_ABOVE.has(name) ? pos.y - 6 : LABEL_BELOW.has(name) ? pos.y + 11 : pos.y + 3}
-                  textAnchor={LABEL_ABOVE.has(name) || LABEL_BELOW.has(name) ? "middle" : left ? "end" : "start"}
-                  fontSize="8.5"
-                  fontFamily="var(--font-mono2)"
-                  fill={active ? "rgb(var(--c-offwhite))" : "rgb(var(--c-slate2))"}
-                  opacity={active ? 1 : 0.7}
-                  stroke="rgb(var(--c-navy-950))"
-                  strokeWidth="2.4"
-                  paintOrder="stroke"
-                  strokeLinejoin="round"
-                >
-                  {name}
-                </text>
+                {myOwned.has(name) && livery && (
+                  <g pointerEvents="none">
+                    {/* la plaque de gare : un carré à votre livrée, un cran par niveau de commerces */}
+                    <rect x={pos.x - 7.5 * k} y={pos.y - 7.5 * k} width={15 * k} height={15 * k} fill={livery} opacity="0.22" stroke={livery} strokeWidth={1.4 * k} />
+                    {Array.from({ length: myOwned.get(name) ?? 1 }).map((_, n) => (
+                      <rect key={n} x={pos.x - 7.5 * k + n * 3.2 * k} y={pos.y + 9 * k} width={2.4 * k} height={2.4 * k} fill={livery} />
+                    ))}
+                  </g>
+                )}
+                {hub && (
+                  <g pointerEvents="none">
+                    <rect x={pos.x - 6.5 * k} y={pos.y - 6.5 * k} width={13 * k} height={13 * k} transform={`rotate(45 ${pos.x} ${pos.y})`} fill="none" stroke="rgb(var(--c-cobalt))" strokeWidth={1.2 * k} />
+                  </g>
+                )}
+                <circle cx={pos.x} cy={pos.y} r={r} fill={active ? "rgb(var(--c-offwhite))" : "rgb(var(--c-slate2))"} stroke={active ? "rgb(var(--c-cobalt))" : "rgb(var(--c-navy-950))"} strokeWidth={1.5 * k} opacity={active ? 1 : drawing ? 0.9 : 0.65} />
+                {isIntl(name) && (
+                  <rect x={pos.x - 6 * k} y={pos.y - 6 * k} width={12 * k} height={12 * k} rx={2 * k} fill="none" stroke="rgb(var(--c-slate2))" strokeWidth={0.9 * k} strokeDasharray={`${2 * k} ${1.6 * k}`} opacity={network?.international?.licence.owned || active ? 1 : 0.55} pointerEvents="none" />
+                )}
+                {showLabel && (
+                  <text
+                    x={above || below ? pos.x : pos.x + (left ? -7 : 7) * k}
+                    y={above ? pos.y - 7 * k : below ? pos.y + 12 * k : pos.y + 3 * k}
+                    textAnchor={above || below ? "middle" : left ? "end" : "start"}
+                    fontSize={(big || active ? 9.5 : 8.5) * k}
+                    fontWeight={size >= 5 ? 700 : 400}
+                    fontFamily="var(--font-mono2)"
+                    fill={myOwned.has(name) && livery ? livery : active ? "rgb(var(--c-offwhite))" : "rgb(var(--c-slate2))"}
+                    opacity={active ? 1 : 0.8}
+                    stroke="rgb(var(--c-navy-950))"
+                    strokeWidth={2.6 * k}
+                    paintOrder="stroke"
+                    strokeLinejoin="round"
+                    pointerEvents="none"
+                  >
+                    {name}
+                    {hub ? ` ×${hub.lines}` : ""}
+                  </text>
+                )}
               </g>
             );
           })}
 
-          {/* trains en circulation, orientés dans le sens de la marche, positionnés selon leur progression réelle */}
+          {/* les rames : couleur de leur ligne, une traînée derrière elles */}
           {trains.map((t) => {
-            if (!t.line || t.status !== "EN_ROUTE") return null;
-            const from = STATION_COORDS[t.line.departureStation];
-            const to = STATION_COORDS[t.line.arrivalStation];
-            if (!from || !to) return null;
-            /* Position : sur la même courbe que la ligne dessinée, et calculée en
-               continu depuis l'heure de départ — le train glisse au lieu de sauter
-               d'un rafraîchissement à l'autre. */
-            const lineIndex = lines.findIndex((l) => l.id === t.line!.id);
-            const curve = lineCurve(Math.max(0, lineIndex), from, to);
-            const duration = (t.line.durationMinutes ?? 0) * 60_000 * (t.model === "EXPRESS" ? 0.7 : 1);
-            const ratio =
-              t.departedAt && duration > 0
-                ? Math.min(1, Math.max(0, (clock - new Date(t.departedAt).getTime()) / duration))
-                : t.progress / 100;
-            const { x, y, angle } = pointOnCurve(from, curve, to, ratio);
+            const p = trainPos.get(t.id);
+            if (!p) return null;
+            const trail = [1, 2, 3, 4, 5, 6]
+              .map((n) => positionOnRoute(p.route, p.lineIndex, p.direction, Math.max(0, p.ratio - n * 0.018)))
+              .filter((q): q is NonNullable<typeof q> => !!q);
+            const pts = [{ x: p.x, y: p.y }, ...trail];
+            const couchettes = t.model === "COUCHETTES";
+            const isSel = selTrain?.id === t.id;
             return (
-              <g key={t.id} transform={`translate(${x},${y}) rotate(${angle})`}>
-                <circle r="6" fill="rgb(var(--c-navy-950))" stroke="rgb(var(--c-rail-green))" strokeWidth="1.5" opacity="0.9" />
-                <rect x="-4" y="-1.6" width="8" height="3.2" rx="1" fill="rgb(var(--c-rail-green))" />
-                <circle cx="4.5" cy="0" r="1.1" fill="rgb(var(--c-navy-950))" />
+              <g key={t.id} onClick={(e) => { e.stopPropagation(); if (!camera.wasDrag()) { setSelected({ kind: "rame", id: t.id }); } }} style={{ cursor: "pointer" }}>
+                {pts.slice(0, -1).map((q, n) => (
+                  <line key={n} x1={q.x} y1={q.y} x2={pts[n + 1].x} y2={pts[n + 1].y} stroke={p.color} strokeWidth={(2.8 - n * 0.32) * k} strokeLinecap="round" opacity={0.75 - n * 0.12} />
+                ))}
+                <circle cx={p.x} cy={p.y} r={11 * k} fill="transparent" />
+                <circle cx={p.x} cy={p.y} r={6 * k} fill={p.color} opacity="0.35" filter="url(#map-glow)" />
+                {isSel && <circle cx={p.x} cy={p.y} r={9 * k} fill="none" stroke="rgb(var(--c-offwhite))" strokeWidth={1.2 * k} />}
+                <g transform={`translate(${p.x},${p.y}) rotate(${p.angle}) scale(${k})`}>
+                  <rect x="-6" y="-2.5" width="12" height="5" rx="2.5" fill={couchettes ? "rgb(var(--c-navy-900))" : p.color} stroke="rgb(var(--c-offwhite))" strokeWidth="0.8" />
+                  <rect x="2.4" y="-1.4" width="2.4" height="2.8" rx="0.7" fill="rgb(var(--c-offwhite))" />
+                  {couchettes && <circle cx="-2" cy="0" r="1" fill="rgb(var(--c-amber))" />}
+                </g>
               </g>
             );
           })}
 
-          {/* cargaisons en transit, positionnées selon la progression réelle du train assigné */}
+          {/* cargaisons en transit */}
           {activeFreight.map((c) => {
-            const from = STATION_COORDS[c.originStation];
-            const to = STATION_COORDS[c.destinationStation];
-            if (!from || !to) return null;
-            // même principe que pour les trains : progression continue depuis l'heure d'acceptation
-            const ratio = c.acceptedAt
-              ? Math.min(1, Math.max(0, (clock - new Date(c.acceptedAt).getTime()) / (c.durationMinutes * 60_000)))
-              : (c.train?.progress ?? 0) / 100;
-            const x = from.x + (to.x - from.x) * ratio;
-            const y = from.y + (to.y - from.y) * ratio;
+            const a = STATION_COORDS[c.originStation];
+            const b = STATION_COORDS[c.destinationStation];
+            if (!a || !b) return null;
+            const ratio = c.acceptedAt ? Math.min(1, Math.max(0, (clock - new Date(c.acceptedAt).getTime()) / (c.durationMinutes * 60_000))) : (c.train?.progress ?? 0) / 100;
+            const x = a.x + (b.x - a.x) * ratio;
+            const y = a.y + (b.y - a.y) * ratio;
             return (
-              <g key={c.id} transform={`translate(${x},${y})`}>
+              <g key={c.id} transform={`translate(${x},${y}) scale(${k})`} pointerEvents="none">
                 <rect x="-5" y="-5" width="10" height="10" fill="rgb(var(--c-navy-950))" stroke="rgb(var(--c-amber))" strokeWidth="1.5" />
                 <rect x="-2.5" y="-2.5" width="5" height="5" fill="rgb(var(--c-amber))" />
               </g>
             );
           })}
         </svg>
+      </div>
 
-        {/* Colonne de droite : la place laissée par une carte en portrait servait
-            à rien. Elle porte maintenant la légende et le détail des lignes,
-            avec la couleur de chaque tracé — impossible à deviner autrement. */}
-        <aside className="hidden lg:block w-[230px] shrink-0 border-l border-line pl-5">
-          <div className="text-[10px] font-mono2 uppercase tracking-[0.18em] text-slate2 mb-3">Légende</div>
-          <div className="flex flex-col gap-2 text-[11px] font-mono2 text-slate2 uppercase tracking-wide mb-6">
-            <span className="flex items-center gap-2"><span className="w-4 h-0.5 bg-cobalt shrink-0" /> Ligne active</span>
-            <span className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed border-line shrink-0" /> Ligne au repos</span>
-            <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-offwhite border border-cobalt shrink-0" /> Gare desservie</span>
-            <span className="flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-slate2 shrink-0" /> Gare disponible</span>
-            <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full border border-rail-green bg-navy-950 shrink-0" /> Train en circulation</span>
-            <span className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed border-amber shrink-0" /> Trajet de fret</span>
-            <span className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dotted border-slate2 shrink-0" /> Liaison d'un concurrent</span>
-            <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full border border-dashed border-amber shrink-0" /> Affluence en gare</span>
-            <span className="flex items-center gap-2"><span className="w-2.5 h-2.5 rounded-full border border-dashed border-rail-red shrink-0" /> Grève ou travaux</span>
-            <span className="flex items-center gap-2"><span className="w-2 h-2 rotate-45 border border-cobalt shrink-0 ml-0.5 mr-0.5" /> Correspondance</span>
+      {/* ---- panneaux posés sur la carte ---- */}
+
+      {/* en haut à gauche : l'état du réseau, et le tracé */}
+      <div className="absolute top-3 left-3 right-3 md:right-auto flex flex-col gap-2 pointer-events-none">
+        <div className="pointer-events-auto flex flex-wrap items-center gap-x-4 gap-y-1 bg-navy-900/90 border border-line backdrop-blur-sm px-3 py-2 font-mono2 text-[10.5px] uppercase tracking-wide text-slate2">
+          <span className="text-cobalt whitespace-nowrap">{lines.length} ligne{lines.length !== 1 ? "s" : ""}</span>
+          <span className="text-rail-green whitespace-nowrap">{enRouteCount} en circulation</span>
+          {activeFreight.length > 0 && <span className="text-amber whitespace-nowrap">{activeFreight.length} fret{activeFreight.length !== 1 ? "s" : ""}</span>}
+          {night && <span className="text-cobalt whitespace-nowrap">Service de nuit</span>}
+          <button
+            onClick={() => {
+              resetDraw();
+              setSelected(null);
+              setDrawing((d) => !d);
+            }}
+            className={`font-mono2 text-[10.5px] uppercase tracking-[0.12em] px-2.5 py-1 border transition-colors ${drawing ? "border-cobalt text-cobalt bg-cobalt/10" : "border-line text-offwhite hover:border-slate2"}`}
+          >
+            {drawing ? "Annuler le tracé" : "Tracer une ligne"}
+          </button>
+        </div>
+        {drawing && (
+          <div className="pointer-events-auto bg-navy-900/95 border border-cobalt/50 backdrop-blur-sm px-3 py-2.5 max-w-[440px]">
+            {!from && <p className="text-xs font-body text-slate2">Touchez la gare de départ.</p>}
+            {from && !to && (
+              <p className="text-xs font-body text-slate2">
+                Départ : <span className="text-offwhite">{from}</span>. Touchez la gare suivante.
+              </p>
+            )}
+            {from && to && draft && (
+              <div className="flex flex-col gap-2">
+                <div className="text-xs font-body text-slate2 leading-relaxed">
+                  {picks.map((n, i) => (
+                    <span key={n}>
+                      {i > 0 && <span className="text-slate2/60"> → </span>}
+                      <span className={i === 0 || i === picks.length - 1 ? "text-offwhite" : "text-cobalt"}>{n}</span>
+                    </span>
+                  ))}
+                  <div className="font-mono2 text-[11px] mt-0.5">
+                    {draft.km} km · <span className="text-amber">{draft.minutes} min</span>
+                    {draft.stops > 0 && <> · {draft.stops} arrêt{draft.stops > 1 ? "s" : ""} <span className="text-rail-green">(+{draft.stops * 20} % de voyageurs)</span></>}
+                  </div>
+                  <div className="text-[11px] text-slate2/80 mt-0.5">Touchez une autre gare pour prolonger ; retouchez la dernière pour l'enlever.</div>
+                </div>
+                <div className="flex gap-2">
+                  <input value={lineName} onChange={(e) => setLineName(e.target.value)} className="flex-1 min-w-0 bg-navy-950 border border-line px-2.5 py-1.5 text-sm font-body text-offwhite focus:border-cobalt outline-none" placeholder="Nom de la ligne (facultatif)" />
+                  <button onClick={createFromMap} disabled={saving} className="bg-cobalt text-onaccent font-mono2 text-[11px] uppercase tracking-[0.12em] px-3 py-1.5 hover:bg-cobalt/90 disabled:opacity-50">
+                    Ouvrir
+                  </button>
+                  <button onClick={resetDraw} className="font-mono2 text-[11px] uppercase px-2.5 py-1.5 border border-line text-slate2 hover:text-offwhite">
+                    ↺
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
+        )}
+      </div>
 
-          <div className="text-[10px] font-mono2 uppercase tracking-[0.18em] text-slate2 mb-3">Vos lignes</div>
-          {lines.length === 0 ? (
-            <p className="text-[11px] font-body text-slate2">Aucune ligne tracée pour l'instant.</p>
-          ) : (
-            <ul className="flex flex-col gap-2.5">
-              {lines.map((l, i) => {
-                const running = trains.some((t) => t.line?.id === l.id && t.status === "EN_ROUTE");
-                return (
-                  <li key={l.id} className="flex items-start gap-2 text-[11px] font-body">
-                    <span
-                      className="w-3 h-0.5 mt-1.5 shrink-0"
-                      style={{ background: LINE_PALETTE[i % LINE_PALETTE.length] }}
-                    />
+      {/* à droite : vos lignes, repliable */}
+      <div className="absolute top-3 right-3 hidden md:flex flex-col items-end gap-2 max-h-[calc(100%-110px)]">
+        <button onClick={() => setLinesOpen((o) => !o)} className="bg-navy-900/90 border border-line backdrop-blur-sm px-3 py-1.5 font-mono2 text-[10.5px] uppercase tracking-[0.14em] text-slate2 hover:text-offwhite">
+          Vos lignes ({lines.length}) {linesOpen ? "▴" : "▾"}
+        </button>
+        {linesOpen && lines.length > 0 && (
+          <ul className="w-[230px] overflow-y-auto bg-navy-900/90 border border-line backdrop-blur-sm py-1.5">
+            {lines.map((l, i) => {
+              const running = trains.filter((t) => t.line?.id === l.id && t.status === "EN_ROUTE");
+              const a = STATION_COORDS[l.departureStation];
+              const b = STATION_COORDS[l.arrivalStation];
+              return (
+                <li key={l.id}>
+                  <button
+                    onClick={() => a && b && camera.flyTo((a.x + b.x) / 2, (a.y + b.y) / 2, Math.max(cam.zoom, 2.2))}
+                    className="w-full text-left flex items-start gap-2 px-3 py-1.5 hover:bg-navy-950/60"
+                  >
+                    <span className="w-3 h-[3px] mt-[7px] rounded-full shrink-0" style={{ background: LINE_PALETTE[i % LINE_PALETTE.length] }} />
                     <span className="min-w-0">
-                      <span className="block truncate text-offwhite">{l.name}</span>
-                      <span className={running ? "text-rail-green" : "text-slate2"}>
-                        {running ? "en circulation" : "au repos"}
+                      <span className="block truncate text-[12px] font-body text-offwhite">{l.name}</span>
+                      <span className={`text-[10.5px] font-mono2 ${running.length ? "text-rail-green" : "text-slate2"}`}>
+                        {running.length ? `${running.length} rame${running.length > 1 ? "s" : ""} en route` : "sans rame"}
                       </span>
                     </span>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </aside>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
-      {/* même légende, à plat, quand la colonne ne tient pas */}
-      <div className="lg:hidden flex flex-wrap items-center gap-x-5 gap-y-2 px-4 py-2.5 border-t border-line text-[10px] font-mono2 text-slate2 uppercase tracking-wide">
-        <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 bg-cobalt" /> Ligne active</span>
-        <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 border-t border-dashed border-line" /> Ligne au repos</span>
-        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-offwhite border border-cobalt" /> Gare desservie</span>
-        <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-slate2" /> Gare disponible</span>
-        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full border border-rail-green bg-navy-950" /> Train en circulation</span>
-        <span className="flex items-center gap-1.5"><span className="w-4 h-0.5 border-t border-dashed border-amber" /> Trajet de fret</span>
+      {/* en bas à gauche : échelle et légende */}
+      <div className="absolute bottom-3 left-3 flex flex-col items-start gap-2">
+        {legendOpen && (
+          <div className="bg-navy-900/95 border border-line backdrop-blur-sm px-3 py-2.5 flex flex-col gap-1.5 text-[10.5px] font-mono2 text-slate2 uppercase tracking-wide">
+            <span className="flex items-center gap-2"><span className="w-4 h-[3px] rounded-full bg-cobalt shrink-0" /> Ligne en service</span>
+            <span className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed border-slate2 shrink-0" /> Ligne sans rame</span>
+            <span className="flex items-center gap-2"><span className="w-3 h-1.5 rounded-full bg-cobalt border border-offwhite shrink-0" /> Rame en circulation</span>
+            <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-offwhite border border-cobalt shrink-0" /> Gare desservie</span>
+            <span className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed border-amber shrink-0" /> Trajet de fret</span>
+            <span className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dotted border-slate2 shrink-0" /> Liaison d'un concurrent</span>
+            <span className="flex items-center gap-2"><span className="px-1 text-[9px] leading-[13px] border border-amber text-amber shrink-0">+35 %</span> Affluence en gare</span>
+            <span className="flex items-center gap-2"><span className="w-2 h-2 rotate-45 border border-cobalt shrink-0 mx-0.5" /> Correspondance</span>
+          </div>
+        )}
+        <div className="flex items-end gap-3">
+          <button onClick={() => setLegendOpen((o) => !o)} className="bg-navy-900/90 border border-line backdrop-blur-sm px-2.5 py-1.5 font-mono2 text-[10.5px] uppercase tracking-[0.14em] text-slate2 hover:text-offwhite">
+            Légende
+          </button>
+          <div className="pointer-events-none flex flex-col items-start" aria-label={`Échelle : ${scaleBar.km} km`}>
+            <span className="font-mono2 text-[10px] text-slate2 mb-0.5">{scaleBar.km} km</span>
+            <span className="block h-1.5 border-x border-b border-slate2" style={{ width: scaleBar.px }} />
+          </div>
+        </div>
       </div>
 
-      {lines.length === 0 && (
-        <p className="text-center text-sm text-slate2 font-body py-4 border-t border-line">
-          Aucune ligne tracée pour l'instant — la carte se remplira au fil de vos créations.
-        </p>
+      {/* en bas à droite : zoom, recentrer, plein écran */}
+      <div className="absolute bottom-3 right-3 flex flex-col gap-1.5">
+        <button onClick={() => camera.zoomAt(1.5)} className={ctrl} aria-label="Zoomer" title="Zoomer">+</button>
+        <button onClick={() => camera.zoomAt(1 / 1.5)} className={ctrl} aria-label="Dézoomer" title="Dézoomer">−</button>
+        <button onClick={() => { setFollow(null); camera.reset(); }} className={ctrl} aria-label="Recentrer sur la France" title="Recentrer">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" /></svg>
+        </button>
+        <button onClick={toggleFullscreen} className={`${ctrl} hidden md:flex`} aria-label="Plein écran" title="Plein écran">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+        </button>
+      </div>
+
+      {/* fiche de gare ou de rame, accrochée à son point sur la carte */}
+      {cardAnchor && (selStation || selTrain) && !drawing && (
+        <MapCard
+          anchor={cardAnchor}
+          frame={camera.size}
+          onClose={() => { setSelected(null); setFollow(null); }}
+        >
+          {selStation && (() => {
+            const st = stationOf(network, selStation);
+            const mine = lines.filter((l) => l.departureStation === selStation || l.arrivalStation === selStation);
+            const hub = network?.hubs?.find((h) => h.station === selStation);
+            const rivals = (network?.pairs ?? []).filter((p) => (p.a === selStation || p.b === selStation) && !p.mine).length;
+            return (
+              <>
+                <div className="font-mono2 text-[10px] uppercase tracking-[0.18em] text-slate2">{st?.sizeLabel ?? "Gare"}{isIntl(selStation) ? " · à l'étranger" : ""}</div>
+                <div className="font-display text-xl leading-tight">{selStation}</div>
+                <div className="font-mono2 text-[11.5px] text-slate2 mt-1">
+                  Demande <span className={st && st.demand > 1 ? "text-rail-green" : st && st.demand < 1 ? "text-rail-red" : "text-offwhite"}>×{(st?.demand ?? 1).toFixed(2).replace(".", ",")}</span>
+                  {hub && <> · correspondance <span className="text-cobalt">+{hub.bonus} %</span></>}
+                </div>
+                {(st?.events ?? []).map((e) => (
+                  <div key={e.label} className={`text-[12px] font-body mt-1 ${e.multiplier > 1 ? "text-amber" : "text-rail-red"}`}>
+                    {e.label} : {e.multiplier > 1 ? "+" : "−"}{Math.abs(Math.round((e.multiplier - 1) * 100))} % jusqu'à {new Date(e.endsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  </div>
+                ))}
+                <div className="text-[12px] font-body text-slate2 mt-1.5">
+                  {mine.length ? `${mine.length} de vos lignes y passent` : "Aucune de vos lignes ne la dessert"}
+                  {rivals > 0 && ` · ${rivals} liaison${rivals > 1 ? "s" : ""} concurrente${rivals > 1 ? "s" : ""}`}
+                </div>
+                <button
+                  onClick={() => { setSelected(null); resetDraw(); setDrawing(true); setPicks([selStation]); }}
+                  className="mt-2.5 w-full bg-cobalt text-onaccent font-mono2 text-[10.5px] uppercase tracking-[0.12em] py-1.5 hover:bg-cobalt/90"
+                >
+                  Tracer une ligne d'ici
+                </button>
+              </>
+            );
+          })()}
+          {selTrain && (() => {
+            const p = trainPos.get(selTrain.id);
+            return (
+              <>
+                <div className="font-mono2 text-[10px] uppercase tracking-[0.18em] text-slate2">{selTrain.model.replace("_", " ").toLowerCase()}</div>
+                <div className="font-display text-xl leading-tight">{selTrain.name}</div>
+                {selTrain.line && p && (
+                  <div className="text-[12.5px] font-body text-offwhite mt-1">
+                    {p.stoppedAt ? <>À quai à <b>{p.stoppedAt}</b></> : <>Vers <b>{p.next}</b></>}
+                    <span className="text-slate2"> · terminus {p.direction === 1 ? selTrain.line.departureStation : selTrain.line.arrivalStation}</span>
+                  </div>
+                )}
+                {selTrain.lastSeats ? (
+                  <div className="text-[11.5px] font-mono2 text-slate2 mt-1">
+                    Dernier trajet : {selTrain.lastPassengers ?? 0}/{selTrain.lastSeats} voyageurs
+                  </div>
+                ) : null}
+                <div className="h-1 bg-line mt-2">
+                  <div className="h-full bg-rail-green" style={{ width: `${Math.round((p?.ratio ?? 0) * 100)}%` }} />
+                </div>
+                <div className="flex justify-between font-mono2 text-[11px] text-slate2 mt-1">
+                  <span>{Math.round((p?.ratio ?? 0) * 100)} % du trajet</span>
+                  <span className={selTrain.wear >= 70 ? "text-rail-red" : ""}>usure {selTrain.wear} %</span>
+                </div>
+                <button
+                  onClick={() => setFollow((f) => (f === selTrain.id ? null : selTrain.id))}
+                  className={`mt-2.5 w-full font-mono2 text-[10.5px] uppercase tracking-[0.12em] py-1.5 border ${follow === selTrain.id ? "border-rail-green text-rail-green bg-rail-green/10" : "border-line text-offwhite hover:border-slate2"}`}
+                >
+                  {follow === selTrain.id ? "Suivi en cours" : "Suivre la rame"}
+                </button>
+              </>
+            );
+          })()}
+        </MapCard>
       )}
+
+      {lines.length === 0 && !drawing && (
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-16 bg-navy-900/95 border border-line px-4 py-2.5 text-[12.5px] font-body text-slate2 text-center max-w-[90%]">
+          Aucune ligne pour l'instant : touchez une gare, puis « Tracer une ligne d'ici ».
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Une fiche flottante accrochée à un point de la carte, qui ne sort jamais du cadre. */
+function MapCard({ anchor, frame, onClose, children }: { anchor: { x: number; y: number }; frame: { w: number; h: number }; onClose: () => void; children: React.ReactNode }) {
+  const W = 240;
+  const left = Math.min(Math.max(anchor.x + 16, 8), frame.w - W - 8);
+  const top = Math.min(Math.max(anchor.y - 40, 60), frame.h - 230);
+  return (
+    <div className="absolute z-10 bg-navy-900 border border-line border-t-2 border-t-cobalt shadow-2xl px-3.5 py-3 tutorial-step-enter" style={{ left, top, width: W }} onPointerDown={(e) => e.stopPropagation()}>
+      <button onClick={onClose} className="absolute top-1.5 right-2 text-slate2 hover:text-offwhite text-lg leading-none" aria-label="Fermer">×</button>
+      {children}
     </div>
   );
 }
@@ -4618,6 +5828,8 @@ function SettingsSection({
 
       <NotificationsPanel />
 
+      <InstallPanel />
+
       {referral && <ReferralPanel referral={referral} />}
 
       <div className="border-t border-line pt-6">
@@ -4634,6 +5846,7 @@ function SettingsSection({
           {[
             ["Vue cabine", "Suivez chacune de vos rames en direct, de profil, avec la météo du réseau et votre livrée"],
             ["Veille concurrentielle", "Le détail de chaque concurrent sur vos lignes, et une notification quand l'un d'eux arrive ou vous passe devant"],
+            ["Licence internationale en avance", "Achetez la licence et ouvrez vos lignes vers Londres, Bruxelles ou Milan une semaine avant tout le monde"],
             ["Appels d'offres en avance", "Les marchés de la semaine suivante dès le dimanche, le nombre d'offres déjà déposées, et une notification du résultat"],
             ["Événements de gare annoncés", "Salons, festivals, grèves : vous les voyez une heure avant qu'ils commencent"],
             ["Rentabilité détaillée", "Recettes, pannes et bénéfice à l'heure de chaque ligne et de chaque rame"],

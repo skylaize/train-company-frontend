@@ -21,6 +21,11 @@ export const EMBLEM_LABELS: Record<string, string> = {
   sapin: "Sapin de Noël",
   flocon: "Flocon",
   soleil: "Soleil d'été",
+  // 1.7
+  lanterne: "Lanterne Belle Époque",
+  fleche: "Flèche de la grande vitesse",
+  aiguillage: "Aiguillage",
+  sifflet: "Sifflet du chef de gare",
 };
 
 export function Emblem({ id, size = 14, className = "" }: { id: string; size?: number; className?: string }) {
@@ -137,6 +142,36 @@ export function Emblem({ id, size = 14, className = "" }: { id: string; size?: n
         <svg {...common}>
           <circle cx="8" cy="8" r="3" />
           <path d="M8 1.4v2M8 12.6v2M1.4 8h2M12.6 8h2M3.3 3.3l1.4 1.4M11.3 11.3l1.4 1.4M3.3 12.7l1.4-1.4M11.3 4.7l1.4-1.4" />
+        </svg>
+      );
+    case "lanterne":
+      return (
+        <svg {...common}>
+          <path d="M6 2.2h4M8 2.2v1.6M5.2 3.8h5.6l-.8 7.4H6z" />
+          <path d="M6 11.2h4v1.4H6zM8 6.2v2.6" />
+          <path d="M4.6 14h6.8" />
+        </svg>
+      );
+    case "fleche":
+      return (
+        <svg {...common}>
+          <path d="M1.8 11.5h8.6c1.8 0 3.2-.6 3.8-1.8L15 8.4H6.6" />
+          <path d="M3 8.4h1.8M1.8 5.6h6" />
+        </svg>
+      );
+    case "aiguillage":
+      return (
+        <svg {...common}>
+          <path d="M3 14.2V1.8M3 9.5c0-3 1.8-4.6 6.6-5.4l4-.7" />
+          <path d="M1.6 12.4h2.8M1.6 9h2.8M1.6 5.6h2.8M6.4 7l1 1.6M9.6 5.6l.6 1.8" />
+        </svg>
+      );
+    case "sifflet":
+      return (
+        <svg {...common}>
+          <path d="M2 6.4h7.4a3.6 3.6 0 1 1-3.4 4.8H4.6A2.6 2.6 0 0 1 2 8.6z" />
+          <circle cx="9.6" cy="10" r="1.2" />
+          <path d="M12.6 3.6l1.6-1.2M13.6 6l1.8-.4" />
         </svg>
       );
     default:

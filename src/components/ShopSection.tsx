@@ -4,6 +4,7 @@ import { useToast } from "../context/ToastContext";
 import { Emblem, EMBLEM_LABELS } from "./Emblem";
 import { applyTheme, ThemeId, THEMES } from "../theme";
 import { ShopShowroom, ShopTile, ShowroomCompany as PreviewCompany } from "./ShopShowroom";
+import { Plate, PLATE_LABELS } from "./Plate";
 
 /* ============================================================
    Boutique.
@@ -15,7 +16,7 @@ import { ShopShowroom, ShopTile, ShowroomCompany as PreviewCompany } from "./Sho
 
 interface ShopItem {
   id: string;
-  kind: "LIVREES" | "EMBLEMES" | "TITRES" | "THEME" | "CABINE" | "SAISON";
+  kind: "LIVREES" | "EMBLEMES" | "TITRES" | "THEME" | "CABINE" | "SAISON" | "COFFRET" | "PLAQUE";
   name: string;
   description: string;
   priceCents: number;
@@ -24,6 +25,9 @@ interface ShopItem {
   titles?: string[];
   theme?: string;
   cabSkins?: string[];
+  plates?: string[];
+  isNew?: boolean;
+  worthCents?: number;
   owned: boolean;
   // 1.5 : édition limitée de saison
   season?: string;
@@ -34,8 +38,8 @@ interface ShopItem {
 interface ShopData {
   enabled: boolean;
   items: ShopItem[];
-  equipped: { emblem: string | null; title: string | null; theme: string; livery: string; cabSkin?: string | null };
-  unlocked: { emblems: string[]; titles: string[]; themes: string[]; liveries: string[]; cabSkins?: string[] };
+  equipped: { emblem: string | null; title: string | null; theme: string; livery: string; cabSkin?: string | null; plate?: string | null };
+  unlocked: { emblems: string[]; titles: string[]; themes: string[]; liveries: string[]; cabSkins?: string[]; plates?: string[] };
   nextSeason?: { name: string; itemName: string; startsAt: string } | null;
 }
 
@@ -46,6 +50,10 @@ function daysUntil(iso: string) {
 export const CAB_SKIN_LABELS: Record<string, string> = {
   vapeur: "Locomotive à vapeur",
   micheline: "Micheline",
+  // 1.7
+  pullman: "Voitures Pullman",
+  duplex: "Rame à deux niveaux",
+  "grande-vitesse": "Rame à grande vitesse",
 };
 
 /* Petite silhouette du matériel de collection, pour voir ce qu'on achète. */
@@ -62,6 +70,39 @@ function CabSkinPreview({ id }: { id: string }) {
         <rect x="47" y="12" width="14" height="9" fill="#2a3040" />
         <circle cx="16" cy="22" r="3.4" fill="#c99a3e" /><circle cx="27" cy="22" r="3.4" fill="#c99a3e" />
         <circle cx="40" cy="23" r="2.4" fill="#c99a3e" /><circle cx="52" cy="23" r="2.2" fill="#555" /><circle cx="58" cy="23" r="2.2" fill="#555" />
+      </svg>
+    );
+  }
+  if (id === "pullman") {
+    return (
+      <svg width="64" height="28" viewBox="0 0 64 28" aria-label="Voitures Pullman" role="img">
+        <path d="M3 8 Q32 2 61 8 V21 H3 Z" fill="#5b1e2d" />
+        <rect x="5" y="9" width="54" height="6" fill="#e9dcc0" stroke="#d9a441" strokeWidth=".8" />
+        {[8, 16, 24, 32, 40, 48].map((x) => <rect key={x} x={x} y="10" width="5" height="4" fill="#3b2f2a" />)}
+        <path d="M5 18.5 H59" stroke="#d9a441" strokeWidth=".8" />
+        <circle cx="13" cy="23" r="2.4" fill="#333" /><circle cx="51" cy="23" r="2.4" fill="#333" />
+      </svg>
+    );
+  }
+  if (id === "duplex") {
+    return (
+      <svg width="64" height="28" viewBox="0 0 64 28" aria-label="Rame à deux niveaux" role="img">
+        <path d="M3 3 H44 Q60 6 61 22 H3 Z" fill="#e7eaee" />
+        <rect x="3" y="12" width="56" height="2" fill="#4f7fa3" />
+        <rect x="3" y="19" width="58" height="1.6" fill="#4f7fa3" />
+        {[6, 13, 20, 27, 34].map((x) => <g key={x}><rect x={x} y="5" width="5" height="4" fill="#2b3a4f" /><rect x={x} y="15" width="5" height="3" fill="#2b3a4f" /></g>)}
+        <circle cx="12" cy="24" r="2.4" fill="#333" /><circle cx="50" cy="24" r="2.4" fill="#333" />
+      </svg>
+    );
+  }
+  if (id === "grande-vitesse") {
+    return (
+      <svg width="64" height="28" viewBox="0 0 64 28" aria-label="Rame à grande vitesse" role="img">
+        <path d="M2 11 H30 C48 11 58 15 62 21 H2 Z" fill="#d5dbe1" />
+        <rect x="2" y="17" width="54" height="1.8" fill="#c0392b" />
+        <rect x="5" y="13" width="18" height="2.6" fill="#2b3a4f" />
+        <path d="M36 12.5 L44 13.5 L47 16 H36 Z" fill="#1b2638" />
+        <circle cx="10" cy="23" r="2.2" fill="#333" /><circle cx="44" cy="23" r="2.2" fill="#333" />
       </svg>
     );
   }
@@ -185,7 +226,10 @@ export function ShopSection({
   // éditions limitées d'abord, puis ce qu'on n'a pas encore, puis le reste
   const sorted = [...data.items].sort(
     (a, b) =>
-      Number(b.kind === "SAISON" && !b.owned) - Number(a.kind === "SAISON" && !a.owned) || Number(a.owned) - Number(b.owned)
+      Number(b.kind === "SAISON" && !b.owned) - Number(a.kind === "SAISON" && !a.owned) ||
+      Number(a.owned) - Number(b.owned) ||
+      Number(Boolean(b.isNew)) - Number(Boolean(a.isNew)) ||
+      Number(b.kind === "COFFRET") - Number(a.kind === "COFFRET")
   );
   const showcased = sorted.find((i) => i.id === selectedId) ?? sorted[0] ?? null;
 
@@ -209,7 +253,7 @@ export function ShopSection({
       {showcased && (
         <ShopShowroom
           item={showcased}
-          company={{ ...me, liveryColor: data.equipped.livery || me.liveryColor, emblem: data.equipped.emblem, title: data.equipped.title, cabSkin: data.equipped.cabSkin ?? null, theme: data.equipped.theme }}
+          company={{ ...me, liveryColor: data.equipped.livery || me.liveryColor, emblem: data.equipped.emblem, title: data.equipped.title, cabSkin: data.equipped.cabSkin ?? null, theme: data.equipped.theme, plate: data.equipped.plate ?? null }}
           cabLabels={CAB_SKIN_LABELS}
           enabled={data.enabled}
           busy={busy !== null}
@@ -235,7 +279,7 @@ export function ShopSection({
       </div>
 
       {/* titres de carrière ou de parrainage : à porter même sans rien avoir acheté */}
-      {(owned.length > 0 || data.unlocked.titles.length > 0) && (
+      {(owned.length > 0 || data.unlocked.titles.length > 0 || (data.unlocked.plates?.length ?? 0) > 0) && (
         <section className="border-t border-line pt-6">
           <h2 className="font-display text-xl mb-1">Ce que vous portez</h2>
           <p className="text-[12.5px] text-slate2 font-body mb-5">
@@ -320,6 +364,31 @@ export function ShopSection({
                   >
                     <CabSkinPreview id={c} />
                     {CAB_SKIN_LABELS[c] ?? c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(data.unlocked.plates?.length ?? 0) > 0 && (
+            <div className="mb-6">
+              <h3 className="font-mono2 text-[11px] text-slate2 uppercase tracking-[0.14em] mb-2">Plaque au classement</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => equip({ plate: null }, "Plaque retirée")}
+                  className={`px-3 py-2 border font-mono2 text-[11px] uppercase ${!data.equipped.plate ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}
+                >
+                  Aucune
+                </button>
+                {data.unlocked.plates!.map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => equip({ plate: p }, `Plaque ${PLATE_LABELS[p]?.toLowerCase() ?? p} posée`)}
+                    className={`px-2.5 py-1.5 border ${data.equipped.plate === p ? "border-cobalt" : "border-line hover:border-slate2"}`}
+                  >
+                    <Plate plate={p}>
+                      <span className="font-body text-[12.5px]">{me.name}</span>
+                    </Plate>
                   </button>
                 ))}
               </div>

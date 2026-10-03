@@ -377,3 +377,35 @@ tbody tr:nth-child(n+6) { animation-delay: 0.16s; }
   backface-visibility: hidden;
 }
 
+
+/* 1.7 : « +48 pi. » qui monte au-dessus de la trésorerie */
+@keyframes gain-pop {
+  0% { opacity: 0; transform: translateY(8px); }
+  15% { opacity: 1; transform: translateY(0); }
+  75% { opacity: 1; transform: translateY(-6px); }
+  100% { opacity: 0; transform: translateY(-14px); }
+}
+.gain-pop { animation: gain-pop 2.6s ease-out forwards; }
+
+/* 1.7 : le fil du réseau défile comme un tableau d'affichage */
+@keyframes ticker-in {
+  from { opacity: 0; transform: translateY(70%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.ticker-in { animation: ticker-in 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .gain-pop, .ticker-in { animation: none; }
+}
+
+/* 1.7 : les tableaux prennent l'allure d'un tableau des départs — bandeau
+   d'en-tête plein, première et dernière colonnes décollées du bord. Sélecteurs
+   sans poids (:where) : une classe posée sur une cellule garde toujours le dernier mot. */
+:where(main table thead tr) {
+  background: rgb(var(--c-navy-900) / 0.85);
+}
+:where(main table th:first-child, main table td:first-child) {
+  padding-left: 0.75rem;
+}
+:where(main table th:last-child, main table td:last-child) {
+  padding-right: 0.75rem;
+}

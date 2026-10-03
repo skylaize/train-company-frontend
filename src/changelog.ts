@@ -1,4 +1,6 @@
-export const CURRENT_VERSION = "1.5.0";
+import { RELEASE_171 } from "./release";
+
+export const CURRENT_VERSION = RELEASE_171 ? "1.7.1" : "1.7.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -12,7 +14,73 @@ export interface ChangelogEntry {
 // à partir de maintenant (la version 1.0.0 ci-dessous est le tout premier lancement,
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
-export const CHANGELOG: ChangelogEntry[] = [
+const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "1.7.1",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Vidéos récompensées : regardez une publicité jusqu'au bout et touchez des pièces, jusqu'à cinq fois par jour. La récompense grandit avec votre compagnie (15 % d'une heure de recettes, de 20 à 400 pi.). C'est facultatif : rien ne s'interrompt pour une publicité" },
+      { type: "nouveau", text: "Une bannière discrète en bas de quelques pages de consultation (classement, finances, progression, appels d'offres, cours) — jamais sur la carte, la flotte, la vue cabine ni pendant les premiers pas" },
+      { type: "nouveau", text: "Boutique : le Coffret Belle Époque (voitures Pullman bordeaux filetées d'or, livrée, emblème de la lanterne et titre), le Coffret Grande Vitesse (rame au long nez profilé, livrée argent, emblème de la flèche et titre), la rame à deux niveaux, et les emblèmes de l'atelier" },
+      { type: "nouveau", text: "Plaques d'honneur : votre nom encadré au classement, en laiton gravé, en émail bleu ou en or fin, vu par tous les joueurs. À essayer dans la vitrine de la boutique" },
+      { type: "nouveau", text: "Billet sans pub : 1,99 € une fois pour toutes, et plus aucune bannière. Le bouton est juste au-dessus de la bannière. Si vous passez ensuite au Premium, il ne vous coûte plus qu'à partir de 4 €" },
+      { type: "nouveau", text: "Premium — Aucune publicité : ni bannière, ni script publicitaire chargé tant que vous ne demandez pas vous-même une vidéo" },
+      { type: "ameliore", text: "Le résumé du jour tient sur une ligne : le solde net, les trajets, les livraisons et les incidents, avec le détail des recettes et dépenses à déplier" },
+    ],
+  },
+  {
+    version: "1.7.0",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Arrêts intermédiaires : une ligne peut desservir jusqu'à quatre gares entre ses deux terminus. Chaque arrêt amène 20 % de voyageurs en plus et coûte une minute à quai. Sur la carte, on trace une ligne gare après gare" },
+      { type: "nouveau", text: "Aller-retour : une rame fait l'aller puis le retour, et la carte, le tableau des rames et la vue cabine la montrent dans son vrai sens de marche, arrêt par arrêt" },
+      { type: "nouveau", text: "Places et remplissage : chaque rame a un nombre de places (400 pour une Standard). Les voyageurs qui ne trouvent pas de place restent à quai, et plusieurs rames sur une même ligne se partagent la clientèle. Le tableau des lignes montre le remplissage de chacune, le tableau des rames les voyageurs du dernier trajet" },
+      { type: "nouveau", text: "Prix du billet : réglable ligne par ligne, de ×0,6 à ×2. Plus cher, chaque voyageur rapporte plus mais il en vient moins. Le jeu indique le prix qui remplit juste vos rames" },
+      { type: "nouveau", text: "Composition des rames : attelez jusqu'à trois voitures — 2de classe (+100 places), 1re classe (+60 places payées 1,8 fois) ou voiture-bar (+8 % de recette). Chaque voiture ralentit la rame de 3 %" },
+      { type: "nouveau", text: "Infrastructures : achetez des gares (leurs commerces encaissent à chaque train qui s'y arrête, les autres compagnies y paient une redevance de quai, vos propres trajets y rapportent plus), ouvrez des ateliers régionaux (usure −25 % sur les lignes qui y passent) et électrifiez vos lignes (10 % plus rapides, usure −20 %). Une gare peut vous être rachetée au prix fort par un concurrent" },
+      { type: "nouveau", text: "Banque : empruntez jusqu'à la moitié de la valeur de votre compagnie, sur un, trois ou sept jours. Remboursement automatique chaque heure, et la moitié des intérêts restants effacée si vous soldez en avance. Une échéance impayée coûte une pénalité et un point de réputation" },
+      { type: "nouveau", text: "Bourse : chaque compagnie est cotée en 1000 actions. Achetez celles des autres (10 % au plus par compagnie), touchez des dividendes chaque soir à 20 h, revendez quand le cours a monté" },
+      { type: "nouveau", text: "Rapport de la semaine : entrées, sorties, résultat d'exploitation, recettes ligne par ligne et comparaison avec la semaine d'avant. Une notification le lundi matin" },
+      { type: "nouveau", text: "Heures de pointe : les voyageurs ne viennent plus à la même heure toute la journée. Beaucoup de monde de 7 h à 9 h et de 17 h à 19 h, moins l'après-midi, peu la nuit (les rames couchettes gardent leur service de nuit). Sur la journée, une ligne amène autant de voyageurs qu'avant, mais une rame trop petite déborde à la pointe et roule à moitié vide au creux. La page Lignes montre l'affluence heure par heure" },
+      { type: "nouveau", text: "Carrière agrandie : quatre grades de plus après la Légende du rail — Bâtisseur de gares, Maître des caténaires, Magnat européen et Empereur du rail. Il faut posséder des gares, ouvrir des ateliers, électrifier ses lignes et passer les six frontières. Chacun donne son nom en titre à afficher au classement" },
+      { type: "nouveau", text: "Premium — Prix automatique : sur les lignes de votre choix, le billet se recale sur le prix qui remplit juste vos rames, à chaque changement d'heure pour suivre la pointe" },
+      { type: "nouveau", text: "Premium — Remplissage heure par heure : la courbe des 24 dernières heures de chaque ligne, l'heure de pointe et les voyageurs restés à quai" },
+      { type: "nouveau", text: "Premium — Bourse : ordres automatiques (acheter sous un cours, vendre au-dessus), exécutés même jeu fermé, et la liste de vos actionnaires" },
+      { type: "nouveau", text: "Premium — Rapport sur quatre semaines et export en tableur (CSV)" },
+      { type: "nouveau", text: "Premium — Alertes : une gare qui sort de sa protection, une gare rachetée par un concurrent, une échéance que la trésorerie ne couvrira pas" },
+      { type: "nouveau", text: "Premium — Vos gares à vos couleurs sur la carte, et vos voitures de 1re classe peintes à votre livrée dans la vue cabine" },
+      { type: "nouveau", text: "12 nouveaux succès, 100 en tout : omnibus, salle comble, rame longue, chef de gare, fil de contact, atelier régional, bon payeur, actionnaire, heure de pointe, heures creuses, bâtisseur et empereur du rail" },
+      { type: "ameliore", text: "Nouvelle interface : le menu et les en-têtes de page prennent les codes de la signalétique de gare — pictogrammes dans leur carré, onglets et tableaux façon tableau des départs" },
+      { type: "ameliore", text: "« Comptes » devient « Finances » : rapport de la semaine, rentabilité, banque, bourse et grand livre au même endroit" },
+      { type: "ameliore", text: "La valeur des compagnies au classement compte les gares, les ateliers et les actions détenues, et retranche ce qui est dû à la banque" },
+    ],
+  },
+  {
+    version: "1.6.0",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Lignes internationales : Londres, Bruxelles, Francfort, Genève, Milan et Barcelone rejoignent la carte. Avec la licence internationale (grade « Baron du rail » et 6 000 pi., une fois pour toutes), vos lignes passent la frontière : recette ×1,6 par trajet, dont 25 % reversés en péage de sillon au réseau étranger" },
+      { type: "nouveau", text: "Trains de nuit : la rame couchettes (dès « Chef de réseau », 900 pi.) roule sur les grandes lignes de 10 minutes et plus. De 22 h à 6 h, heure de Paris, chacun de ses trajets rapporte trois fois plus ; le jour, 20 % de moins qu'une rame assise" },
+      { type: "nouveau", text: "Application installable : Réseau s'installe sur l'écran d'accueil du téléphone ou de l'ordinateur, sans passer par un store. Son icône, sa fenêtre, un écran de démarrage, et les notifications sur iPhone. Le bouton est dans le menu et dans les paramètres" },
+      { type: "nouveau", text: "Décisions : de temps en temps, une situation arrive sur votre bureau. Une grève en gare, une fissure sur une rame, un festival, un maire qui veut sa ligne, un concurrent qui casse les prix… Deux ou trois réponses, chacune avec son prix, et deux heures pour trancher. Sans réponse, le réseau tranche pour vous, rarement en votre faveur. Une notification prévient quand une décision arrive, jamais la nuit" },
+      { type: "nouveau", text: "Le fil du réseau : la barre du haut fait défiler ce qui se passe, vos rames qui arrivent, les lignes que les autres compagnies ouvrent, les salons et les grèves en gare. Et quand l'argent rentre, « +48 pi. » s'affiche au-dessus de la trésorerie" },
+      { type: "nouveau", text: "Premium — Licence internationale en avance : les abonnés peuvent l'acheter dès aujourd'hui, une semaine avant l'ouverture à tous" },
+      { type: "nouveau", text: "11 nouveaux succès, 88 en tout : passeport ferroviaire, passage de frontière, sous la Manche, tour d'Europe, train de nuit, nuit blanche, sur l'écran d'accueil, premiers pas, premier arbitrage, le bureau du directeur et promesse tenue" },
+      { type: "ameliore", text: "Nouveaux joueurs : un vrai écran de fondation (nom, livrée, ce qui vous attend), un guide plus court, trois idées de première ligne, et la liste « Premiers pas » qui mène de la première ligne à la première correspondance. Les rubriques du menu apparaissent quand elles deviennent utiles, et chacune s'explique la première fois qu'on l'ouvre" },
+      { type: "ameliore", text: "Nouvelle carte : elle occupe tout l'écran et se manipule comme celle d'un jeu. On la fait glisser, on zoome à la molette, au pincement ou aux boutons, et plus on s'approche, plus elle montre de gares et de détails. Une gare ou une rame se touche pour ouvrir sa fiche : demande, événements, correspondance, « Tracer une ligne d'ici », ou « Suivre la rame ». Échelle en kilomètres, plein écran, légende et liste des lignes en panneaux repliables" },
+      { type: "ameliore", text: "La carte prend du relief et ses vraies proportions : fleuves, massifs, quadrillage, lignes en trait plein, rames à la couleur de leur ligne qui laissent une traînée, et l'affluence d'une gare affichée en clair (« +35 % »). La nuit, la carte s'assombrit et les villes s'allument" },
+      { type: "nouveau", text: "Premium — En direct : la vue cabine s'installe en tête de votre flotte. Une de vos rames en route, filmée de profil, qui change toutes les vingt secondes, avec sa vitesse et l'heure d'arrivée. Les flèches passent à la suivante, « Agrandir » ouvre la grande vue cabine" },
+      { type: "ameliore", text: "Le nom d'une ligne devient facultatif : elle prend celui de ses deux gares" },
+      { type: "ameliore", text: "Nouvel écran de connexion : une carte, deux onglets, le mot de passe qu'on peut afficher, « Rester connecté », et selon ce qui est activé sur le serveur, « Mot de passe oublié ? », la vérification Cloudflare et la connexion avec Discord ou Google. L'adresse e-mail ne tient plus compte des majuscules" },
+      { type: "ameliore", text: "Les appels d'offres rejoignent le Commerce dans le menu, avec le fret et le cours des marchandises" },
+      { type: "ameliore", text: "Quand une nouvelle version est en ligne, un bandeau propose de recharger la page : plus besoin de fermer l'onglet pour en profiter" },
+      { type: "corrige", text: "Affecter une rame depuis le bas de l'écran pouvait ne rien faire : le menu se fermait avant que le choix ne parte. Et le tableau des rames ne se réordonne plus tout seul à chaque rafraîchissement" },
+      { type: "corrige", text: "Un double clic sur « Réviser » envoyait deux révisions ; le bouton est aussi grisé quand la trésorerie ne suffit pas" },
+      { type: "ameliore", text: "La carte s'ouvre sur l'Europe : le Royaume-Uni, la Belgique, l'Allemagne, la Suisse, l'Italie et l'Espagne entourent la France, avec la Manche, la mer du Nord et la Méditerranée, et les gares étrangères y trouvent leur place. Le formulaire de ligne indique la recette nette d'une ligne internationale et les grandes lignes où une rame couchettes peut rouler" },
+      { type: "ameliore", text: "La vue cabine montre les rames couchettes, rideaux à moitié tirés, et le bandeau du réseau signale le service de nuit" },
+      { type: "ameliore", text: "Grand livre et rentabilité : les péages de sillon et la licence ont leur ligne, et le péage est déduit de ce que rapporte une ligne internationale" },
+    ],
+  },
   {
     version: "1.5.0",
     date: "Septembre 2026",
@@ -166,3 +234,6 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
 ];
+
+// la 1.7.1 n'apparaît qu'une fois sortie (src/release.ts)
+export const CHANGELOG: ChangelogEntry[] = ALL_ENTRIES.filter((e) => RELEASE_171 || e.version !== "1.7.1");

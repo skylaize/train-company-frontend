@@ -11,6 +11,9 @@ export function createCabScene(ctx) {
     weather: "clair", livery: "#4f7fa3", express: false,
     v: 0, s: 0, dep: "", arr: "", depDist: 1e9, arrDist: 1e9,
     skin: null as string | null, // matériel de collection (boutique) : "vapeur" | "micheline" | null
+    sleeper: false, // 1.6 : rame couchettes, fenêtres de compartiments aux rideaux tirés
+    cars: [] as string[], // 1.7 : voitures ajoutées (SECONDE, PREMIERE, BAR), en queue de rame
+    firstLivery: false, // 1.7 — Premium : la voiture de 1re classe peinte à la livrée
   };
   const puffs = []; // fumée de la locomotive à vapeur
   const hill = (x, seed, amp, freq) =>
@@ -145,21 +148,159 @@ export function createCabScene(ctx) {
     }
   }
 
+  /* 1.7 — matériel de collection de la boutique */
+
+  // phare commun aux matériels de collection
+  function headlight(fx, fy, pal) {
+    if (!pal.light) return;
+    const g = ctx.createRadialGradient(fx, fy, 1, fx, fy, 140);
+    g.addColorStop(0, "rgba(255,240,200,.7)"); g.addColorStop(1, "rgba(255,240,200,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(fx, fy);
+    ctx.lineTo(fx + 220, fy - 40); ctx.lineTo(fx + 220, fy + 30); ctx.closePath(); ctx.fill();
+  }
+  function bogies(cx, w, base, u) {
+    ctx.fillStyle = "#1a1f28";
+    for (const bx of [cx + w * 0.18, cx + w * 0.82]) {
+      ctx.fillRect(bx - 16 * u, base, 32 * u, 6 * u);
+      for (const k of [-9, 9]) { ctx.beginPath(); ctx.arc(bx + k * u, base + 7 * u, 4.5 * u, 0, Math.PI * 2); ctx.fill(); }
+    }
+  }
+
+  // voitures Pullman : caisse bordeaux, bandeau crème, filets dorés, petites fenêtres à lampes
+  function drawPullman(x, y, t, pal) {
+    const W = sc.W;
+    const u = Math.min(1.25, W / 900);
+    const bob = Math.sin(t * 8) * 0.5 * Math.min(1, sc.v / 200);
+    const carW = Math.min(220, W * 0.2), carH = 50 * u, gap = 5;
+    const n = 3, total = carW * n + gap * (n - 1);
+    let cx = x - total / 2;
+    for (let i = 0; i < n; i++) {
+      const loco = i === n - 1;
+      const top = y - carH - 10 + bob, base = top + carH;
+      // toit arrondi
+      ctx.fillStyle = "#2a1a1e";
+      ctx.beginPath(); ctx.moveTo(cx, top + 6 * u); ctx.quadraticCurveTo(cx + carW / 2, top - 7 * u, cx + carW, top + 6 * u); ctx.lineTo(cx + carW, top + 8 * u); ctx.lineTo(cx, top + 8 * u); ctx.fill();
+      ctx.fillStyle = "#5b1e2d"; ctx.fillRect(cx, top + 6 * u, carW, carH - 6 * u);
+      ctx.fillStyle = "#e9dcc0"; ctx.fillRect(cx + 4 * u, top + 11 * u, carW - 8 * u, 17 * u);
+      ctx.strokeStyle = "#d9a441"; ctx.lineWidth = 1.2;
+      ctx.strokeRect(cx + 3 * u, top + 10 * u, carW - 6 * u, 19 * u);
+      ctx.beginPath(); ctx.moveTo(cx + 3 * u, base - 8 * u); ctx.lineTo(cx + carW - 3 * u, base - 8 * u); ctx.stroke();
+      // fenêtres et petites lampes de table
+      const nw = loco ? 3 : 7, ww = (carW - 20 * u) / nw - 4 * u;
+      for (let k = 0; k < nw; k++) {
+        const wx = cx + 10 * u + k * (ww + 4 * u);
+        ctx.fillStyle = pal.light ? "#ffd892" : "#3b2f2a"; ctx.fillRect(wx, top + 13 * u, ww, 12 * u);
+        if (pal.light) { ctx.fillStyle = "#fff1c7"; ctx.beginPath(); ctx.arc(wx + ww / 2, top + 21 * u, 1.6 * u, 0, Math.PI * 2); ctx.fill(); }
+      }
+      if (!loco) {
+        // inscription dorée sur la caisse
+        ctx.fillStyle = "#d9a441"; ctx.font = `600 ${Math.max(7, 7.5 * u)}px serif`;
+        const label = "PULLMAN"; ctx.fillText(label, cx + carW / 2 - ctx.measureText(label).width / 2, base - 10.5 * u);
+      } else {
+        ctx.fillStyle = "#2a1a1e"; ctx.beginPath(); ctx.moveTo(cx + carW, top + 6 * u); ctx.quadraticCurveTo(cx + carW + 16 * u, top + 20 * u, cx + carW + 6 * u, base); ctx.lineTo(cx + carW, base); ctx.fill();
+        headlight(cx + carW + 8 * u, base - 12 * u, pal);
+      }
+      bogies(cx, carW, base, u);
+      cx += carW + gap;
+    }
+  }
+
+  // rame à deux niveaux, à la livrée de la compagnie
+  function drawDuplex(x, y, t, pal) {
+    const W = sc.W;
+    const u = Math.min(1.25, W / 900);
+    const bob = Math.sin(t * 9) * 0.5 * Math.min(1, sc.v / 200);
+    const carW = Math.min(230, W * 0.21), carH = 66 * u, gap = 6;
+    const n = 3, total = carW * n + gap * (n - 1);
+    let cx = x - total / 2;
+    for (let i = 0; i < n; i++) {
+      const loco = i === n - 1;
+      const top = y - carH - 10 + bob, base = top + carH;
+      ctx.fillStyle = pal.light ? "#c9ced6" : "#e7eaee";
+      ctx.beginPath();
+      if (loco) {
+        ctx.moveTo(cx, top + 3); ctx.lineTo(cx + carW * 0.62, top); ctx.quadraticCurveTo(cx + carW + 4 * u, top + carH * 0.35, cx + carW + 4 * u, base); ctx.lineTo(cx, base);
+      } else if (ctx.roundRect) ctx.roundRect(cx, top, carW, carH, 6); else ctx.rect(cx, top, carW, carH);
+      ctx.closePath(); ctx.fill();
+      // bandeaux de livrée entre les niveaux et en bas
+      ctx.fillStyle = sc.livery;
+      ctx.fillRect(cx, top + carH * 0.47, loco ? carW * 0.95 : carW, carH * 0.08);
+      ctx.fillRect(cx, base - carH * 0.12, loco ? carW : carW, carH * 0.07);
+      // deux rangées de fenêtres
+      ctx.fillStyle = pal.light ? "#ffd892" : "#2b3a4f";
+      const nw = loco ? 2 : 6, ww = (carW - 24 * u) / (loco ? 4 : nw) - 4 * u;
+      for (const row of [0.14, 0.6]) for (let k = 0; k < nw; k++) ctx.fillRect(cx + 10 * u + k * (ww + 4 * u), top + carH * row, ww, carH * 0.2);
+      if (loco) { ctx.fillStyle = "#1b2638"; ctx.fillRect(cx + carW * 0.66, top + carH * 0.14, carW * 0.2, carH * 0.22); headlight(cx + carW + 4, base - carH * 0.22, pal); }
+      // pantographe sur la motrice et la première voiture
+      if (loco || i === 0) {
+        ctx.strokeStyle = "#3a4250"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx + carW * 0.3, top); ctx.lineTo(cx + carW * 0.42, top - 14); ctx.lineTo(cx + carW * 0.54, top); ctx.stroke();
+      }
+      bogies(cx, carW, base, u);
+      cx += carW + gap;
+    }
+  }
+
+  // rame à grande vitesse : long nez profilé, caisse argent, filet à la livrée
+  function drawGrandeVitesse(x, y, t, pal) {
+    const W = sc.W;
+    const u = Math.min(1.25, W / 900);
+    const bob = Math.sin(t * 10) * 0.4 * Math.min(1, sc.v / 200);
+    const carW = Math.min(230, W * 0.2), carH = 42 * u, gap = 3;
+    const n = 3, total = carW * n + gap * (n - 1);
+    let cx = x - total / 2;
+    for (let i = 0; i < n; i++) {
+      const loco = i === n - 1;
+      const top = y - carH - 10 + bob, base = top + carH;
+      ctx.fillStyle = pal.light ? "#b9c1c9" : "#d5dbe1";
+      ctx.beginPath();
+      if (loco) {
+        // nez long et bas, en pente douce
+        ctx.moveTo(cx, top + 2); ctx.lineTo(cx + carW * 0.35, top);
+        ctx.bezierCurveTo(cx + carW * 0.85, top + 2, cx + carW * 1.25, top + carH * 0.55, cx + carW * 1.3, base);
+        ctx.lineTo(cx, base);
+      } else if (ctx.roundRect) ctx.roundRect(cx, top, carW, carH, 8); else ctx.rect(cx, top, carW, carH);
+      ctx.closePath(); ctx.fill();
+      // filet à la livrée qui court sur toute la rame
+      ctx.fillStyle = sc.livery;
+      ctx.fillRect(cx, top + carH * 0.6, loco ? carW * 1.15 : carW + gap, carH * 0.1);
+      ctx.fillStyle = "#28313d"; ctx.fillRect(cx, base - carH * 0.16, loco ? carW * 1.22 : carW + gap, carH * 0.16);
+      // bandeau vitré continu
+      ctx.fillStyle = pal.light ? "#ffd892" : "#2b3a4f";
+      ctx.fillRect(cx + 8 * u, top + carH * 0.22, (loco ? carW * 0.32 : carW - 16 * u), carH * 0.24);
+      if (loco) {
+        ctx.fillStyle = "#1b2638"; ctx.beginPath();
+        ctx.moveTo(cx + carW * 0.62, top + carH * 0.12); ctx.lineTo(cx + carW * 0.86, top + carH * 0.2); ctx.lineTo(cx + carW * 0.94, top + carH * 0.42); ctx.lineTo(cx + carW * 0.62, top + carH * 0.42); ctx.closePath(); ctx.fill();
+        headlight(cx + carW * 1.28, base - carH * 0.2, pal);
+        ctx.strokeStyle = "#3a4250"; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(cx + carW * 0.15, top); ctx.lineTo(cx + carW * 0.27, top - 13); ctx.lineTo(cx + carW * 0.39, top); ctx.stroke();
+      }
+      bogies(cx, carW, base, u);
+      cx += carW + gap;
+    }
+  }
+
   function drawTrain(x, y, t, pal) {
     if (sc.skin === "vapeur") return drawSteam(x, y, t, pal);
     if (sc.skin === "micheline") return drawMicheline(x, y, t, pal);
+    if (sc.skin === "pullman") return drawPullman(x, y, t, pal);
+    if (sc.skin === "duplex") return drawDuplex(x, y, t, pal);
+    if (sc.skin === "grande-vitesse") return drawGrandeVitesse(x, y, t, pal);
     const W = sc.W, H = sc.H;
     const bob = Math.sin(t * 9) * 0.6 * Math.min(1, sc.v / 200);
     const col = sc.livery;
-    const cars = sc.express ? 3 : 3;
-    const carW = Math.min(240, W * 0.22), carH = carW * 0.28, gap = 6;
+    // la queue à gauche : voitures ajoutées, puis les deux voitures d'origine, puis la motrice
+    const kinds = [...[...(sc.cars || [])].reverse(), "BASE", "BASE", "LOCO"];
+    const cars = kinds.length;
+    const carW = Math.min(240, (W * 0.66) / cars), carH = Math.min(240, W * 0.22) * 0.28, gap = 6;
     const total = carW * cars + gap * (cars - 1);
     let cx = x - total / 2;
     for (let i = 0; i < cars; i++) {
       const isLoco = i === cars - 1; // la motrice mène, vers la droite
       const top = y - carH - 10 + bob;
-      // caisse
-      ctx.fillStyle = pal.light ? "#c9ced6" : "#e7eaee";
+      // caisse (Premium : la 1re classe entièrement à la livrée de la compagnie)
+      const firstPainted = sc.firstLivery && kinds[i] === "PREMIERE";
+      ctx.fillStyle = firstPainted ? col : pal.light ? "#c9ced6" : "#e7eaee";
       ctx.beginPath();
       if (isLoco) {
         const nose = sc.express ? carH * 1.2 : carH * 0.55;
@@ -171,15 +312,28 @@ export function createCabScene(ctx) {
         ctx.roundRect ? ctx.roundRect(cx, top, carW, carH, 5) : ctx.rect(cx, top, carW, carH);
       }
       ctx.closePath(); ctx.fill();
-      // bande de livrée
-      ctx.fillStyle = col;
+      // bande de livrée (liseré doré sur une 1re classe déjà peinte)
+      ctx.fillStyle = firstPainted ? "#d9a441" : col;
       ctx.fillRect(cx, top + carH * 0.62, isLoco ? carW - 4 : carW, carH * 0.18);
+      // 1.7 : liseré jaune de la 1re classe, voiture-bar marquée
+      const kind = kinds[i];
+      if (kind === "PREMIERE") { ctx.fillStyle = "#d9a441"; ctx.fillRect(cx + 4, top + 3, carW - 8, 3); }
+      if (kind === "BAR") {
+        ctx.fillStyle = "#1b2638";
+        ctx.font = `600 ${Math.max(8, carH * 0.2)}px sans-serif`;
+        ctx.fillText("BAR", cx + carW - 10 - ctx.measureText("BAR").width, top + carH * 0.58);
+      }
       // fenêtres
       const lit = pal.light;
       ctx.fillStyle = lit ? "#ffd892" : "#2b3a4f";
-      const n = isLoco ? 2 : 6;
+      const n = isLoco ? 2 : kind === "BAR" ? 3 : sc.sleeper ? 4 : kind === "PREMIERE" ? 5 : 6;
       const ww = (carW - 24) / (isLoco ? 4 : n) - 4;
       for (let k = 0; k < n; k++) ctx.fillRect(cx + 10 + k * (ww + 4), top + carH * 0.22, ww, carH * 0.26);
+      if (sc.sleeper && !isLoco) {
+        // rideaux à moitié tirés : le haut de chaque compartiment reste sombre
+        ctx.fillStyle = "#1b2638";
+        for (let k = 0; k < n; k++) ctx.fillRect(cx + 10 + k * (ww + 4), top + carH * 0.22, ww, carH * 0.11);
+      }
       if (isLoco) { ctx.fillStyle = "#1b2638"; ctx.fillRect(cx + carW - (sc.express ? carH * 1.05 : carH * 0.5), top + carH * 0.2, carH * 0.4, carH * 0.25); }
       // pantographe
       if (isLoco || i === 0) {

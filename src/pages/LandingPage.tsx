@@ -1,3 +1,4 @@
+import { RELEASE_171 } from "../release";
 import { useEffect, useRef, useState } from "react";
 import { LogoMark, LogoPaths } from "../components/Logo";
 import { InstagramMark } from "../components/InstagramMark";
@@ -98,7 +99,7 @@ const SYSTEMES = [
   { n: "01", t: "Le dépôt", s: "Matériel",
     b: "Deux places pour commencer, aucun plafond. Chaque agrandissement est un chantier, plus long et plus cher que le précédent." },
   { n: "02", t: "Les lignes", s: "Exploitation",
-    b: "Trente-huit gares, de Paris la capitale à La Rochelle. Les grandes gares attirent plus de voyageurs, et sur une ligne partagée, la meilleure compagnie les prend aux autres." },
+    b: "Trente-huit gares en France et six à l'étranger, de Paris à Londres. Les grandes gares attirent plus de voyageurs, et sur une ligne partagée, la meilleure compagnie les prend aux autres." },
   { n: "03", t: "Le fret", s: "Commerce",
     b: "Des contrats qui expirent. Les cargaisons fragiles paient double, mais arrivent parfois en morceaux." },
   { n: "04", t: "L'usure", s: "Entretien",
@@ -110,11 +111,21 @@ const SYSTEMES = [
   { n: "07", t: "La réputation", s: "Image",
     b: "Le rapport entre trajets réussis et incidents. Elle multiplie vos recettes voyageurs, de moitié à plein tarif." },
   { n: "08", t: "La carrière", s: "Progression",
-    b: "Dix grades, d'apprenti exploitant à légende du rail. Chacun exige une série d'objectifs, et les plus hauts se portent comme un titre." },
+    b: "Quatorze grades, d'apprenti exploitant à empereur du rail. Chacun exige une série d'objectifs, et les plus hauts se portent comme un titre." },
   { n: "09", t: "Les appels d'offres", s: "Marchés",
     b: "Chaque semaine, trois régions mettent une liaison en concurrence. La compagnie qui demande la plus petite subvention l'emporte, à condition d'y faire rouler ses rames." },
   { n: "10", t: "Les correspondances", s: "Réseau",
     b: "Une gare où se croisent plusieurs de vos lignes rapporte plus. Dix lignes éparpillées valent moins que dix lignes qui se rejoignent." },
+  { n: "11", t: "L'international", s: "Frontières",
+    b: "Londres, Bruxelles, Francfort, Genève, Milan, Barcelone. Avec la licence internationale, vos lignes passent la frontière : recettes plus fortes, péage au réseau étranger." },
+  { n: "12", t: "Les trains de nuit", s: "Couchettes",
+    b: "De 22 h à 6 h, une rame couchettes rapporte trois fois plus sur les grandes lignes. Le réseau travaille pendant que vous dormez." },
+  { n: "13", t: "Les voyageurs", s: "Places",
+    b: "Des rames qui ont un nombre de places, des arrêts intermédiaires, un prix de billet réglé ligne par ligne et des voitures à atteler. Trop cher, les quais se vident ; trop court, les voyageurs restent à quai." },
+  { n: "14", t: "Les infrastructures", s: "Patrimoine",
+    b: "Achetez des gares et encaissez leurs commerces et les redevances des concurrents, ouvrez des ateliers, électrifiez vos lignes." },
+  { n: "15", t: "La finance", s: "Banque et bourse",
+    b: "Empruntez pour grandir plus vite, suivez votre rapport de la semaine, et achetez les actions des autres compagnies pour toucher leurs dividendes." },
 ];
 
 const CONTINU = [
@@ -383,7 +394,7 @@ export default function LandingPage() {
         <div className="lp-wrap">
           <div className="lp-sec-hd">
             <h2 className="lp-serif">Ce que vous exploitez</h2>
-            <span className="n">— dix systèmes liés</span>
+            <span className="n">— quinze systèmes liés</span>
           </div>
           <p className="lp-sub">
             Rien de décoratif : chaque mécanique pèse sur les autres. Une rame mal entretenue
@@ -454,11 +465,16 @@ export default function LandingPage() {
                 <li><b>·</b>Dépôt sans plafond — chaque place coûte plus cher que la précédente</li>
                 <li><b>·</b>Toutes les rames et tout le personnel, débloqués au grade</li>
                 <li><b>·</b>Les quatre donneurs d'ordre et leur fidélité</li>
-                <li><b>·</b>Classements, 77 succès, défi quotidien</li>
+                <li><b>·</b>Classements, 100 succès, défi quotidien</li>
                 <li><b>·</b>Carte du réseau, tracé à la souris, deux habillages</li>
                 <li><b>·</b>Gares vivantes, concurrence sur les lignes partagées</li>
                 <li><b>·</b>Appels d'offres chaque semaine, correspondances et temps forts de saison</li>
+                <li><b>·</b>Lignes internationales et trains de nuit</li>
+                <li><b>·</b>Arrêts intermédiaires, prix du billet et composition des rames</li>
+                <li><b>·</b>Gares à acheter, ateliers, électrification, banque et bourse entre joueurs</li>
+                <li><b>·</b>Application installable sur téléphone et ordinateur, sans store</li>
                 <li><b>·</b>Un aperçu de la vue cabine sur chaque rame</li>
+                <li><b>·</b>Publicité discrète : une bannière en bas de quelques pages (1,99 € une fois pour la retirer), et des vidéos facultatives contre des pièces</li>
               </ul>
               <div className="lp-tk-ft">
                 <button className="lp-btn ghost" onClick={() => navigate("/auth?mode=register")}>
@@ -473,13 +489,20 @@ export default function LandingPage() {
                   <span className="cls">Première classe</span>
                   <h3>Premium</h3>
                 </div>
-                <div className="px">dès 5,99 €<small>prix libre</small></div>
+                <div className="px">dès 5,99 €<small>prix libre · conseillé 7,99 €</small></div>
               </div>
               <ul>
+                {RELEASE_171 && <li><b>·</b>Aucune publicité, nulle part</li>}
                 <li><b>·</b>Vue cabine : suivez chaque rame en direct, de gare en gare</li>
                 <li><b>·</b>Veille concurrentielle et événements de gare annoncés une heure avant</li>
                 <li><b>·</b>Appels d'offres de la semaine suivante dès le dimanche, et nombre d'offres déposées</li>
+                <li><b>·</b>Licence internationale une semaine avant tout le monde</li>
                 <li><b>·</b>Rentabilité de chaque ligne et de chaque rame, sur sept jours</li>
+                <li><b>·</b>Prix du billet automatique, recalé chaque heure sur le prix idéal</li>
+                <li><b>·</b>Remplissage de chaque ligne heure par heure et heure de pointe</li>
+                <li><b>·</b>Rapport de la semaine sur quatre semaines, exportable en tableur</li>
+                <li><b>·</b>Bourse : ordres d'achat et de vente automatiques, liste de vos actionnaires</li>
+                <li><b>·</b>Alertes : gare exposée au rachat, rachat par un concurrent, échéance en danger</li>
                 <li><b>·</b>Bilan de votre absence au retour, et résumé de la nuit chaque matin</li>
                 <li><b>·</b>File de chantiers : le suivant démarre seul, même la nuit</li>
                 <li><b>·</b>Deux ordres par donneur d'ordre et six contrats de fret au lieu de quatre</li>
@@ -487,15 +510,17 @@ export default function LandingPage() {
                 <li><b>·</b>−20 % sur chaque place de dépôt</li>
                 <li><b>·</b>Cargaisons fragiles deux fois moins exposées</li>
                 <li><b>·</b>Huit livrées réservées pour votre compagnie</li>
+                <li><b>·</b>Vos gares à vos couleurs sur la carte, vos voitures de 1re classe à votre livrée</li>
               </ul>
               <div className="lp-tk-ft">
                 <button className="lp-btn vert" onClick={() => navigate("/auth?mode=register")}>
                   Prendre ce billet
                 </button>
                 <p className="lp-tk-note">
-                  Vous fixez le montant au moment de payer, à partir de 5,99 € — au-delà, c'est un
-                  soutien au réseau, les avantages sont les mêmes. Paiement unique par carte via
-                  Stripe, depuis votre compagnie une fois créée : aucun abonnement, rien à résilier.
+                  Vous fixez le montant au moment de payer, à partir de 5,99 € (7,99 € conseillés) — au-delà,
+                  c'est un soutien au réseau, les avantages sont les mêmes.
+                  {RELEASE_171 && " Vous avez déjà retiré les pubs ? Le Premium vous coûte alors à partir de 4 €."} Paiement unique par carte via Stripe, depuis
+                  votre compagnie une fois créée : aucun abonnement, rien à résilier.
                 </p>
               </div>
             </div>
