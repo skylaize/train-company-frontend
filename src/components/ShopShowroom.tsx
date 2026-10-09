@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import { GiftButton } from "./Gift";
 import { createCabScene } from "./cabScene";
 import { Emblem, EMBLEM_LABELS } from "./Emblem";
 import { THEMES } from "../theme";
+import { Plate, PLATE_LABELS } from "./Plate";
+import { TrainPicture } from "./TrainPicture";
 
 /* ============================================================
    Vitrine de la boutique.
@@ -25,6 +28,9 @@ export interface ShowroomItem {
   titles?: string[];
   theme?: string;
   cabSkins?: string[];
+  plates?: string[];
+  isNew?: boolean;
+  worthCents?: number;
   owned: boolean;
   seasonName?: string | null;
   availableUntil?: string | null;
@@ -37,6 +43,7 @@ export interface ShowroomCompany {
   title?: string | null;
   cabSkin?: string | null;
   theme?: string;
+  plate?: string | null;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -46,6 +53,8 @@ const KIND_LABEL: Record<string, string> = {
   THEME: "Habillage",
   CABINE: "Matériel de collection",
   SAISON: "Édition limitée",
+  COFFRET: "Coffret",
+  PLAQUE: "Plaques d'honneur",
 };
 
 export const euros = (cents: number) => (cents / 100).toFixed(2).replace(".", ",") + " €";
@@ -74,6 +83,7 @@ export function ShopShowroom({
   const [emblem, setEmblem] = useState<string | null>(company.emblem ?? null);
   const [title, setTitle] = useState<string | null>(company.title ?? null);
   const [cab, setCab] = useState<string | null>(null);
+  const [plate, setPlate] = useState<string | null>(company.plate ?? null);
 
   // un nouvel article en vitrine : on montre sa première variante
   useEffect(() => {
@@ -81,6 +91,7 @@ export function ShopShowroom({
     setEmblem(item.emblems?.[0] ?? company.emblem ?? null);
     setTitle(item.titles?.[0] ?? company.title ?? null);
     setCab(item.cabSkins?.[0] ?? null);
+    setPlate(item.plates?.[0] ?? company.plate ?? null);
   }, [item.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ---------- la scène ---------- */
@@ -89,6 +100,7 @@ export function ShopShowroom({
   const stateRef = useRef({ livery, cab, name: company.name });
   stateRef.current = { livery, cab, name: company.name };
   const [box, setBox] = useState({ w: 0, h: 0 });
+  const [badge, setBadge] = useState<{ x: number; y: number; r: number } | null>(null);
   const drawRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -111,8 +123,15 @@ export function ShopShowroom({
     ro.observe(cv);
 
     let raf = 0;
+    let last: { x: number; y: number; r: number } | null = null;
     drawRef.current = () => loop(performance.now());
     const loop = (now: number) => {
+      // 2.0 : l'emblème suit la motrice telle que trainArt l'a dessinée
+      const b = sc.box?.badge;
+      if (b && (!last || Math.abs(b.x - last.x) > 0.5 || Math.abs(b.y - last.y) > 0.5 || Math.abs(b.r - last.r) > 0.5)) {
+        last = { x: b.x, y: b.y, r: b.r };
+        setBadge(last);
+      }
       const st = stateRef.current;
       sc.weather = "nuit";
       sc.livery = st.livery;
@@ -135,14 +154,10 @@ export function ShopShowroom({
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) drawRef.current?.();
   }, [livery, cab, box.w]);
 
-  /* Emplacement de la motrice, calculé comme dans la scène : c'est là qu'on
-     peint l'emblème. */
-  const carW = Math.min(240, box.w * 0.22);
-  const carH = carW * 0.28;
-  const total = carW * 3 + 12;
-  // sur la bande de livrée, sous les vitres de la motrice
-  const locoX = box.w * 0.46 + total / 2 - carW / 2 - carW * 0.18;
-  const locoY = box.h * 0.74 - carH - 10 + carH * 0.71;
+  /* Emplacement de l'emblème : la scène le donne à chaque image (badge). */
+  const locoX = badge?.x ?? 0;
+  const locoY = badge?.y ?? 0;
+  const carH = (badge?.r ?? 9) * 4;
 
   const themeInfo = item.theme ? THEMES.find((t) => t.id === item.theme) : null;
   /* « déjà porté » seulement si TOUT ce que l'article change est déjà en place :
@@ -153,12 +168,16 @@ export function ShopShowroom({
   if (item.emblems?.length) parts.push(emblem === company.emblem);
   if (item.titles?.length) parts.push(title === company.title);
   if (item.cabSkins?.length) parts.push(cab === company.cabSkin);
+  if (item.plates?.length) parts.push(plate === company.plate);
   const isCurrent = parts.length > 0 && parts.every(Boolean);
 
   function equipCurrent() {
     if (item.kind === "THEME" && item.theme) return onEquip({ theme: item.theme }, `Habillage ${themeInfo?.label ?? ""} appliqué`);
-    if (item.cabSkins && cab) return onEquip({ cabSkin: cab }, `${cabLabels[cab] ?? cab} en vue cabine`);
+    // un matériel seul : on le dit ; un coffret : tout ce qu'il contient se porte d'un coup
+    if (item.cabSkins && cab && item.kind === "CABINE") return onEquip({ cabSkin: cab }, `${cabLabels[cab] ?? cab} en vue cabine`);
+    if (item.plates && plate && item.kind === "PLAQUE") return onEquip({ plate }, `Plaque ${PLATE_LABELS[plate]?.toLowerCase() ?? plate} posée`);
     const patch: Record<string, string | null> = {};
+    if (item.cabSkins?.length && cab) patch.cabSkin = cab;
     if (item.liveries?.length) patch.liveryColor = livery;
     if (item.emblems?.length && emblem) patch.emblem = emblem;
     if (item.titles?.length && title) patch.title = title;
@@ -174,7 +193,7 @@ export function ShopShowroom({
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 46% 70%, rgba(255,226,160,.16), transparent 55%)" }} />
 
         {/* emblème peint sur la motrice */}
-        {emblem && !cab && box.w > 0 && (
+        {emblem && !cab && box.w > 0 && badge && (
           <span
             aria-hidden="true"
             className="absolute pointer-events-none text-white transition-opacity duration-300"
@@ -187,7 +206,15 @@ export function ShopShowroom({
         )}
 
         {/* plaque du quai : le titre de la compagnie (son nom est déjà sur le panneau de gare) */}
-        {box.w > 0 && title && (
+        {box.w > 0 && item.plates?.length ? (
+          /* 1.7 : plaque d'honneur, telle qu'on la verra au classement */
+          <div className="absolute pointer-events-none" style={{ left: box.w * 0.46, top: box.h * 0.74 + 18, transform: "translateX(-50%)" }}>
+            <Plate plate={plate} className="text-[14px] font-body shadow-lg">
+              {company.emblem && <Emblem id={company.emblem} size={13} />}
+              <span className="whitespace-nowrap">{company.name}</span>
+            </Plate>
+          </div>
+        ) : box.w > 0 && title ? (
           <div
             className="absolute pointer-events-none"
             style={{ left: box.w * 0.46, top: box.h * 0.74 + 20, transform: "translateX(-50%)" }}
@@ -196,19 +223,27 @@ export function ShopShowroom({
               <div className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-[#f4d06f] whitespace-nowrap">{title}</div>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* titre de l'article */}
         <div className="absolute top-3 left-4 right-4 flex items-start justify-between gap-3 pointer-events-none">
           <div>
             <div className="font-mono2 text-[10.5px] uppercase tracking-[0.16em] text-amber">
               {KIND_LABEL[item.kind] ?? item.kind}
+              {item.isNew && !item.owned && " · Nouveau"}
               {item.seasonName && ` · ${item.seasonName}`}
               {item.availableUntil && !item.owned && ` · plus que ${daysLeft(item.availableUntil)} j`}
             </div>
             <h2 className="font-display text-2xl md:text-3xl leading-tight text-white drop-shadow">{item.name}</h2>
           </div>
-          <div className="font-mono2 text-lg text-amber drop-shadow shrink-0">{item.owned ? "Possédé" : euros(item.priceCents)}</div>
+          <div className="text-right shrink-0">
+            <div className="font-mono2 text-lg text-amber drop-shadow">{item.owned ? "Possédé" : euros(item.priceCents)}</div>
+            {!item.owned && item.worthCents && item.worthCents > item.priceCents && (
+              <div className="font-mono2 text-[11px] text-white/70 drop-shadow">
+                <span className="line-through">{euros(item.worthCents)}</span> séparément
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -273,6 +308,20 @@ export function ShopShowroom({
             ))}
           </div>
         )}
+        {item.plates && item.plates.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Plaques">
+            {item.plates.map((p) => (
+              <button
+                key={p}
+                onClick={() => setPlate(p)}
+                aria-pressed={plate === p}
+                className={`px-2.5 py-1.5 border font-mono2 text-[10.5px] uppercase ${plate === p ? "border-white text-white" : "border-line text-slate2"}`}
+              >
+                {PLATE_LABELS[p] ?? p}
+              </button>
+            ))}
+          </div>
+        )}
         {themeInfo && (
           <div className="flex items-center gap-2">
             <span className="flex">
@@ -294,6 +343,8 @@ export function ShopShowroom({
               {isCurrent ? "Déjà porté" : "Porter"}
             </button>
           ) : (
+            <>
+            {enabled && <GiftButton itemName={item.name} priceLabel={euros(item.priceCents)} itemId={item.id} />}
             <button
               onClick={onBuy}
               disabled={!enabled || busy}
@@ -301,6 +352,7 @@ export function ShopShowroom({
             >
               {!enabled ? "Bientôt disponible" : busy ? "Ouverture…" : `Acheter · ${euros(item.priceCents)}`}
             </button>
+            </>
           )}
         </div>
       </div>
@@ -329,23 +381,57 @@ export function ShopTile({
         selected ? "border-amber ring-1 ring-amber" : item.kind === "SAISON" ? "border-amber/50 hover:border-amber" : "border-line hover:border-slate2"
       }`}
     >
-      <div className="h-24 bg-navy-950 border-b border-line flex items-center justify-center gap-2 px-3 relative overflow-hidden">
+      <div className="h-32 bg-gradient-to-b from-navy-950 to-[#121a28] border-b border-line flex items-center justify-center gap-2 px-3 relative overflow-hidden">
         {item.kind === "SAISON" && (
           <span className="absolute top-1.5 left-1.5 font-mono2 text-[9px] uppercase tracking-wide bg-amber text-onaccent px-1.5 py-0.5">
             Limité{item.availableUntil ? ` · ${daysLeft(item.availableUntil)} j` : ""}
           </span>
         )}
+        {item.isNew && !item.owned && item.kind !== "SAISON" && (
+          <span className="absolute top-1.5 left-1.5 font-mono2 text-[9px] uppercase tracking-wide bg-cobalt text-onaccent px-1.5 py-0.5">Nouveau</span>
+        )}
+        {item.worthCents && item.worthCents > item.priceCents && !item.owned && (
+          <span className="absolute bottom-1.5 right-1.5 font-mono2 text-[9px] uppercase tracking-wide text-amber border border-amber/50 px-1.5 py-0.5">
+            −{Math.round((1 - item.priceCents / item.worthCents) * 100)} %
+          </span>
+        )}
+        {item.plates && (
+          <div className="flex flex-col items-center gap-1">
+            {item.plates.map((p) => (
+              <Plate key={p} plate={p} className="text-[10.5px] font-body">
+                Votre compagnie
+              </Plate>
+            ))}
+          </div>
+        )}
         {item.owned && (
           <span className="absolute top-1.5 right-1.5 font-mono2 text-[9px] uppercase tracking-wide text-rail-green border border-rail-green/50 px-1.5 py-0.5">Possédé</span>
         )}
-        {item.liveries?.map((c) => <MiniTrain key={c} color={c} />)}
-        {!item.liveries && item.emblems?.slice(0, 6).map((e) => (
+        {/* 2.0 : la vraie rame, dessinée comme en vue cabine, à la livrée ou au matériel de l'article */}
+        {(item.liveries?.length || item.cabSkins?.length) ? (
+          <div className="absolute inset-x-0 bottom-0 top-5 flex flex-col justify-end">
+            <TrainPicture
+              livery={item.liveries?.[0] ?? "#4f7fa3"}
+              skin={item.cabSkins?.[0] ?? null}
+              height={78}
+              fit={false}
+              align="right"
+              label={item.name}
+            />
+            {((item.liveries?.length ?? 0) > 1 || (item.emblems?.length ?? 0) > 0) && (
+              <div className="absolute top-0 right-2 flex items-center gap-1">
+                {(item.liveries?.length ?? 0) > 1 && item.liveries!.map((c) => <span key={c} className="w-3 h-3 border border-white/30" style={{ background: c }} />)}
+                {item.emblems?.map((e) => (
+                  <span key={e} className="text-offwhite"><Emblem id={e} size={14} /></span>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : null}
+        {!item.liveries && !item.cabSkins && item.emblems?.slice(0, 6).map((e) => (
           <span key={e} className="text-offwhite"><Emblem id={e} size={20} /></span>
         ))}
-        {item.liveries && item.emblems?.map((e) => (
-          <span key={e} className="text-offwhite"><Emblem id={e} size={22} /></span>
-        ))}
-        {item.titles && (
+        {item.titles && item.kind !== "COFFRET" && (
           <div className="flex flex-col items-center gap-1">
             {item.titles.slice(0, 2).map((t) => (
               <span key={t} className="bg-[#0b2a4a] border border-[#e8edf5] px-2 py-0.5 font-mono2 text-[9.5px] uppercase tracking-wide text-[#f4d06f] whitespace-nowrap">{t}</span>
@@ -358,24 +444,11 @@ export function ShopTile({
             {theme.swatch.map((c) => <span key={c} className="w-9 h-12 border border-line -ml-px first:ml-0" style={{ background: c }} />)}
           </span>
         )}
-        {item.cabSkins?.map((c) => <span key={c}>{cabPreview(c)}</span>)}
       </div>
       <div className="px-3 py-2.5 flex items-baseline justify-between gap-2">
         <span className="font-display text-[15px] leading-tight">{item.name}</span>
         <span className="font-mono2 text-[12px] text-amber shrink-0">{item.owned ? "✓" : euros(item.priceCents)}</span>
       </div>
     </button>
-  );
-}
-
-function MiniTrain({ color }: { color: string }) {
-  return (
-    <svg width="46" height="20" viewBox="0 0 46 20" aria-hidden="true">
-      <path d="M2 4h30q10 0 12 9v2H2Z" fill="#e7eaee" />
-      <rect x="2" y="11" width="42" height="3" fill={color} />
-      <path d="M2 4h30q10 0 12 9H2Z" fill="none" stroke={color} strokeWidth="1" opacity=".5" />
-      {[5, 12, 19, 26].map((x) => <rect key={x} x={x} y="6" width="5" height="3" fill="#2b3a4f" />)}
-      <circle cx="9" cy="17" r="2" fill="#333" /><circle cx="36" cy="17" r="2" fill="#333" />
-    </svg>
   );
 }

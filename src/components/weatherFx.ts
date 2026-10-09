@@ -1,6 +1,6 @@
 // @ts-nocheck — dessin sur canvas, comme la scène de la vue cabine
 /* ============================================================
-   Effets météo du tableau de bord (1.4).
+   Effets météo (1.4), posés depuis la 2.0 sur la vue cabine seulement.
 
    Une toile posée au-dessus de l'interface, qui ne capte jamais la souris.
    Chaque météo dessine surtout sur les bords de l'écran : le centre, là où
@@ -158,7 +158,8 @@ export function createWeatherFx(ctx, kind) {
     ctx.fillStyle = "#f4f7fa"; ctx.fill();
     ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
 
-    ctx.globalAlpha = 0.3 * k;
+    // un peu de givre sur la vitre, surtout dans les coins
+    ctx.globalAlpha = 0.12 * k;
     ctx.drawImage(frost, 0, 0, W, H);
     ctx.globalAlpha = 1;
   }

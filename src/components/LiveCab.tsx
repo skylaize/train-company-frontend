@@ -81,7 +81,7 @@ export function LiveCab({
               </span>
               <span className="font-display text-[15px] text-offwhite truncate">{train.name}</span>
               <span className="font-mono2 text-[11.5px] text-slate2 truncate hidden sm:inline">
-                {train.line?.departureStation} → {train.line?.arrivalStation}
+                {train.direction === 1 ? `${train.line?.arrivalStation} → ${train.line?.departureStation}` : `${train.line?.departureStation} → ${train.line?.arrivalStation}`}
               </span>
               {isPremium && running.length > 1 && (
                 <span className="ml-auto font-mono2 text-[10.5px] text-slate2 shrink-0">
@@ -99,7 +99,8 @@ export function LiveCab({
                       <span className="text-[10px] text-slate2 ml-1">km/h</span>
                     </span>
                     <span className="text-[11px] text-slate2">
-                      {hud.phase} · arrivée {hud.left === "à quai" ? "à quai" : `dans ${hud.left}`}
+                      {hud.phase}
+                      {hud.marks.some((m) => m.name === hud.next) && !hud.phase.includes(hud.next) ? ` · prochain arrêt ${hud.next}` : ""} · terminus {hud.left === "à quai" ? "à quai" : `dans ${hud.left}`}
                     </span>
                     <div className="ml-auto flex items-center gap-1.5">
                       {running.length > 1 && (
@@ -159,10 +160,10 @@ function LiveCanvas({
   skin: string | null;
   weatherType?: string;
   blurred: boolean;
-  children: (hud: { kmh: number; left: string; phase: string; pct: number }) => React.ReactNode;
+  children: (hud: ReturnType<typeof useCabScene>) => React.ReactNode;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const hud = useCabScene(ref, train, { weatherType, livery, skin });
+  const hud = useCabScene(ref, train, { weatherType, livery, skin, premium: !blurred });
   return (
     <div className="relative">
       <canvas

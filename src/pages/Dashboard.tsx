@@ -1,7 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
+import { TrainPicture } from "../components/TrainPicture";
 import { COUNTRIES, COUNTRY_LABELS, SEA_LABELS } from "../components/europeMap";
 import { RIVERS, RELIEF, RELIEF_LABELS, GRATICULE } from "../components/mapDecor";
 import { useMapCamera } from "../components/useMapCamera";
+import { MOUNTAIN_STATIONS, setMountainOwned, hasMountain } from "../geo";
+import { stationVisible, setTunnelOpen, STATION_COORDS, lineCurve, pointOnCurve, LINE_PALETTE, distanceKm, durationFromKm, lengthYieldPct, routeStations, routeMinutes, routeKm, positionOnRoute, routePath, MAX_STOPS } from "../geo";
+
 import { UpdateBanner } from "../components/UpdateBanner";
 import { useInstall, isStandalone } from "../install";
 import { InstallGuide, InstallPanel } from "../components/InstallApp";
@@ -25,13 +29,28 @@ function formatBuildHours(hours: number) {
   if (m === 0) return `${h} h`;
   return `${h} h ${String(m).padStart(2, "0")}`;
 }
-import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, ChartMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, TenderMark, ShopMark, FogMark, SunMark, SnowMark, MoonMark, InstallMark, LockMark, FragileMark, RankMark, AnnounceMark } from "../components/TrainMark";
+import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, ChartMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, TenderMark, ShopMark, MoonMark, InstallMark, LockMark, FragileMark, RankMark, AnnounceMark, StationMark, BankMark, SeasonMark, AllianceMark } from "../components/TrainMark";
+import { InfrastructureSection } from "../components/InfrastructureSection";
+import { LineLoadModal } from "../components/LineLoadModal";
+import { adsEnabled, loadAds, showRewardedAd } from "../ads";
+import { AdBanner } from "../components/AdBanner";
+import { Plate } from "../components/Plate";
+import { HomeBoard, MiniRoute } from "../components/HomeBoard";
+import { SeasonSection, SeasonData, loadSeason, seasonLead, DIVISION_COLORS } from "../components/SeasonSection";
+import { NavRow, NavGroup, MobileTabBar, CompanyBadge } from "../components/AppNav";
+import { TrainStage, TrainArrival } from "../components/TrainStage";
+import { TrainSheet, PartsStore } from "../components/TrainSheet";
+import { GazetteData, loadGazette } from "../components/Gazette";
+import { modelLabel, hhmm, minutesLeft, PART_LABEL, PART_NEED, modelSpeed } from "../models";
+import { playChime, playAlert, vibrate, soundsOn, setSoundsOn } from "../sfx";
+import { AllianceSection, AllianceData, loadAlliance, allianceLead } from "../components/AllianceSection";
+import { WorldData } from "../components/WorldCard";
+import { WeeklyReportSection, BankSection, StockMarketSection } from "../components/FinanceSection";
 import { RailSchematic } from "../components/RailSchematic";
 import { LogoMark } from "../components/Logo";
 import { Tutorial } from "../components/Tutorial";
 import { SplitFlap } from "../components/SplitFlap";
 import { SteamEffect } from "../components/SteamEffect";
-import { WeatherOverlay } from "../components/WeatherOverlay";
 import { TendersSection } from "../components/TendersSection";
 import { ThemeTrialBanner, ThemeTrial } from "../components/ShopSection";
 import { WhatsNewModal } from "../components/WhatsNewModal";
@@ -41,23 +60,41 @@ import { resyncPush } from "../push";
 import { PremiumCTA } from "../components/PremiumCTA";
 import { CabView, CabTrain } from "../components/CabView";
 import { LiveCab } from "../components/LiveCab";
-import { NetworkData, StationEventsPanel, LineShareCell, DemandCell, RivalsDetail, stationOf, pairOf, SeasonBanner, HubCell, hubPreview, LicencePanel } from "../components/NetworkPanels";
+import { NetworkData, StationEventsPanel, LineShareCell, DemandCell, RivalsDetail, stationOf, pairOf, SeasonBanner, HubCell, hubPreview, LicencePanel, LineMarket, RushPanel } from "../components/NetworkPanels";
 import { FirstVisitHint } from "../components/FirstVisitHint";
 import { FirstSteps, firstStepsActive, firstStepsProgress, firstStepsDone, FirstStepsInput } from "../components/FirstSteps";
 import { Decision, DecisionBanner, DecisionModal } from "../components/Decisions";
 import { NewsTicker, NewsItem } from "../components/NewsTicker";
 import { applyTheme, readLocalTheme, THEMES, ThemeId } from "../theme";
 import { CURRENT_VERSION } from "../changelog";
+import { setStationWeather } from "../stationWeather";
+import { PurchaseReveal, Reveal, fetchReveals, markSeen } from "../components/PurchaseReveal";
+import { WreckYard, loadWrecks, RARITY_COLOR, type Wreck as WreckInfo } from "../components/WreckYard";
 
 interface Train {
   id: string;
   name: string;
-  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES";
+  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "VAPEUR" | "LUXE" | "CREMAILLERE";
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
   departedAt?: string | null;
-  line?: { id: string; name: string; departureStation: string; arrivalStation: string; durationMinutes?: number } | null;
+  line?: { id: string; name: string; departureStation: string; arrivalStation: string; durationMinutes?: number; stops?: string[]; electrified?: boolean } | null;
+  // 1.7
+  direction?: number;
+  cars?: string[];
+  lastPassengers?: number | null;
+  lastSeats?: number | null;
+  // 2.0 : l'atelier
+  organs?: { id: string; label: string; wear: number; broken: boolean }[];
+  brokenPart?: string | null;
+  partsEta?: string | null;
+  workshopUntil?: string | null;
+  serviceAt?: number | null;
+  resaleValue?: number;
+  crew?: { id: string; name: string; role: string; level: number }[];
+  // 2.0 : rame de collection restaurée depuis une épave
+  heritage?: { label: string; serial: string; rarity: string; skin: string; livery: string; prestige: number; year: number; history: string } | null;
 }
 
 interface Weather {
@@ -68,11 +105,12 @@ interface Weather {
 
 interface Staff {
   id: string;
-  role: "MECANICIEN" | "CHEF_DEPOT" | "DIRECTEUR_COMMERCIAL";
+  role: "MECANICIEN" | "CHEF_DEPOT" | "DIRECTEUR_COMMERCIAL" | "CONTROLEUR" | "CONDUCTEUR";
   salaryPerTick: number;
   name?: string;
   level?: number;
   raiseRequested?: boolean;
+  trainId?: string | null; // 2.0 : équipage
 }
 
 interface TodaySummary {
@@ -142,9 +180,14 @@ interface Line {
   departureStation: string;
   arrivalStation: string;
   durationMinutes: number;
+  // 1.7
+  stops?: string[];
+  priceRatio?: number;
+  electrified?: boolean;
 }
 
 interface Company {
+  adFree?: boolean; // 1.7 : billet sans pub
   id: string;
   name: string;
   liveryColor: string;
@@ -206,6 +249,7 @@ interface LeaderEntry {
   emblem?: string | null;
   grade: string;
   title: string | null;
+  plate?: string | null; // 1.7 : plaque d'honneur
   trains: number;
   lines: number;
   metric: number;
@@ -239,11 +283,18 @@ export default function Dashboard() {
   const [lines, setLines] = useState<Line[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(true);
-  const [view, setView] = useState<"lignes" | "trains" | "fret" | "missions" | "classement" | "historique" | "succes" | "carte" | "personnel" | "parametres" | "carriere" | "cours" | "boutique" | "rentabilite" | "appels">("trains");
+  const [view, setView] = useState<DashboardView>("trains");
   const [now, setNow] = useState(new Date());
   const [market, setMarket] = useState<Contract[]>([]);
   const [myContracts, setMyContracts] = useState<Contract[]>([]);
   const [leaderTotal, setLeaderTotal] = useState(0);
+  // 2.0 : saison, alliance, Grand Chantier
+  const [season, setSeason] = useState<SeasonData | null>(null);
+  const [alliance, setAlliance] = useState<AllianceData | null>(null);
+  const [world, setWorld] = useState<WorldData | null>(null);
+  const reloadSeason = () => loadSeason().then((d) => d && setSeason(d));
+  const reloadAlliance = () => loadAlliance().then((d) => d && setAlliance(d));
+  const [leaderMe, setLeaderMe] = useState<{ rank?: number; aheadName?: string | null; gap?: number } | null>(null);
   const [missionCount, setMissionCount] = useState(0);
   const [referral, setReferral] = useState<ReferralInfo | null>(null);
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -267,13 +318,30 @@ export default function Dashboard() {
   const [showCatalog, setShowCatalog] = useState(false);
   const [buyingTrain, setBuyingTrain] = useState(false);
 
+  /* 2.0 : la rame neuve entre en gare (voir TrainStage) */
+  const [arrival, setArrival] = useState<{ id: string; name: string; model: Train["model"]; skin?: string; livery?: string; kicker?: string; subtitle?: string } | null>(null);
+  const [composeId, setComposeId] = useState<string | null>(null);
+  const clearCompose = useCallback(() => setComposeId(null), []);
+  // 2.0 : ouvrir la fiche atelier d'une rame depuis l'accueil de la flotte
+  const [sheetRequest, setSheetRequest] = useState<string | null>(null);
+  const clearSheet = useCallback(() => setSheetRequest(null), []);
+  // 2.0 : la Gazette du Rail, relue toutes les dix minutes
+  const [gazette, setGazette] = useState<GazetteData | null>(null);
+  useEffect(() => {
+    const load = () => void loadGazette().then(setGazette);
+    load();
+    const id = window.setInterval(load, 10 * 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   async function buyTrain(model: string) {
     setBuyingTrain(true);
     try {
       const trainName = `Rame ${trains.length + 1}`;
-      await api.post("/trains", { name: trainName, model });
-      showToast(`${trainName} acquise`);
+      const { data } = await api.post("/trains", { name: trainName, model });
       setShowCatalog(false);
+      if (data?.id) setArrival({ id: data.id, name: data.name ?? trainName, model: (data.model ?? model) as Train["model"] });
+      else showToast(`${trainName} acquise`);
       loadAll();
     } catch (err: any) {
       showToast(err?.response?.data?.error || "Erreur", "error");
@@ -302,6 +370,43 @@ export default function Dashboard() {
   // retour d'un achat : boutique rechargée, objet acheté en vitrine
   const [shopKey, setShopKey] = useState(0);
   const [shopFocus, setShopFocus] = useState<string | null>(null);
+  /* 2.0 : le déballage. File de ce qui vient d'arriver (achat, cadeau, Premium) */
+  const [reveals, setReveals] = useState<Reveal[]>([]);
+  const revealKey = (r: Reveal) => (r.type === "premium" ? "premium" : r.purchaseId);
+  const queueReveals = (list: Reveal[]) => {
+    if (!list.length) return;
+    setReveals((q) => [...q, ...list.filter((r) => !q.some((x) => revealKey(x) === revealKey(r)))]);
+  };
+  // on regarde au chargement, au retour sur l'onglet et de temps en temps : un cadeau peut arriver à tout moment
+  useEffect(() => {
+    const check = () => {
+      if (document.visibilityState === "visible") void fetchReveals().then(queueReveals);
+    };
+    check();
+    const t = setInterval(check, 120_000);
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      clearInterval(t);
+      document.removeEventListener("visibilitychange", check);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /* après un paiement, l'objet n'arrive qu'avec le webhook : on guette le
+     déballage quelques secondes, puis la boutique se recharge */
+  function awaitReveal(onFound?: () => void) {
+    let tries = 0;
+    const timer = setInterval(async () => {
+      tries += 1;
+      const list = await fetchReveals();
+      if (list.length || tries >= 12) {
+        clearInterval(timer);
+        queueReveals(list);
+        onFound?.();
+        if (!list.length) showToast("Le paiement est enregistré, l'objet arrive dans un instant. Rechargez la page si besoin.");
+      }
+    }, 1500);
+    return () => clearInterval(timer);
+  }
   const themeTrialRef = useRef<ThemeTrial | null>(null);
   themeTrialRef.current = themeTrial;
   useEffect(() => {
@@ -315,7 +420,7 @@ export default function Dashboard() {
     .map((l) => `${l.id}:${l.departureStation}>${l.arrivalStation}:${(l as { trains?: unknown[] }).trains?.length ?? 0}`)
     .join("|");
   useEffect(() => {
-    const load = () => api.get("/network/map").then(({ data }) => setNetwork(data)).catch(() => undefined);
+    const load = () => api.get("/network/map").then(({ data }) => { setTunnelOpen(Boolean(data?.tunnel?.open)); setMountainOwned(Boolean((data?.stations ?? []).find((st: { dlc?: { owned: boolean } | null }) => st.dlc)?.dlc?.owned)); setNetwork(data); }).catch(() => undefined);
     load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
@@ -335,6 +440,11 @@ export default function Dashboard() {
      payer, et il n'a aucune raison de faire confiance à ce qu'il voit. */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    /* 2.0 : Stripe renvoie l'identifiant de la session ; le serveur la redemande
+       à Stripe et livre tout de suite, sans attendre le webhook. Sans effet si
+       le webhook est déjà passé, et rien n'est accordé sans paiement. */
+    const sessionId = params.get("session_id");
+    if (sessionId) void api.post("/billing/confirm", { sessionId }).catch(() => undefined);
 
     /* Retour de la boutique : même principe que le Premium, l'objet n'est
        livré que par le webhook, on se contente d'attendre qu'il arrive. */
@@ -343,17 +453,18 @@ export default function Dashboard() {
       window.history.replaceState({}, "", window.location.pathname);
       if (boutique === "annule") {
         showToast("Achat abandonné — rien n'a été débité");
+      } else if (boutique === "cadeau") {
+        // 2.0 : un cadeau part chez quelqu'un d'autre, rien à attendre ici
+        showToast(`Paiement reçu : votre cadeau part pour ${params.get("pour") ?? "l'autre compagnie"}`);
+        return;
       } else {
-        showToast("Paiement reçu — l'objet arrive dans votre compagnie");
-        setView("boutique");
-        setShopFocus(params.get("objet"));
-        // la boutique se recharge aussi : sinon l'objet payé resterait « à acheter »
-        for (const ms of [3000, 8000]) {
-          window.setTimeout(() => {
-            loadAll();
-            setShopKey((k) => k + 1);
-          }, ms);
-        }
+        // 2.0 : l'objet se déballe dès que le webhook l'a livré
+        const sansPub = params.get("objet") === "sans-pub";
+        if (!sansPub) setView("boutique");
+        return awaitReveal(() => {
+          loadAll();
+          setShopKey((k) => k + 1);
+        });
       }
       return;
     }
@@ -368,9 +479,13 @@ export default function Dashboard() {
       showToast("Paiement abandonné — votre compagnie n'a pas été débitée");
       return;
     }
+    if (premium === "cadeau") {
+      showToast(`Paiement reçu : ${params.get("pour") ?? "l'autre compagnie"} passe Premium dans un instant`);
+      return;
+    }
     if (premium !== "ok") return;
 
-    showToast("Paiement reçu — activation du Premium en cours…");
+    showToast("Paiement reçu — votre billet arrive…");
     let tries = 0;
     const retry = setInterval(async () => {
       tries += 1;
@@ -379,7 +494,10 @@ export default function Dashboard() {
         if (data?.isPremium) {
           clearInterval(retry);
           setCompany(data);
-          showToast("Premium activé. Merci de soutenir le réseau.");
+          // 2.0 : le billet de première classe se composte à l'écran
+          const list = await fetchReveals();
+          if (list.length) queueReveals(list);
+          else showToast("Premium activé. Merci de soutenir le réseau.");
           return;
         }
       } catch {
@@ -409,6 +527,10 @@ export default function Dashboard() {
       }
       api.get("/decisions").then(({ data }) => setDecisions(data?.decisions ?? [])).catch(() => undefined);
       api.get("/news").then(({ data }) => setNews(data?.items ?? [])).catch(() => undefined);
+      // 2.0
+      reloadSeason();
+      reloadAlliance();
+      api.get("/world").then(({ data }) => setWorld(data)).catch(() => undefined);
       // 1.6 : ouverte depuis l'écran d'accueil — une fois suffit pour le succès
       if (isStandalone() && c && !(c.hintsSeen ?? "").split(",").includes("app")) {
         api.patch("/company", { seenHint: "app" }).catch(() => undefined);
@@ -432,7 +554,7 @@ export default function Dashboard() {
         api.get("/achievements/mine"),
         api.get("/daily-challenge/mine"),
         api.get("/staff/mine"),
-        api.get("/weather/current"),
+        api.get("/weather/stations").catch(() => ({ data: null })),
         api.get("/summary/today"),
         api.get("/career/mine"),
         api.get("/referral/mine").catch(() => ({ data: null })),
@@ -441,6 +563,7 @@ export default function Dashboard() {
       setLines(l);
       setMarket(mkt);
       setLeaderTotal(lb?.total ?? 0);
+      setLeaderMe(lb?.me ?? null);
 
       /* Pastille du menu : seuls les ordres qui appellent une action comptent.
          Un ordre échoué ou terminé n'a plus rien à demander au joueur. */
@@ -476,13 +599,8 @@ export default function Dashboard() {
       setTodaySummary(sum);
       setCareer(car);
 
-      // notifie un changement de météo réseau
-      setWeather((prev) => {
-        if (prev && prev.type !== wx.type && wx.type !== "CLAIR") {
-          showToast(wx.label, "error");
-        }
-        return wx;
-      });
+      // 2.0 : la vraie météo des gares, lue par la vue cabine
+      setStationWeather(wx?.stations);
 
       // notifie si un employé est parti faute de trésorerie
       setStaff((prevStaff) => {
@@ -548,6 +666,15 @@ export default function Dashboard() {
             showToast(`${newTrain.name} est arrivé à ${newTrain.line.arrivalStation}, repart aussitôt`);
           }
         });
+        // 2.0 : une rame qui vient de casser se fait entendre (et vibrer sur téléphone)
+        const brokeNow = t.filter(
+          (n: Train) => n.status === "MAINTENANCE" && !n.workshopUntil && prevTrains.some((p) => p.id === n.id && (p.status !== "MAINTENANCE" || p.workshopUntil))
+        );
+        if (prevTrains.length > 0 && brokeNow.length > 0) {
+          playAlert();
+          vibrate([90, 60, 90]);
+          showToast(`${brokeNow[0].name} est en panne${brokeNow[0].brokenPart ? ` : ${(brokeNow[0].organs?.find((o: { id: string }) => o.id === brokeNow[0].brokenPart)?.label ?? "un organe").toLowerCase()} hors service` : ""}`, "error");
+        }
         return t;
       });
     } catch (err: any) {
@@ -672,6 +799,67 @@ export default function Dashboard() {
     !navOpen.cours && { label: "Cours", hint: "après une livraison de fret" },
     !navOpen.appels && { label: "Appels d'offres", hint: "au grade « Gestionnaire confirmé »" },
   ].filter(Boolean) as { label: string; hint: string }[];
+  /* 2.0 : la phrase d'en-tête de chaque rubrique, tirée de la partie en cours */
+  const plural = (n: number, one: string, many: string) => `${n.toLocaleString("fr-FR")} ${n > 1 ? many : one}`;
+  const pageLead = ((): string | null => {
+    const rolling = trains.filter((t) => t.status === "EN_ROUTE").length;
+    const broken = trains.filter((t) => t.status === "MAINTENANCE" && !t.workshopUntil).length;
+    const servicing = trains.filter((t) => t.workshopUntil).length;
+    const worn = trains.filter((t) => t.status !== "MAINTENANCE" && t.wear >= 70).length;
+    switch (view) {
+      case "trains": {
+        if (trains.length === 0) return "Votre dépôt est vide : achetez une première rame.";
+        const head = rolling === 0 ? "Aucune rame ne roule pour l'instant" : rolling === trains.length ? `Vos ${plural(rolling, "rame roule", "rames roulent")}` : `${plural(rolling, "rame roule", "rames roulent")} sur ${trains.length}`;
+        const tail = broken > 0 ? `, ${plural(broken, "attend", "attendent")} une réparation` : worn > 0 ? `, ${plural(worn, "demande", "demandent")} une révision` : servicing > 0 ? "" : ", sans incident";
+        const shop = servicing > 0 ? ` ${servicing > 1 ? `${servicing} sont` : "Une est"} en révision à l'atelier.` : "";
+        return head + tail + "." + shop;
+      }
+      case "lignes":
+      case "carte": {
+        if (lines.length === 0) return "Tracez une première ligne entre deux gares.";
+        const rs = (network?.lines ?? []).map((m) => m.ridership).filter(Boolean) as { fill: number; left: number }[];
+        const full = rs.filter((r) => r.left > 0);
+        const waiting = full.reduce((a, r) => a + r.left, 0);
+        const empty = rs.filter((r) => r.left === 0 && r.fill < 40).length;
+        if (view === "carte") return `${plural(lines.length, "ligne", "lignes")} et ${plural(rolling, "rame en mouvement", "rames en mouvement")}, en direct.`;
+        if (full.length > 0) return `${full.length > 1 ? `${full.length} lignes sont pleines et laissent` : "Une ligne est pleine et laisse"} ${plural(waiting, "voyageur", "voyageurs")} à quai.`;
+        if (empty > 0) return `${empty > 1 ? `${empty} lignes roulent` : "Une ligne roule"} à moitié vide : baissez le billet ou retirez une rame.`;
+        return `Vos ${plural(lines.length, "ligne est bien remplie", "lignes sont bien remplies")}.`;
+      }
+      case "fret":
+      case "missions": {
+        const open = market.length;
+        const going = myContracts.filter((c) => c.status === "EN_COURS").length;
+        if (open === 0 && going === 0) return "Pas de contrat pour l'instant, de nouveaux arrivent toutes les heures.";
+        return [open > 0 && `${plural(open, "contrat attend", "contrats attendent")} une rame`, going > 0 && `${plural(going, "livraison est", "livraisons sont")} en route`].filter(Boolean).join(", ") + ".";
+      }
+      case "personnel": {
+        if (staff.length === 0) return "Personne à l'effectif : un mécanicien réduit l'usure de toute la flotte.";
+        const raise = staff.filter((s) => s.raiseRequested).length;
+        return `${plural(staff.length, "employé", "employés")}${raise > 0 ? `, dont ${raise > 1 ? `${raise} qui demandent` : "un qui demande"} une augmentation` : ", tout le monde est content"}.`;
+      }
+      case "rapport":
+      case "rentabilite":
+      case "banque":
+      case "bourse":
+      case "historique":
+        if (!todaySummary) return null;
+        return `Aujourd'hui, ${todaySummary.net >= 0 ? "+" : "−"}${Math.abs(todaySummary.net).toLocaleString("fr-FR")} pi. net, et ${company.balance.toLocaleString("fr-FR")} pi. en caisse.`;
+      case "carriere":
+      case "succes":
+        if (!career) return null;
+        return career.nextRank ? `Vous êtes ${career.currentRank.name.toLowerCase()}. Prochain grade : ${career.nextRank.name.toLowerCase()}.` : `Vous êtes ${career.currentRank.name.toLowerCase()}, le plus haut grade.`;
+      case "saison":
+        return seasonLead(season);
+      case "alliance":
+        return allianceLead(alliance);
+      case "classement":
+        if (!leaderMe?.rank) return null;
+        return leaderMe.rank === 1 ? "Vous êtes en tête du classement." : `Vous êtes ${leaderMe.rank}e${leaderMe.aheadName && leaderMe.gap ? `, à ${leaderMe.gap.toLocaleString("fr-FR")} pi. de ${leaderMe.aheadName}` : ""}.`;
+      default:
+        return null;
+    }
+  })();
   function goFirstStep(go: "lignes" | "catalogue" | "trains" | "fret") {
     if (go === "catalogue") {
       setView("trains");
@@ -684,129 +872,179 @@ export default function Dashboard() {
     }
   }
 
+  /* 2.0 : les rubriques, une seule liste pour le menu d'ordinateur et le « Plus » du téléphone */
+  const navGroups: NavGroup[] = [
+    {
+      label: "Exploitation",
+      items: [
+        { id: "trains", label: "Flotte", icon: <TrainMark size={16} />, count: trains.length, active: view === "trains", onClick: () => setView("trains") },
+        { id: "lignes", label: "Lignes", icon: <TrackMark size={16} />, count: lines.length, active: view === "lignes", onClick: () => setView("lignes") },
+        { id: "carte", label: "Carte", icon: <MapMark size={16} />, active: view === "carte", onClick: () => setView("carte") },
+        ...(lines.length > 0 ? [{ id: "infrastructures", label: "Infrastructures", icon: <StationMark size={16} />, active: view === "infrastructures", onClick: () => setView("infrastructures") }] : []),
+      ],
+    },
+    {
+      label: "Commerce",
+      items: [
+        { id: "fret", label: "Fret", icon: <CargoMark size={16} />, count: myContracts.filter((c) => c.status === "EN_COURS").length + missionCount, active: view === "fret" || view === "missions", onClick: () => setView("fret") },
+        ...(navOpen.cours ? [{ id: "cours", label: "Cours", icon: <SwapMark size={16} />, active: view === "cours", onClick: () => setView("cours"), dataTutorial: "nav-cours" }] : []),
+        ...(navOpen.appels ? [{ id: "appels", label: "Appels d'offres", icon: <TenderMark size={16} />, active: view === "appels", onClick: () => setView("appels") }] : []),
+      ],
+    },
+    {
+      label: "Compagnie",
+      items: [
+        ...(navOpen.personnel ? [{ id: "personnel", label: "Personnel", icon: <StaffMark size={16} />, count: staff.length, alert: staff.some((x) => x.raiseRequested), active: view === "personnel", onClick: () => setView("personnel") }] : []),
+        ...(navOpen.comptes ? [{ id: "finances", label: "Finances", icon: <BankMark size={16} />, active: FINANCE_VIEWS.includes(view), onClick: () => setView("rapport") }] : []),
+        { id: "carriere", label: "Progression", icon: <RankMark size={16} />, count: achievements.filter((x) => x.unlocked).length, active: view === "carriere" || view === "succes", onClick: () => setView("carriere") },
+      ],
+    },
+    ...(navOpen.classement
+      ? [
+          {
+            label: "Compétition",
+            items: [
+              { id: "saison", label: "Saison", icon: <SeasonMark size={16} />, count: season?.me?.points ? season.me.rank : undefined, active: view === "saison", onClick: () => setView("saison") },
+              { id: "alliance", label: "Alliance", icon: <AllianceMark size={16} />, alert: !alliance?.alliance && (alliance?.invites?.length ?? 0) > 0, count: alliance?.alliance ? alliance.members?.length : undefined, active: view === "alliance", onClick: () => setView("alliance") },
+              { id: "classement", label: "Classement", icon: <TrophyMark size={16} />, count: leaderTotal, active: view === "classement", onClick: () => setView("classement"), dataTutorial: "nav-classement" },
+            ],
+          },
+        ]
+      : []),
+  ];
+
   return (
-    <div className="min-h-screen bg-navy-950 grid grid-cols-1 md:grid-cols-[220px_1fr] relative overflow-x-clip">
+    <div className="min-h-screen bg-navy-950 grid grid-cols-1 md:grid-cols-[232px_1fr] relative overflow-x-clip">
       <RailSchematic className="fixed inset-0 w-full h-full opacity-[0.10] pointer-events-none" />
-      <WeatherOverlay type={weather?.type} />
       {themeTrial && <ThemeTrialBanner trial={themeTrial} onEnd={() => setThemeTrial(null)} />}
       <UpdateBanner />
-      {/* Sidebar */}
-      <aside className={`border-b md:border-b-0 md:border-r border-line flex flex-col relative bg-navy-950/30 backdrop-blur-[1px] md:sticky md:top-0 md:self-start md:h-screen ${themeTrial ? "md:pb-[52px]" : ""}`}>
+      {/* 2.0 : le menu. Sur ordinateur, une colonne calme : la compagnie, la
+          saison, les rubriques sans cadres autour des icônes. Sur téléphone,
+          une barre d'onglets en bas de l'écran et le reste dans « Plus ». */}
+      <aside className={`hidden md:flex border-r border-line flex-col relative bg-navy-950/40 backdrop-blur-[1px] sticky top-0 self-start h-screen ${themeTrial ? "pb-[52px]" : ""}`}>
         <button
           onClick={() => setEditingCompany(true)}
-          className="text-left px-4 py-3 md:px-5 md:py-6 border-b border-line border-t-[3px] hover:bg-navy-900/40 transition-colors"
-          style={{ borderTopColor: company.liveryColor }}
+          className="text-left px-5 pt-5 pb-4 hover:bg-navy-900/40 transition-colors flex items-center gap-3"
+          title="Modifier la compagnie"
         >
-          <div className="flex items-center gap-2.5 mb-0.5 md:mb-1">
-            {/* L'emblème, quand il y en a un, prend la place de la locomotive
-                plutôt que de s'ajouter à côté : trois signes devant le nom le
-                tronquaient dès qu'il dépassait une dizaine de lettres. */}
-            {company.emblem ? (
-              <span style={{ color: company.liveryColor }} className="inline-flex">
-                <Emblem id={company.emblem} size={20} />
-              </span>
-            ) : (
-              <span className="relative inline-flex">
-                <SteamEffect size={28} />
-                <TrainMark size={20} style={{ color: company.liveryColor }} className="shrink-0 relative" />
-              </span>
-            )}
-            <span className="font-display text-base md:text-xl leading-tight truncate">{company.name}</span>
-          </div>
-          <div className="hidden md:block text-[11px] text-amber font-body uppercase tracking-[0.14em]">
-            {career ? career.currentRank.name : "Console d'exploitation"}
-          </div>
+          <CompanyBadge company={company} size={38} />
+          <span className="min-w-0">
+            <span className="block font-display text-[17px] leading-tight truncate">{company.name}</span>
+            <span className="block text-[12.5px] text-amber font-body truncate">{career ? career.currentRank.name : "Console d'exploitation"}</span>
+          </span>
         </button>
-
-        <div className="flex flex-row md:flex-col md:flex-1 overflow-x-auto md:overflow-y-auto md:min-h-0">
-          {/* 1.5 : les rubriques sont rangées par thème, comme les services d'une vraie compagnie */}
-          <nav className="flex flex-row md:flex-col md:flex-1 md:pb-2">
-            {onboarding && (
-              <button
-                onClick={() => setView("trains")}
-                className="hidden md:block text-left mx-5 mt-4 mb-1 border border-amber/40 bg-amber/[0.06] px-3 py-2 hover:bg-amber/10 transition-colors"
-              >
-                <div className="flex items-center justify-between font-mono2 text-[10.5px] uppercase tracking-[0.14em] text-amber">
-                  <span>Premiers pas</span>
-                  <span>{onboardingProgress.done}/{onboardingProgress.total}</span>
-                </div>
-                <div className="h-[2px] bg-line mt-1.5">
-                  <div className="h-full bg-amber transition-all duration-700" style={{ width: `${(onboardingProgress.done / onboardingProgress.total) * 100}%` }} />
-                </div>
-              </button>
-            )}
-            <SidebarGroup label="Exploitation">
-              <SidebarItem icon={<TrainMark size={14} />} label="Trains" count={trains.length} active={view === "trains"} onClick={() => setView("trains")} />
-              <SidebarItem icon={<TrackMark size={14} />} label="Lignes" count={lines.length} active={view === "lignes"} onClick={() => setView("lignes")} />
-              <SidebarItem icon={<MapMark size={14} />} label="Carte" active={view === "carte"} onClick={() => setView("carte")} />
-            </SidebarGroup>
-            <SidebarGroup label="Commerce">
-              <SidebarItem icon={<CargoMark size={14} />} label="Fret" count={myContracts.filter((c) => c.status === "EN_COURS").length + missionCount} active={view === "fret" || view === "missions"} onClick={() => setView("fret")} />
-              {navOpen.cours && <SidebarItem icon={<SwapMark size={14} />} label="Cours" active={view === "cours"} onClick={() => setView("cours")} dataTutorial="nav-cours" />}
-              {/* 1.6 : les appels d'offres sont un marché, ils rejoignent le Commerce */}
-              {navOpen.appels && <SidebarItem icon={<TenderMark size={14} />} label="Appels d'offres" active={view === "appels"} onClick={() => setView("appels")} />}
-            </SidebarGroup>
-            <SidebarGroup label="Compagnie">
-              {navOpen.personnel && <SidebarItem icon={<StaffMark size={14} />} label="Personnel" alert={staff.some((s) => s.raiseRequested)} count={staff.length} active={view === "personnel"} onClick={() => setView("personnel")} />}
-              {navOpen.comptes && <SidebarItem icon={<ChartMark size={14} />} label="Comptes" active={view === "rentabilite" || view === "historique"} onClick={() => setView("rentabilite")} />}
-              <SidebarItem icon={<RankMark size={14} />} label="Progression" count={achievements.filter((a) => a.unlocked).length} active={view === "carriere" || view === "succes"} onClick={() => setView("carriere")} />
-              {navOpen.classement && <SidebarItem icon={<TrophyMark size={14} />} label="Classement" count={leaderTotal} active={view === "classement"} onClick={() => setView("classement")} dataTutorial="nav-classement" />}
-            </SidebarGroup>
-            {lockedNav.length > 0 && (
-              <div className="hidden md:block mx-5 mt-4 pt-3 border-t border-line/60">
-                <div className="font-mono2 text-[10px] uppercase tracking-[0.16em] text-slate2/60 mb-1.5">Bientôt</div>
-                {lockedNav.map((n) => (
-                  <div key={n.label} className="flex items-start gap-2 py-1">
-                    <LockMark size={11} className="text-slate2/50 mt-[3px] shrink-0" />
-                    <div className="min-w-0">
-                      <div className="font-body text-[12.5px] text-slate2/70 leading-tight">{n.label}</div>
-                      <div className="font-body text-[10.5px] text-slate2/50 leading-tight">{n.hint}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </nav>
-
-          <div className="flex flex-row md:flex-col border-l md:border-l-0 md:border-t border-line shrink-0">
-            {!install.installed && (
-              <SidebarItem
-                icon={<InstallMark size={14} />}
-                label="Installer l'app"
-                active={false}
-                onClick={async () => {
-                  if (install.canPrompt) await install.prompt();
-                  else setShowInstallGuide(true);
-                }}
-              />
-            )}
-            <SidebarItem icon={<ShopMark size={14} />} label="Boutique" accent active={view === "boutique"} onClick={() => setView("boutique")} />
-            <SidebarItem icon={<GearMark size={14} />} label="Paramètres" active={view === "parametres"} onClick={() => setView("parametres")} />
-            <div className="flex items-center md:border-t border-line font-mono2 text-[11px] uppercase tracking-wide text-slate2">
-              <button onClick={() => setShowTutorial(true)} className="whitespace-nowrap pl-4 pr-3 md:pl-5 md:pr-2 py-3 hover:text-offwhite">
-                Aide
-              </button>
-              <span aria-hidden="true" className="hidden md:inline text-line">·</span>
-              <button onClick={() => setShowWhatsNew(true)} title="Voir les notes de version" className="whitespace-nowrap px-2 py-3 hover:text-cobalt">
-                v{CURRENT_VERSION}
-              </button>
-              <a
-                href={INSTAGRAM.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`Suivre Réseau sur Instagram (@${INSTAGRAM.handle})`}
-                aria-label={`Réseau sur Instagram (@${INSTAGRAM.handle})`}
-                className="px-2 py-3 hover:text-offwhite"
-              >
-                <InstagramMark size={14} />
-              </a>
-              <button onClick={logout} className="whitespace-nowrap pl-3 pr-4 md:pl-2 md:pr-5 py-3 md:ml-auto hover:text-offwhite">
-                Quitter
-              </button>
+        {season?.season && season.me && navOpen.classement && (
+          <button onClick={() => setView("saison")} className="mx-5 mb-2 flex items-center gap-2 text-[12.5px] font-body text-slate2 hover:text-offwhite text-left">
+            <span className="w-2 h-2 rotate-45 shrink-0" style={{ background: DIVISION_COLORS[season.me.division] }} />
+            <span className="truncate">
+              {season.me.rank}
+              {season.me.rank === 1 ? "er" : "e"} du groupe {season.me.divisionName}
+            </span>
+            <span className="ml-auto font-mono2 text-amber tabular-nums">{season.me.points.toLocaleString("fr-FR")}</span>
+          </button>
+        )}
+        {onboarding && (
+          <button onClick={() => setView("trains")} className="text-left mx-5 mt-1 mb-1 border border-amber/40 bg-amber/[0.06] px-3 py-2 hover:bg-amber/10 transition-colors">
+            <div className="flex items-center justify-between text-[12.5px] font-body text-amber">
+              <span>Premiers pas</span>
+              <span className="font-mono2">{onboardingProgress.done}/{onboardingProgress.total}</span>
             </div>
+            <div className="h-[2px] bg-line mt-1.5">
+              <div className="h-full bg-amber transition-all duration-700" style={{ width: `${(onboardingProgress.done / onboardingProgress.total) * 100}%` }} />
+            </div>
+          </button>
+        )}
+
+        <nav className="flex-1 min-h-0 overflow-y-auto pb-3" aria-label="Rubriques">
+          {navGroups.map((g) => (
+            <div key={g.label} className="pt-3">
+              <div className="px-5 pb-1 text-[12px] font-body text-slate2/70">{g.label}</div>
+              {g.items.map((it) => (
+                <NavRow key={it.id} item={it} />
+              ))}
+            </div>
+          ))}
+          {lockedNav.length > 0 && (
+            <div className="mx-5 mt-4 pt-3 border-t border-line/60">
+              <div className="text-[12px] font-body text-slate2/60 mb-1">Bientôt</div>
+              {lockedNav.map((n) => (
+                <div key={n.label} className="flex items-start gap-2 py-1">
+                  <LockMark size={11} className="text-slate2/50 mt-[3px] shrink-0" />
+                  <div className="min-w-0">
+                    <div className="font-body text-[12.5px] text-slate2/70 leading-tight">{n.label}</div>
+                    <div className="font-body text-[11px] text-slate2/50 leading-tight">{n.hint}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </nav>
+
+        <div className="border-t border-line px-3 py-3 flex flex-col gap-1">
+          <button
+            onClick={() => setView("boutique")}
+            className={`flex items-center gap-2.5 px-2.5 py-2 text-[14px] font-body border transition-colors ${view === "boutique" ? "border-amber text-amber bg-amber/10" : "border-amber/40 text-amber hover:bg-amber/10"}`}
+          >
+            <ShopMark size={16} />
+            Boutique
+          </button>
+          {!install.installed && (
+            <button
+              onClick={async () => {
+                if (install.canPrompt) await install.prompt();
+                else setShowInstallGuide(true);
+              }}
+              className="flex items-center gap-2.5 px-2.5 py-1.5 text-[13.5px] font-body text-slate2 hover:text-offwhite"
+            >
+              <InstallMark size={15} />
+              Installer l'app
+            </button>
+          )}
+          <div className="flex items-center gap-x-3 gap-y-1 flex-wrap px-2.5 pt-1 text-[12.5px] font-body text-slate2">
+            <button onClick={() => setView("parametres")} className={`hover:text-offwhite ${view === "parametres" ? "text-offwhite" : ""}`}>Paramètres</button>
+            <button onClick={() => setShowTutorial(true)} className="hover:text-offwhite">Aide</button>
+            <button onClick={() => setShowWhatsNew(true)} title="Voir les notes de version" className="font-mono2 text-[11.5px] hover:text-cobalt">v{CURRENT_VERSION}</button>
+            <a href={INSTAGRAM.url} target="_blank" rel="noopener noreferrer" title={`Suivre Réseau sur Instagram (@${INSTAGRAM.handle})`} aria-label={`Réseau sur Instagram (@${INSTAGRAM.handle})`} className="hover:text-offwhite">
+              <InstagramMark size={14} />
+            </a>
+            <button onClick={logout} className="ml-auto hover:text-offwhite">Quitter</button>
           </div>
         </div>
       </aside>
+
+      {/* téléphone : en-tête court, onglets en bas, le reste dans « Plus » */}
+      <header className="md:hidden sticky top-0 z-40 flex items-center gap-3 px-4 py-2.5 border-b border-line bg-navy-950/95 backdrop-blur">
+        <button onClick={() => setEditingCompany(true)} className="flex items-center gap-2.5 min-w-0 text-left">
+          <CompanyBadge company={company} size={30} />
+          <span className="min-w-0">
+            <span className="block font-display text-[15px] leading-tight truncate">{company.name}</span>
+            <span className="block text-[11.5px] text-amber font-body truncate">{career ? career.currentRank.name : ""}</span>
+          </span>
+        </button>
+        <span className="ml-auto font-mono2 text-[15px] text-amber tabular-nums whitespace-nowrap">
+          {Math.max(0, company.balance).toLocaleString("fr-FR")} pi.
+        </span>
+      </header>
+      <MobileTabBar
+        tabs={[
+          { id: "trains", label: "Flotte", icon: <TrainMark size={20} />, active: view === "trains", onClick: () => setView("trains") },
+          { id: "lignes", label: "Lignes", icon: <TrackMark size={20} />, active: view === "lignes", onClick: () => setView("lignes") },
+          { id: "carte", label: "Carte", icon: <MapMark size={20} />, active: view === "carte", onClick: () => setView("carte") },
+          navOpen.classement
+            ? { id: "saison", label: "Saison", icon: <SeasonMark size={20} />, active: view === "saison", onClick: () => setView("saison") }
+            : { id: "fret", label: "Fret", icon: <CargoMark size={20} />, active: view === "fret" || view === "missions", onClick: () => setView("fret") },
+        ]}
+        groups={navGroups}
+        current={view}
+        extra={[
+          { id: "boutique", label: "Boutique", onClick: () => setView("boutique"), accent: true },
+          { id: "parametres", label: "Paramètres", onClick: () => setView("parametres") },
+          ...(!install.installed ? [{ id: "install", label: "Installer l'app", onClick: () => (install.canPrompt ? void install.prompt() : setShowInstallGuide(true)) }] : []),
+          { id: "aide", label: "Aide", onClick: () => setShowTutorial(true) },
+          { id: "notes", label: `Nouveautés de la v${CURRENT_VERSION}`, onClick: () => setShowWhatsNew(true) },
+          { id: "quitter", label: "Quitter", onClick: logout },
+        ]}
+      />
 
       {showTutorial && (
         <Tutorial
@@ -829,11 +1067,43 @@ export default function Dashboard() {
       )}
       {showInstallGuide && <InstallGuide onClose={() => setShowInstallGuide(false)} />}
       {showCatalog && (
-        <TrainCatalogModal buying={buyingTrain} gradeId={career?.currentRank.id ?? 0} onBuy={buyTrain} onClose={() => setShowCatalog(false)} />
+        <TrainCatalogModal buying={buyingTrain} gradeId={career?.currentRank.id ?? 0} onBuy={buyTrain} onClose={() => setShowCatalog(false)} livery={company.liveryColor} onOpenShop={(id) => { setShowCatalog(false); setShopFocus(id); setView("boutique"); }} />
+      )}
+      {reveals.length > 0 && (
+        <PurchaseReveal
+          queue={reveals}
+          companyName={company.name}
+          liveryColor={company.liveryColor}
+          onDone={(r) => {
+            markSeen(r);
+            setReveals((q) => q.filter((x) => revealKey(x) !== revealKey(r)));
+          }}
+          onWorn={() => {
+            loadAll();
+            setShopKey((k) => k + 1);
+          }}
+        />
+      )}
+      {arrival && (
+        <TrainArrival
+          name={arrival.name}
+          model={arrival.model}
+          livery={arrival.livery ?? company.liveryColor}
+          skin={arrival.skin}
+          kicker={arrival.kicker}
+          subtitle={arrival.subtitle}
+          station={lines[0]?.departureStation ?? "Paris"}
+          onClose={() => setArrival(null)}
+          onCompose={arrival.skin ? undefined : () => {
+            setComposeId(arrival.id);
+            setView("trains");
+            setArrival(null);
+          }}
+        />
       )}
 
       {/* Main */}
-      <div className="relative bg-navy-950/30 backdrop-blur-[1px]">
+      <div className="relative min-w-0 bg-navy-950/30 backdrop-blur-[1px]">
         <div className="flex items-center justify-between px-6 py-2 border-b border-line font-mono2 text-[11px] text-slate2 uppercase tracking-wide gap-3">
           {news.length > 0 ? (
             <NewsTicker items={news} />
@@ -849,16 +1119,6 @@ export default function Dashboard() {
               Service de nuit
             </span>
           )}
-          {weather && weather.type !== "CLAIR" && (
-            <span className={`flex items-center gap-1.5 truncate ${
-              weather.type === "CANICULE" ? "text-rail-red" : weather.type === "VERGLAS" || weather.type === "NEIGE" ? "text-cobalt" : "text-slate2"
-            }`}>
-              {weather.type === "CANICULE" && <SunMark size={13} />}
-              {(weather.type === "VERGLAS" || weather.type === "NEIGE") && <SnowMark size={13} />}
-              {weather.type === "BROUILLARD" && <FogMark size={13} />}
-              {weather.label}
-            </span>
-          )}
           <SplitFlap
             value={now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
             size="sm"
@@ -870,26 +1130,29 @@ export default function Dashboard() {
             vraiment, et à 1/5 de la rangée ses derniers chiffres étaient coupés
             (4 820 pi. s'affichait « 482 »). Sur téléphone, elle prend toute la
             première ligne. */}
-        <div className="border-b border-line grid grid-cols-2 md:grid-cols-[minmax(0,1.8fr)_repeat(4,minmax(0,1fr))]">
-          <StatCell
-            label="Trésorerie"
-            value={String(Math.max(0, company.balance))}
-            unit="pi."
-            color="text-amber"
-            accent="#c99a3e"
-            flap
-            className="col-span-2 md:col-span-1 border-b md:border-b-0"
-            pop={gain}
-          />
-          <StatCell label="Trains" value={String(trains.length)} color="text-offwhite" accent="#4a3f2e" />
-          <StatCell label="En circulation" value={String(enRoute)} color="text-rail-green" accent="#5c8a68" />
-          <StatCell label="Lignes" value={String(lines.length)} color="text-offwhite" accent="#4a3f2e" />
-          <StatCell
-            label="Réputation"
-            value={`${company.reputation}%`}
-            color={company.reputation >= 80 ? "text-rail-green" : company.reputation >= 50 ? "text-amber" : "text-rail-red"}
-            accent={company.reputation >= 80 ? "#5c8a68" : company.reputation >= 50 ? "#c99a3e" : "#a8483a"}
-          />
+        {/* 2.0 : la caisse et les compteurs tiennent sur une ligne ; la place va au tableau de bord */}
+        <div className="border-b border-line hidden md:flex flex-wrap items-center gap-x-7 gap-y-2 px-4 md:px-8 py-3 relative">
+          <div className="flex items-end gap-2 relative">
+            {gain && (
+              <span key={gain.key} className="gain-pop absolute -top-3 left-full ml-2 font-mono2 text-sm text-rail-green pointer-events-none whitespace-nowrap" aria-hidden="true">
+                +{gain.amount} pi.
+              </span>
+            )}
+            <SplitFlap value={String(Math.max(0, company.balance))} size="sm" className="text-amber" />
+            <span className="font-mono2 text-sm text-amber pb-0.5">pi.</span>
+            {todaySummary && todaySummary.net !== 0 && (
+              <span className={`text-[13px] font-body ml-1.5 pb-0.5 ${todaySummary.net > 0 ? "text-rail-green" : "text-rail-red"}`}>
+                {todaySummary.net > 0 ? "+" : "−"}
+                {Math.abs(todaySummary.net).toLocaleString("fr-FR")} aujourd'hui
+              </span>
+            )}
+          </div>
+          <span className="text-[14px] text-slate2 font-body"><span className="text-offwhite font-semibold">{enRoute}</span> rame{enRoute > 1 ? "s" : ""} en route sur {trains.length}</span>
+          <span className="text-[14px] text-slate2 font-body"><span className="text-offwhite font-semibold">{lines.length}</span> ligne{lines.length > 1 ? "s" : ""}</span>
+          <span className="text-[14px] text-slate2 font-body">
+            réputation{" "}
+            <span className={`font-semibold ${company.reputation >= 80 ? "text-rail-green" : company.reputation >= 50 ? "text-amber" : "text-rail-red"}`}>{company.reputation} %</span>
+          </span>
         </div>
 
         <DecisionBanner decisions={decisions} onOpen={setOpenDecision} />
@@ -901,26 +1164,71 @@ export default function Dashboard() {
             onDone={loadAll}
           />
         )}
-        {dailyChallenge && !onboarding && <DailyChallengeBanner challenge={dailyChallenge} onChange={loadAll} />}
+        {dailyChallenge && !onboarding && (view !== "trains" || dailyChallenge.completed) && <DailyChallengeBanner challenge={dailyChallenge} onChange={loadAll} />}
 
-        <main className={`p-4 md:p-8 ${themeTrial ? "pb-28 md:pb-28" : ""}`}>
+        <main className={`p-4 md:p-8 pb-24 ${themeTrial ? "pb-32 md:pb-28" : ""}`}>
           {/* une rubrique réunie garde la même clé d'un onglet à l'autre : l'en-tête
               et les onglets ne sont pas recréés, le focus clavier reste en place */}
           <div key={({ missions: "fret", historique: "rentabilite", succes: "carriere" } as Record<string, string>)[view] ?? view} className="view-transition">
-            <PageHeader view={view} company={company} />
+            <PageHeader view={view} lead={pageLead} />
             {/* 1.5 : trois rubriques en réunissent deux chacune */}
             {(view === "fret" || view === "missions") && (
               <SubTabs value={view} onChange={setView} tabs={[{ id: "fret", label: "Contrats" }, { id: "missions", label: "Donneurs d'ordre", count: missionCount }]} />
             )}
-            {(view === "rentabilite" || view === "historique") && (
-              <SubTabs value={view} onChange={setView} tabs={[{ id: "rentabilite", label: "Rentabilité" }, { id: "historique", label: "Grand livre", count: transactions.length }]} />
+            {FINANCE_VIEWS.includes(view) && (
+              <SubTabs
+                value={view}
+                onChange={setView}
+                tabs={[
+                  { id: "rapport", label: "Rapport de la semaine" },
+                  { id: "rentabilite", label: "Rentabilité" },
+                  { id: "banque", label: "Banque" },
+                  { id: "bourse", label: "Bourse" },
+                  { id: "historique", label: "Grand livre", count: transactions.length },
+                ]}
+              />
+            )}
+            {view === "rapport" && <WeeklyReportSection isPremium={company.isPremium} />}
+            {view === "banque" && <BankSection balance={company.balance} onChange={loadAll} />}
+            {view === "bourse" && <StockMarketSection balance={company.balance} onChange={loadAll} />}
+            {view === "infrastructures" && (
+              <InfrastructureSection
+                balance={company.balance}
+                stationSizes={Object.fromEntries((network?.stations ?? []).map((st) => [st.name, { size: st.size, sizeLabel: st.sizeLabel }]))}
+                onChange={loadAll}
+              />
             )}
             {(view === "carriere" || view === "succes") && (
               <SubTabs value={view} onChange={setView} tabs={[{ id: "carriere", label: "Grades" }, { id: "succes", label: "Succès", count: achievements.filter((a) => a.unlocked).length }]} />
             )}
             {view === "trains" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
-            {view === "trains" && todaySummary && !onboarding && <TodaySummaryCard summary={todaySummary} />}
-            {view === "trains" && import.meta.env.VITE_ADS_ENABLED === "true" && <AdWatchCard onChange={loadAll} />}
+            {/* 2.0 : le tableau de bord montre la partie au lieu d'empiler des cases */}
+            {view === "trains" && !onboarding && (
+              <HomeBoard
+                livery={company.liveryColor}
+                trains={trains}
+                lines={lines}
+                network={network}
+                summary={todaySummary}
+                decision={decisions.find((d) => d.status === "OUVERTE") ?? null}
+                challenge={dailyChallenge && !dailyChallenge.claimed ? dailyChallenge : null}
+                repairCostPerPoint={company.repairCostPerPoint ?? 2}
+                onOpenMap={() => setView("carte")}
+                onOpenLines={() => setView("lignes")}
+                onOpenDecision={() => {
+                  const d = decisions.find((x) => x.status === "OUVERTE");
+                  if (d) setOpenDecision(d);
+                }}
+                onChange={loadAll}
+                season={season}
+                world={world}
+                onOpenSeason={() => setView("saison")}
+                gazette={gazette}
+                onOpenTrain={(id) => setSheetRequest(id)}
+              />
+            )}
+            {view === "trains" && onboarding && todaySummary && <TodaySummaryCard summary={todaySummary} />}
+            {view === "trains" && adsEnabled && !onboarding && <AdWatchCard onChange={loadAll} isPremium={company.isPremium || Boolean(company.adFree)} />}
             {view === "trains" && !!company.upkeepPerHour && (
               <FirstVisitHint
                 id="entretien"
@@ -935,25 +1243,16 @@ export default function Dashboard() {
               />
             )}
             {view === "trains" && company.construction && (
-              <div className="border border-amber/40 bg-navy-900/40 px-4 py-3 mb-5">
-                <span className="font-mono2 text-[10.5px] text-amber uppercase tracking-[0.16em]">
-                  Chantier en cours
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-l-2 border-amber pl-3 py-1 mb-6 font-body">
+                <span className="text-[14px] text-offwhite">
+                  Chantier en cours : {company.construction.label.charAt(0).toLowerCase() + company.construction.label.slice(1)}, livré à{" "}
+                  <span className="font-mono2 text-amber">{new Date(company.construction.endsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
                 </span>
-                <div className="font-body text-[14px] text-offwhite mt-1">
-                  {company.construction.label} — livraison{" "}
-                  {new Date(company.construction.endsAt).toLocaleTimeString("fr-FR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </div>
                 {company.queuedConstruction && (
-                  <div className="font-body text-[12.5px] text-slate2 mt-1">
-                    Ensuite : {company.queuedConstruction.label} — fin prévue vers{" "}
-                    {new Date(company.queuedConstruction.endsAt).toLocaleTimeString("fr-FR", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </div>
+                  <span className="text-[12.5px] text-slate2">
+                    Ensuite : {company.queuedConstruction.label.charAt(0).toLowerCase() + company.queuedConstruction.label.slice(1)}, vers{" "}
+                    {new Date(company.queuedConstruction.endsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
                 )}
               </div>
             )}
@@ -971,8 +1270,27 @@ export default function Dashboard() {
                 ]}
               />
             )}
-            {view === "trains" && referral && !onboarding && <ReferralBanner referral={referral} />}
-            {view === "trains" && <TrainsSection trains={trains} lines={lines} incidents={incidents} company={company} staff={staff} weatherType={weather?.type} onChange={loadAll} onOpenCatalog={() => setShowCatalog(true)} />}
+            {view === "trains" && <TrainsSection trains={trains} lines={lines} incidents={incidents} company={company} staff={staff} weatherType={weather?.type} onChange={loadAll} onOpenCatalog={() => setShowCatalog(true)} composeId={composeId} onComposeHandled={clearCompose} sheetRequest={sheetRequest} onSheetHandled={clearSheet} onGoStaff={() => setView("personnel")} onGoPremium={() => setView("boutique")} />}
+            {view === "trains" && !onboarding && (
+              <div id="epaves">
+                <WreckYard
+                  balance={company.balance}
+                  onChange={loadAll}
+                  onCommissioned={(c) =>
+                    setArrival({
+                      id: c.train.id,
+                      name: c.train.name,
+                      model: c.train.model as Train["model"],
+                      skin: c.heritage.skin,
+                      livery: c.heritage.livery,
+                      kicker: "Remise en service",
+                      subtitle: `${c.heritage.label} ${c.heritage.serial}, ${new Date().getFullYear() - c.heritage.year} ans · billet +${Math.round((c.heritage.prestige - 1) * 100)} %`,
+                    })
+                  }
+                />
+              </div>
+            )}
+            {view === "trains" && referral && !onboarding && <div className="mt-10"><ReferralBanner referral={referral} /></div>}
             {/* conseils de première visite : au-dessus du contenu, pas sous une page qu'on ne fait pas défiler */}
             {view === "lignes" && lines.length > 0 && (
               <FirstVisitHint
@@ -1108,6 +1426,8 @@ export default function Dashboard() {
                 <ConstructionPanel onChange={loadAll} />
               </>
             )}
+            {view === "saison" && <SeasonSection data={season} world={world} onReload={reloadSeason} companyName={company.name} onChange={loadAll} />}
+            {view === "alliance" && <AllianceSection data={alliance} onReload={reloadAlliance} onChange={loadAll} />}
             {view === "classement" && (
               <>
                 <FirstVisitHint
@@ -1146,15 +1466,17 @@ export default function Dashboard() {
                     "En contrepartie elle immobilise la rame plus longtemps, et une panne en route fait perdre bien plus de trajet.",
                   ]}
                 />
-                <NetworkMap lines={lines} trains={trains} contracts={myContracts} onChange={loadAll} network={network} />
+                <NetworkMap lines={lines} trains={trains} contracts={myContracts} onChange={loadAll} network={network} livery={company.liveryColor} onOpenWrecks={() => { setView("trains"); window.setTimeout(() => document.getElementById("epaves")?.scrollIntoView({ behavior: "smooth", block: "start" }), 250); }} />
               </>
             )}
             {view === "personnel" && (
-              <StaffSection staff={staff} gradeId={career?.currentRank.id ?? 0} onChange={loadAll} />
+              <StaffSection staff={staff} gradeId={career?.currentRank.id ?? 0} onChange={loadAll} trains={trains} />
             )}
             {view === "parametres" && (
               <SettingsSection company={company} referral={referral} onChange={loadAll} onOpenShop={() => setView("boutique")} />
             )}
+            {/* 1.7 : une bannière en pied de page, seulement sur les pages qu'on lit */}
+            {adsEnabled && !company.isPremium && !company.adFree && !onboarding && BANNER_VIEWS.includes(view) && <AdBanner placement={view} />}
           </div>
         </main>
       </div>
@@ -1168,117 +1490,219 @@ const PAGE_COPY = {
   fret: { title: "Fret", subtitle: "Contrats de marchandises au comptant, et ordres des donneurs d'ordre qui paient votre fidélité." },
   missions: { title: "Fret", subtitle: "Contrats de marchandises au comptant, et ordres des donneurs d'ordre qui paient votre fidélité." },
   classement: { title: "Classement", subtitle: "Les compagnies les plus prospères du réseau." },
-  historique: { title: "Comptes", subtitle: "Ce que rapporte chaque ligne, et le registre de tous les mouvements de trésorerie." },
-  rentabilite: { title: "Comptes", subtitle: "Ce que rapporte chaque ligne, et le registre de tous les mouvements de trésorerie." },
+  historique: { title: "Finances", subtitle: "Le registre de tous les mouvements de trésorerie." },
+  rentabilite: { title: "Finances", subtitle: "Ce que rapporte chaque ligne et chaque rame, sur sept jours." },
+  // 1.7
+  rapport: { title: "Finances", subtitle: "Le bilan de la semaine : ce qui est entré, ce qui est sorti, et d'où." },
+  banque: { title: "Finances", subtitle: "Emprunter pour investir plus tôt, et rembourser heure par heure." },
+  bourse: { title: "Finances", subtitle: "Les compagnies du réseau cotées entre joueurs : cours, dividendes et portefeuille." },
+  infrastructures: { title: "Infrastructures", subtitle: "Gares, ateliers et caténaires : ce qui ne roule pas mais rapporte." },
   succes: { title: "Progression", subtitle: "Votre carrière grade après grade, et les étapes franchies par la compagnie." },
   carte: { title: "Carte du réseau", subtitle: "Vos lignes et vos trains, positionnés en temps réel." },
   personnel: { title: "Personnel", subtitle: "Une équipe qui prend de l'expérience et doit suivre la taille de votre flotte." },
   parametres: { title: "Paramètres", subtitle: "Gérez votre compte." },
+  // 2.0
+  saison: { title: "Saison", subtitle: "Quatre semaines, un classement qui repart à zéro, face à des compagnies de votre taille." },
+  alliance: { title: "Alliance", subtitle: "Jusqu'à cinq compagnies qui jouent ensemble." },
   carriere: { title: "Progression", subtitle: "Votre carrière grade après grade, et les étapes franchies par la compagnie." },
   cours: { title: "Cours du fret", subtitle: "Ce que valent les marchandises aujourd'hui, et ce que vous en faites." },
-  boutique: { title: "Boutique", subtitle: "Des couleurs, des emblèmes, un titre. Rien qui change un chiffre du jeu." },
+  boutique: { title: "Boutique", subtitle: "Le Pass de saison, deux extensions, des couleurs, des emblèmes, des titres. Rien qui rende plus fort, et tout s'offre." },
   appels: { title: "Appels d'offres", subtitle: "Chaque semaine, les régions cherchent une compagnie pour exploiter une liaison." },
 };
 
 export type DashboardView = keyof typeof PAGE_COPY;
+const FINANCE_VIEWS: string[] = ["rapport", "rentabilite", "banque", "bourse", "historique"];
+// pages de consultation où une bannière en bas ne gêne pas : ni la carte, ni la flotte, ni les formulaires
+const BANNER_VIEWS: string[] = ["classement", "historique", "rentabilite", "rapport", "carriere", "succes", "appels", "cours"];
 
-function PageHeader({ view, company }: { view: DashboardView; company: Company }) {
+/* 1.7 : l'en-tête de page est un panneau de gare. Le pictogramme de la
+   rubrique dans son carré, le nom en grand, et l'exploitant sur le côté. */
+const PAGE_ICON: Partial<Record<DashboardView, (p: { size: number }) => JSX.Element>> = {
+  trains: TrainMark,
+  lignes: TrackMark,
+  carte: MapMark,
+  infrastructures: StationMark,
+  fret: CargoMark,
+  missions: CargoMark,
+  cours: SwapMark,
+  appels: TenderMark,
+  personnel: StaffMark,
+  rapport: BankMark,
+  rentabilite: BankMark,
+  banque: BankMark,
+  bourse: BankMark,
+  historique: BankMark,
+  carriere: RankMark,
+  succes: RankMark,
+  classement: TrophyMark,
+  saison: SeasonMark,
+  alliance: AllianceMark,
+  boutique: ShopMark,
+  parametres: GearMark,
+};
+
+/* 2.0 : l'en-tête dit ce qui se passe. Le nom de la rubrique en petit, et en
+   grand une phrase tirée de la partie en cours : combien de rames roulent,
+   quelles lignes débordent, ce que la journée a rapporté. */
+function PageHeader({ view, lead }: { view: DashboardView; lead?: string | null }) {
   const copy = PAGE_COPY[view];
+  const Icon = PAGE_ICON[view] ?? TrainMark;
   return (
-    <div className="mb-8 flex items-end justify-between gap-6 flex-wrap">
-      <div>
-        <h1 className="font-display text-3xl md:text-4xl leading-none mb-2">{copy.title}</h1>
-        <p className="text-sm text-slate2 font-body max-w-md">{copy.subtitle}</p>
+    <header className="mb-7 pb-5 border-b border-line">
+      <div className="flex items-center gap-2 text-cobalt">
+        <Icon size={15} />
+        <h1 className="text-[14px] font-semibold font-body text-offwhite">{copy.title}</h1>
       </div>
-      <div className="text-right shrink-0">
-        <div className="text-[11px] text-slate2 font-body uppercase tracking-[0.14em]">Exploitant</div>
-        <div className="font-mono2 text-sm" style={{ color: company.liveryColor }}>{company.name}</div>
-      </div>
-    </div>
+      <p className="font-display text-[22px] md:text-[28px] leading-snug mt-1.5 max-w-3xl">{lead || copy.subtitle}</p>
+      {lead && <p className="text-[13px] text-slate2 font-body mt-1 max-w-xl">{copy.subtitle}</p>}
+    </header>
   );
 }
+
+/* 1.7 : le résumé du jour tient sur une ligne, comme un bandeau de gare.
+   Le solde net d'abord (c'est le chiffre qu'on cherche), le reste à la suite,
+   et le détail recettes / dépenses se déplie à la demande. Le choix est retenu. */
+
+const SUMMARY_OPEN_KEY = "reseau.resume-ouvert";
 
 function TodaySummaryCard({ summary }: { summary: TodaySummary }) {
-  const items = [
-    { label: "Recettes", value: `+${summary.income} pi.`, color: "text-rail-green" },
-    { label: "Dépenses", value: `${summary.expenses} pi.`, color: "text-rail-red" },
-    { label: "Solde net", value: `${summary.net >= 0 ? "+" : ""}${summary.net} pi.`, color: summary.net >= 0 ? "text-amber" : "text-rail-red" },
-    { label: "Trajets voyageurs", value: String(summary.lineTrips), color: "text-offwhite" },
-    { label: "Livraisons", value: String(summary.freightDeliveries), color: "text-offwhite" },
-    { label: "Incidents", value: String(summary.incidents), color: summary.incidents > 0 ? "text-rail-red" : "text-slate2" },
-  ];
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(SUMMARY_OPEN_KEY) === "1";
+    } catch {
+      return false;
+    }
+  });
+  function toggle() {
+    setOpen((v) => {
+      try {
+        localStorage.setItem(SUMMARY_OPEN_KEY, v ? "0" : "1");
+      } catch {
+        // stockage refusé : le choix vaut pour la session
+      }
+      return !v;
+    });
+  }
+  const fmt = (n: number) => Math.abs(n).toLocaleString("fr-FR");
+  const netUp = summary.net >= 0;
 
   return (
-    <div className="border border-line mb-8">
-      <div className="flex items-center gap-2 px-4 py-2.5 border-b border-line">
-        <LedgerMark size={14} className="text-cobalt" />
-        <span className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em]">Résumé du jour</span>
-      </div>
-      <div className="grid grid-cols-3 md:grid-cols-6 divide-x divide-line">
-        {items.map((item) => (
-          <div key={item.label} className="px-3 py-3 text-center">
-            <div className={`font-mono2 text-sm md:text-base ${item.color}`}>{item.value}</div>
-            <div className="text-[9px] md:text-[10px] text-slate2 font-body uppercase tracking-wide mt-1">{item.label}</div>
-          </div>
-        ))}
-      </div>
+    <div className="border border-line mb-6 font-mono2">
+      <button onClick={toggle} aria-expanded={open} className="w-full flex items-center gap-x-4 gap-y-1 px-4 py-2 text-left hover:bg-navy-900/40 transition-colors">
+        <span className="flex items-center gap-2 shrink-0">
+          <LedgerMark size={13} className="text-cobalt" />
+          <span className="text-[10.5px] uppercase tracking-[0.16em] text-slate2">Aujourd'hui</span>
+        </span>
+        <span className={`text-sm tabular-nums shrink-0 ${netUp ? "text-rail-green" : "text-rail-red"}`}>
+          {netUp ? "+" : "−"}
+          {fmt(summary.net)} pi. <span className="text-[10.5px] text-slate2">net</span>
+        </span>
+        <span className="hidden sm:flex items-center gap-3 text-[12px] text-slate2 tabular-nums min-w-0 truncate">
+          <span>·</span>
+          <span>{summary.lineTrips} trajet{summary.lineTrips > 1 ? "s" : ""}</span>
+          <span>·</span>
+          <span>{summary.freightDeliveries} livraison{summary.freightDeliveries > 1 ? "s" : ""}</span>
+          <span>·</span>
+          <span className={summary.incidents > 0 ? "text-rail-red" : ""}>
+            {summary.incidents} incident{summary.incidents > 1 ? "s" : ""}
+          </span>
+        </span>
+        <span className="ml-auto text-[10.5px] uppercase tracking-wide text-slate2 shrink-0">
+          Détails <span className={`inline-block transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
+        </span>
+      </button>
+      {open && (
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2 border-t border-line text-[12px] tabular-nums">
+          <span>
+            <span className="text-slate2">recettes </span>
+            <span className="text-rail-green">+{fmt(summary.income)} pi.</span>
+          </span>
+          <span>
+            <span className="text-slate2">dépenses </span>
+            <span className="text-rail-red">−{fmt(summary.expenses)} pi.</span>
+          </span>
+          {/* sur téléphone, les compteurs du bandeau passent ici */}
+          <span className="sm:hidden text-slate2">
+            {summary.lineTrips} trajets · {summary.freightDeliveries} livraisons ·{" "}
+            <span className={summary.incidents > 0 ? "text-rail-red" : ""}>{summary.incidents} incidents</span>
+          </span>
+        </div>
+      )}
     </div>
   );
 }
 
-function AdWatchCard({ onChange }: { onChange: () => void }) {
+/* 1.7 : vidéos récompensées (Google AdSense). Le joueur choisit d'en regarder
+   une contre des pièces ; rien d'autre dans le jeu n'est une publicité. Un
+   abonné Premium ne charge même pas le script tant qu'il ne le demande pas. */
+function AdWatchCard({ onChange, isPremium }: { onChange: () => void; isPremium: boolean }) {
   const [status, setStatus] = useState<{ watchedToday: number; remaining: number; maxPerDay: number; rewardPerAd: number } | null>(null);
-  const [playing, setPlaying] = useState(false);
+  const [phase, setPhase] = useState<"idle" | "loading" | "playing">("idle");
   const { showToast, showComposter } = useToast();
 
   useEffect(() => {
     api.get("/ads/status").then(({ data }) => setStatus(data)).catch(() => {});
-  }, []);
+    // préchargement pour les joueurs gratuits : la vidéo démarre sans attente
+    if (!isPremium) loadAds();
+  }, [isPremium]);
 
   async function watchAd() {
-    setPlaying(true);
+    if (phase !== "idle") return;
+    setPhase("loading");
     try {
-      // ==========================================================================
-      // ESPACE RÉSERVÉ pour le vrai script publicitaire (ex. AppLixir, AdinPlay...).
-      // À remplacer par l'appel réel du SDK une fois un compte créé chez un réseau
-      // publicitaire compatible web. Le principe à respecter impérativement :
-      // n'appeler /ads/claim QUE dans le callback "publicité terminée avec succès"
-      // du SDK — jamais si elle est fermée en avance, en erreur, ou non chargée.
-      await new Promise((resolve) => setTimeout(resolve, 3000));
-      // ==========================================================================
-
-      const { data } = await api.post("/ads/claim");
-      showToast(`+${data.reward} pi. — merci d'avoir regardé la publicité`);
-      showComposter("Publicité regardée");
+      const { data: start } = await api.post("/ads/start");
+      const outcome = await showRewardedAd(() => setPhase("playing"));
+      if (outcome === "viewed") {
+        const { data } = await api.post("/ads/claim", { token: start.token });
+        showComposter(`+${data.reward} pi. — merci d'avoir regardé la publicité`);
+        onChange();
+      } else if (outcome === "dismissed") {
+        showToast("Publicité fermée avant la fin : pas de récompense cette fois", "error");
+      } else if (outcome === "blocked") {
+        showToast("Les publicités ne se chargent pas (bloqueur de publicité ?)", "error");
+      } else {
+        showToast("Aucune publicité disponible pour le moment, réessayez dans quelques minutes", "error");
+      }
       const { data: newStatus } = await api.get("/ads/status");
       setStatus(newStatus);
-      onChange();
     } catch (err: any) {
       showToast(err?.response?.data?.error || "Erreur", "error");
     } finally {
-      setPlaying(false);
+      setPhase("idle");
     }
   }
 
   if (!status) return null;
+  // un abonné ne voit qu'une ligne discrète : la vidéo reste possible, jamais mise en avant
+  if (isPremium) {
+    return status.remaining > 0 ? (
+      <div className="mb-6 flex items-center justify-end gap-2 text-[11.5px] font-body text-slate2">
+        <span>Envie de pièces en plus ? Une vidéo facultative rapporte {status.rewardPerAd} pi.</span>
+        <button onClick={watchAd} disabled={phase !== "idle"} className="font-mono2 uppercase text-[10.5px] text-cobalt hover:underline disabled:opacity-50">
+          {phase === "idle" ? "Regarder" : "Chargement…"}
+        </button>
+      </div>
+    ) : null;
+  }
 
   return (
     <div className="border border-line mb-6 p-4 flex items-center justify-between gap-4 flex-wrap">
       <div>
         <div className="flex items-center gap-2 mb-1">
           <AnnounceMark size={15} className="text-cobalt shrink-0" />
-          <span className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em]">Regarder une publicité</span>
+          <span className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em]">Vidéo récompensée</span>
         </div>
         <p className="text-xs text-slate2 font-body">
-          +{status.rewardPerAd} pi. par publicité, jusqu'à {status.maxPerDay} par jour — {status.watchedToday}/{status.maxPerDay} aujourd'hui
+          +{status.rewardPerAd} pi. par vidéo regardée jusqu'au bout, jusqu'à {status.maxPerDay} par jour — {status.watchedToday}/{status.maxPerDay} aujourd'hui.
+          <span className="text-slate2/70"> Le Premium n'affiche aucune publicité.</span>
         </p>
       </div>
       <button
         onClick={watchAd}
-        disabled={playing || status.remaining === 0}
+        disabled={phase !== "idle" || status.remaining === 0}
         className="text-xs font-mono2 uppercase text-cobalt border border-cobalt/40 px-3 py-2 hover:bg-cobalt/10 transition-colors disabled:opacity-50 shrink-0"
       >
-        {playing ? "Lecture…" : status.remaining === 0 ? "Revenez demain" : `Regarder (+${status.rewardPerAd} pi.)`}
+        {phase === "loading" ? "Chargement…" : phase === "playing" ? "Lecture…" : status.remaining === 0 ? "Revenez demain" : `Regarder (+${status.rewardPerAd} pi.)`}
       </button>
     </div>
   );
@@ -1450,72 +1874,30 @@ function WearGauge({ value }: { value: number }) {
 
 type SubTab<T extends string> = { id: T; label: string; count?: number };
 function SubTabs<T extends string>({ value, onChange, tabs }: { value: string; onChange: (v: T) => void; tabs: SubTab<T>[] }) {
+  // 1.7 : des onglets comme des voies de quai : l'onglet actif se détache du panneau
   return (
-    <div role="tablist" className="flex gap-1 border-b border-line mb-6 -mt-3 overflow-x-auto">
+    <div role="tablist" className="flex border-b border-line mb-6 -mt-2 overflow-x-auto">
       {tabs.map((t) => (
         <button
           key={t.id}
           role="tab"
           aria-selected={value === t.id}
           onClick={() => onChange(t.id)}
-          className={`shrink-0 px-4 py-2.5 text-sm font-body border-b-2 -mb-px transition-colors ${
-            value === t.id ? "border-cobalt text-offwhite" : "border-transparent text-slate2 hover:text-offwhite"
+          className={`shrink-0 px-4 py-2 text-[13.5px] font-body border -mb-px transition-colors ${
+            value === t.id
+              ? "border-line border-b-navy-950 bg-navy-950 text-offwhite shadow-[inset_0_2px_0_rgb(var(--c-cobalt))]"
+              : "border-transparent text-slate2 hover:text-offwhite"
           }`}
         >
           {t.label}
-          {t.count !== undefined && <span className="ml-2 font-mono2 text-xs text-slate2 tabular-nums">{t.count}</span>}
+          {t.count !== undefined && <span className="ml-2 font-mono2 text-[11px] text-slate2 tabular-nums">{t.count}</span>}
         </button>
       ))}
     </div>
   );
 }
 
-function SidebarGroup({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-row md:flex-col md:pt-3 border-l md:border-l-0 border-line first:border-l-0">
-      <div className="hidden md:block px-5 pb-1 font-mono2 text-[10px] uppercase tracking-[0.16em] text-slate2/70">{label}</div>
-      {children}
-    </div>
-  );
-}
 
-function SidebarItem({
-  label,
-  count,
-  active,
-  onClick,
-  icon,
-  dataTutorial,
-  alert,
-  badge,
-  accent,
-}: {
-  label: string;
-  count?: number;
-  active: boolean;
-  onClick: () => void;
-  icon: React.ReactNode;
-  dataTutorial?: string;
-  alert?: boolean;
-  badge?: string;
-  accent?: boolean;
-}) {
-  return (
-    <button
-      data-tutorial={dataTutorial}
-      onClick={onClick}
-      className={`shrink-0 whitespace-nowrap md:w-full flex items-center gap-2 md:gap-2.5 px-3.5 md:px-5 py-3 md:py-2 text-sm font-body border-l-2 transition-colors ${
-        active ? "border-cobalt text-cobalt bg-navy-900/60" : accent ? "border-transparent text-amber hover:text-offwhite" : "border-transparent text-slate2 hover:text-offwhite"
-      }`}
-    >
-      <span className="shrink-0 inline-flex">{icon}</span>
-      <span className="md:flex-1 text-left">{label}</span>
-      {alert && <span className="w-1.5 h-1.5 rounded-full bg-amber" aria-label="demande en attente" />}
-      {badge && <span className="font-mono2 text-[9px] uppercase tracking-wide px-1.5 py-0.5 bg-amber/15 text-amber">{badge}</span>}
-      {count !== undefined && <span className="text-xs font-mono2 tabular-nums opacity-80">{count}</span>}
-    </button>
-  );
-}
 
 function StatCell({
   label,
@@ -1764,8 +2146,8 @@ const STATIONS = [
   "Rouen", "Saint-Étienne", "Strasbourg", "Toulouse", "Tours", "Troyes",
 ];
 // 1.6 : les gares à l'étranger, à part dans la liste (il faut la licence internationale)
-const INTL_STATIONS = ["Barcelone", "Bruxelles", "Francfort", "Genève", "Londres", "Milan"];
-const INTL_CODE: Record<string, string> = { Barcelone: "ES", Bruxelles: "BE", Francfort: "DE", "Genève": "CH", Londres: "GB", Milan: "IT" };
+const INTL_STATIONS = ["Barcelone", "Bruxelles", "Francfort", "Genève", "Londres", "Milan", "Turin", "Zurich"];
+const INTL_CODE: Record<string, string> = { Barcelone: "ES", Bruxelles: "BE", Francfort: "DE", "Genève": "CH", Londres: "GB", Milan: "IT", Turin: "IT", Zurich: "CH" };
 const isIntl = (s: string) => INTL_STATIONS.includes(s);
 
 /* 1.6 : service de nuit, de 22 h à 6 h à Paris (comme le serveur) */
@@ -1784,9 +2166,10 @@ function StationPicker({
   label: string;
   value: string;
   onChange: (v: string) => void;
-  exclude?: string;
+  exclude?: string | string[];
   intlLocked?: boolean; // pas encore de licence internationale
 }) {
+  const excluded = new Set(Array.isArray(exclude) ? exclude : exclude ? [exclude] : []);
   function handlePick(e: React.MouseEvent<HTMLButtonElement>, station: string) {
     onChange(station);
     const details = e.currentTarget.closest("details");
@@ -1795,14 +2178,14 @@ function StationPicker({
 
   return (
     <div className="flex-1">
-      <label className="block text-[11px] uppercase tracking-wide text-slate2 mb-1.5 font-body">{label}</label>
+      {label && <label className="block text-[11px] uppercase tracking-wide text-slate2 mb-1.5 font-body">{label}</label>}
       <details className="relative">
         <summary className="cursor-pointer select-none list-none w-full flex items-center justify-between bg-transparent border border-line px-3 py-2 text-sm hover:border-cobalt transition-colors [&::-webkit-details-marker]:hidden">
           <span className={value ? "text-offwhite" : "text-slate2"}>{value || "Choisir une gare…"}</span>
           <span className="text-[10px] text-slate2">▾</span>
         </summary>
         <div className="absolute z-30 mt-1 w-full max-h-52 overflow-y-auto bg-navy-900 border border-line shadow-[0_8px_20px_-6px_rgba(0,0,0,0.6)]">
-          {STATIONS.filter((s) => s !== exclude).map((s) => (
+          {STATIONS.filter((s) => !excluded.has(s)).map((s) => (
             <button
               key={s}
               type="button"
@@ -1815,7 +2198,7 @@ function StationPicker({
           <div className="px-3 py-1.5 bg-navy-950 border-b border-line font-mono2 text-[10px] uppercase tracking-[0.14em] text-slate2">
             À l'étranger{intlLocked ? " · licence requise" : ""}
           </div>
-          {INTL_STATIONS.filter((s) => s !== exclude).map((s) => (
+          {INTL_STATIONS.filter((s) => !excluded.has(s) && stationVisible(s)).map((s) => (
             <button
               key={s}
               type="button"
@@ -1825,6 +2208,21 @@ function StationPicker({
             >
               {s}
               <span className="font-mono2 text-[10px] text-slate2">{INTL_CODE[s]}</span>
+            </button>
+          ))}
+          {/* 2.0 : l'extension Montagne */}
+          <div className="px-3 py-1.5 bg-navy-950 border-b border-line font-body text-[11.5px] text-slate2">
+            Montagne{hasMountain() ? "" : ", extension requise"}
+          </div>
+          {MOUNTAIN_STATIONS.filter((s) => !excluded.has(s)).map((s) => (
+            <button
+              key={s}
+              type="button"
+              disabled={!hasMountain()}
+              onClick={(e) => handlePick(e, s)}
+              className="w-full text-left px-3 py-2 text-xs font-body text-offwhite hover:bg-cobalt/15 hover:text-cobalt transition-colors border-b border-line last:border-0 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-offwhite disabled:cursor-not-allowed"
+            >
+              {s}
             </button>
           ))}
         </div>
@@ -1851,28 +2249,32 @@ function LinesSection({
   const [name, setName] = useState("");
   const [departure, setDeparture] = useState("");
   const [arrival, setArrival] = useState("");
-  /* La durée n'est plus un champ : elle est déduite des deux gares, comme sur la
+  // 1.7 : arrêts intermédiaires, dans l'ordre du trajet aller
+  const [stops, setStops] = useState<string[]>([]);
+  /* La durée n'est plus un champ : elle est déduite de l'itinéraire, comme sur la
      carte, et le serveur la recalcule de son côté. */
+  const route = [departure, ...stops, arrival];
   const plan =
-    departure && arrival && STATION_COORDS[departure] && STATION_COORDS[arrival]
+    departure && arrival && route.every((s) => STATION_COORDS[s])
       ? (() => {
-          const km = distanceKm(STATION_COORDS[departure], STATION_COORDS[arrival]);
-          const minutes = durationFromKm(km);
-          const d1 = stationOf(network, departure)?.demand ?? 1;
-          const d2 = stationOf(network, arrival)?.demand ?? 1;
-          const demand = (d1 + d2) / 2;
+          const km = routeKm(route);
+          const minutes = routeMinutes(route);
+          const demand = route.reduce((a, n) => a + (stationOf(network, n)?.demand ?? 1), 0) / route.length;
           // 1.6 : une ligne qui passe la frontière rapporte plus, péage déduit
-          const intl = isIntl(departure) || isIntl(arrival);
+          const intl = route.some(isIntl);
           const intlFactor = intl && network?.international ? network.international.revenueBonus * (1 - network.international.tollRate) : 1;
-          return { km, minutes, yieldPct: lengthYieldPct(minutes), hourly: Math.round(hourlyRevenue(minutes) * demand * intlFactor), demand, intl };
+          // 1.7 : chaque arrêt amène 20 % de voyageurs en plus, dans la limite des places d'une rame standard
+          const stopFactor = 1 + 0.2 * stops.length;
+          return { km, minutes, yieldPct: lengthYieldPct(minutes), hourly: Math.round(hourlyRevenue(minutes) * demand * intlFactor * Math.min(stopFactor, 1.35)), demand, intl };
         })()
       : null;
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [loadLine, setLoadLine] = useState<Line | null>(null);
   const { showToast } = useToast();
 
   function startCreate() {
     setEditingId(null);
-    setName(""); setDeparture(""); setArrival("");
+    setName(""); setDeparture(""); setArrival(""); setStops([]);
     setOpen((v) => !v);
   }
 
@@ -1881,7 +2283,7 @@ function LinesSection({
     setName(line.name ?? "");
     setDeparture(line.departureStation);
     setArrival(line.arrivalStation);
-
+    setStops(line.stops ?? []);
     setOpen(true);
   }
 
@@ -1894,7 +2296,7 @@ function LinesSection({
           name: name.trim() || `${departure} — ${arrival}`,
           departureStation: departure,
           arrivalStation: arrival,
-
+          stops,
         });
         showToast(`Ligne ${departure} → ${arrival} mise à jour`);
       } else {
@@ -1902,11 +2304,11 @@ function LinesSection({
           name: name.trim() || `${departure} — ${arrival}`,
           departureStation: departure,
           arrivalStation: arrival,
-
+          stops,
         });
         showToast(`Ligne ${departure} → ${arrival} créée`);
       }
-      setName(""); setDeparture(""); setArrival("");
+      setName(""); setDeparture(""); setArrival(""); setStops([]);
       setEditingId(null);
       setOpen(false);
       onChange();
@@ -1928,9 +2330,14 @@ function LinesSection({
 
   return (
     <div>
-      <div className="flex items-center justify-end mb-4">
-        <button data-tutorial="btn-new-line" onClick={startCreate} className="text-xs font-mono2 text-cobalt uppercase border border-cobalt/40 px-2.5 py-1 hover:bg-cobalt/10 active:scale-[0.96] transition-transform">
-          {open ? "Annuler" : "+ Ligne"}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <h2 className="font-display text-[20px]">{lines.length > 0 ? `Vos ${lines.length} ligne${lines.length > 1 ? "s" : ""}` : "Aucune ligne pour l'instant"}</h2>
+        <button
+          data-tutorial="btn-new-line"
+          onClick={startCreate}
+          className={`text-[13.5px] font-semibold px-3.5 py-2 active:scale-[0.96] transition-transform font-body ${open ? "border border-line text-slate2 hover:text-offwhite" : "bg-cobalt text-onaccent hover:bg-cobalt/90"}`}
+        >
+          {open ? "Annuler" : "Tracer une ligne"}
         </button>
       </div>
 
@@ -1955,7 +2362,7 @@ function LinesSection({
             <StationPicker label="Gare de départ" value={departure} onChange={setDeparture} exclude={arrival} intlLocked={!network?.international?.licence.owned} />
             <button
               type="button"
-              onClick={() => { const tmp = departure; setDeparture(arrival); setArrival(tmp); }}
+              onClick={() => { const tmp = departure; setDeparture(arrival); setArrival(tmp); setStops((st) => [...st].reverse()); }}
               title="Inverser départ et arrivée"
               className="mb-0.5 p-2 border border-line text-slate2 hover:text-cobalt hover:border-cobalt transition-colors shrink-0"
             >
@@ -1964,13 +2371,54 @@ function LinesSection({
             <StationPicker label="Gare d'arrivée" value={arrival} onChange={setArrival} exclude={departure} intlLocked={!network?.international?.licence.owned} />
           </div>
 
+          {/* 1.7 : arrêts intermédiaires. La rame dessert chaque gare à l'aller
+              puis au retour, et chaque arrêt amène sa part de voyageurs. */}
+          {departure && arrival && (
+            <div>
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span className="text-[11px] uppercase tracking-wide text-slate2 font-body">
+                  Arrêts intermédiaires <span className="normal-case tracking-normal text-slate2/70">({stops.length}/{MAX_STOPS} · +20 % de voyageurs par arrêt, 1 min à quai)</span>
+                </span>
+              </div>
+              <ol className="border-l-2 border-line ml-1.5 pl-4 space-y-1.5">
+                {stops.map((st, i) => (
+                  <li key={st} className="relative flex items-center gap-2 text-sm font-body">
+                    <span className="absolute -left-[22px] w-2.5 h-2.5 rounded-full bg-navy-950 border-2 border-cobalt" />
+                    <span className="text-offwhite">{st}</span>
+                    <span className="ml-auto flex items-center gap-1">
+                      <button type="button" disabled={i === 0} onClick={() => setStops((a) => { const b = [...a]; [b[i - 1], b[i]] = [b[i], b[i - 1]]; return b; })} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label={`Avancer ${st}`}>↑</button>
+                      <button type="button" disabled={i === stops.length - 1} onClick={() => setStops((a) => { const b = [...a]; [b[i + 1], b[i]] = [b[i], b[i + 1]]; return b; })} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label={`Reculer ${st}`}>↓</button>
+                      <button type="button" onClick={() => setStops((a) => a.filter((x) => x !== st))} className="w-6 h-6 border border-line text-slate2 hover:text-rail-red hover:border-rail-red/50" aria-label={`Retirer ${st}`}>×</button>
+                    </span>
+                  </li>
+                ))}
+                {stops.length < MAX_STOPS && (
+                  <li className="relative">
+                    <span className="absolute -left-[22px] top-[13px] w-2.5 h-2.5 rounded-full bg-navy-950 border-2 border-dashed border-slate2" />
+                    <StationPicker
+                      key={stops.length}
+                      label=""
+                      value=""
+                      onChange={(v) => setStops((a) => [...a, v])}
+                      exclude={[departure, arrival, ...stops]}
+                      intlLocked={!network?.international?.licence.owned}
+                    />
+                  </li>
+                )}
+              </ol>
+            </div>
+          )}
+
           {(departure || arrival) && (
             <div className="border border-dashed border-line px-3 py-2.5 text-sm font-mono2 text-slate2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <TrainMark size={14} className="text-cobalt shrink-0" />
-                <span className="text-offwhite">{departure || "?"}</span>
-                <span>→</span>
-                <span className="text-offwhite">{arrival || "?"}</span>
+                {(departure && arrival ? route : [departure || "?", arrival || "?"]).map((st, i, all) => (
+                  <span key={st + i} className="flex items-center gap-2">
+                    <span className={i === 0 || i === all.length - 1 ? "text-offwhite" : "text-slate2"}>{st}</span>
+                    {i < all.length - 1 && <span>→</span>}
+                  </span>
+                ))}
                 {plan && <span className="ml-auto text-amber">{plan.minutes} min</span>}
               </div>
               {/* La durée n'est plus saisie : elle découle de la distance entre les
@@ -2007,7 +2455,7 @@ function LinesSection({
                   })}
                   {" "}· demande <DemandCell demand={plan.demand} />
                   {/* 1.5 : correspondances ouvertes ou renforcées par cette ligne */}
-                  {hubPreview(lines, departure, arrival, network.hubRule, editingId).map((h) => (
+                  {hubPreview(lines, route, network.hubRule, editingId).map((h) => (
                     <div key={h.station} className="text-cobalt mt-0.5">
                       {h.before === 1 ? "Nouvelle correspondance" : "Correspondance renforcée"} à {h.station} : {h.after} destinations, +{h.total} % sur chaque trajet qui y passe
                       {h.gain === 0 && " (plafond atteint)"}, dès qu'une rame y roule
@@ -2053,73 +2501,385 @@ function LinesSection({
         />
       )}
 
-      {network && <SeasonBanner network={network} onOpenShop={onOpenShop} />}
-      {network && <LicencePanel network={network} onChange={onChange} />}
-      {network && <StationEventsPanel network={network} company={company} onChange={onChange} />}
+      {loadLine && (
+        <LineLoadModal
+          lineId={loadLine.id}
+          title={`${loadLine.departureStation} ⇄ ${loadLine.arrivalStation}`}
+          isPremium={company.isPremium}
+          onClose={() => setLoadLine(null)}
+        />
+      )}
+      {/* 2.0 : une ligne se lit comme une phrase. Son tracé et son état d'abord,
+          puis ce qu'on règle : le billet, et la place face aux concurrents. */}
+      {lines.length > 0 && (
+        <ul className="border-t border-line">
+          {lines.map((l, i) => {
+            const m = network?.lines.find((x) => x.lineId === l.id);
+            const r = m?.ridership;
+            const route = [l.departureStation, ...(l.stops ?? []), l.arrivalStation];
+            const nTrains = r?.trains ?? m?.self?.trains ?? 0;
+            const state = !r ? null : r.estimated ? { tone: "text-slate2", text: "Pas de rame en route" } : r.left > 0 ? { tone: "text-[#fca5a5]", text: `Pleine, ${r.left} à quai` } : r.fill < 40 ? { tone: "text-amber", text: `${r.fill} % rempli, trop de places` } : { tone: "text-rail-green", text: `${r.fill} % rempli` };
+            return (
+              <li key={l.id} className="py-4 border-b border-line grid gap-x-6 gap-y-3 lg:grid-cols-[minmax(0,1.3fr)_150px_minmax(0,1fr)_auto] items-start">
+                <div className="flex gap-3.5 min-w-0">
+                  <div className="pt-1"><MiniRoute stations={route} color={LINE_PALETTE[i % LINE_PALETTE.length]} width={56} /></div>
+                  <div className="min-w-0">
+                    <div className="text-[15.5px] font-semibold font-body">{route.join(", ")}</div>
+                    <div className="text-[12.5px] text-slate2 font-body mt-0.5">
+                      <span>{l.durationMinutes} min, {nTrains} rame{nTrains > 1 ? "s" : ""}</span>
+                      {l.electrified && <span className="text-amber">, électrifiée</span>}
+                      {m?.demand !== undefined && <span>, demande <DemandCell demand={m.demand} /></span>}
+                      {m?.hub && m.hub > 1.0001 && <span>, correspondance <HubCell hub={m.hub} /></span>}
+                    </div>
+                    {state && <div className={`text-[13px] font-body mt-1 ${state.tone}`}>{state.text}</div>}
+                  </div>
+                </div>
+                <div>
+                  <FillCell ridership={r} onDetail={() => setLoadLine(l)} premium={company.isPremium} quiet />
+                </div>
+                <div className="min-w-0">
+                  <PriceControl line={l} ridership={r} premium={company.isPremium} onChange={onChange} />
+                  <div className="mt-2 text-[12px] font-body flex items-center gap-2">
+                    <span className="text-slate2">Voyageurs</span>
+                    <LineShareCell market={m} />
+                  </div>
+                  {m && <RivalsDetail market={m} premium={network!.isPremium} company={company} onChange={onChange} />}
+                </div>
+                <div className="flex lg:flex-col items-end gap-2">
+                  {confirmDeleteId === l.id ? (
+                    <span className="flex items-center gap-2">
+                      <span className="text-[12px] text-slate2 font-body">Supprimer ?</span>
+                      <button onClick={() => confirmDelete(l.id)} className="text-[12.5px] text-rail-red border border-rail-red/40 px-2.5 py-1 hover:bg-rail-red/10 font-body">Oui</button>
+                      <button onClick={() => setConfirmDeleteId(null)} className="text-[12.5px] text-slate2 border border-line px-2.5 py-1 hover:text-offwhite font-body">Non</button>
+                    </span>
+                  ) : (
+                    <>
+                      <button onClick={() => startEdit(l)} className="text-[13px] text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 font-body">Modifier</button>
+                      <button onClick={() => setConfirmDeleteId(l.id)} className="text-[13px] text-slate2 hover:text-rail-red font-body">Supprimer</button>
+                    </>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
 
-      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-      <table className="w-full text-sm min-w-[820px]">
-        <thead>
-          <tr className="text-left text-[11px] text-slate2 font-body uppercase tracking-[0.14em] border-b border-line">
-            <th className="py-2.5 font-normal">Départ</th>
-            <th className="py-2.5 font-normal">Arrivée</th>
-            <th className="py-2.5 font-normal text-right">Durée</th>
-            <th className="py-2.5 font-normal text-right pl-4">Demande</th>
-            <th className="py-2.5 font-normal text-right pl-4" title="Bonus des gares où plusieurs de vos lignes se croisent">Correspondance</th>
-            <th className="py-2.5 font-normal pl-4">Voyageurs</th>
-            <th className="py-2.5 font-normal w-44"></th>
-          </tr>
-        </thead>
-        <tbody>
-          {lines.length === 0 && (
-            <tr><td colSpan={7} className="py-6 text-center text-slate2 font-body">Aucune ligne tracée pour l'instant.</td></tr>
-          )}
-          {lines.map((l) => (
-            <tr key={l.id} className="border-b border-line last:border-0 hover:bg-navy-900/40 transition-colors">
-              <td className="py-3.5 font-body align-top">{l.departureStation}</td>
-              <td className="py-3.5 font-body align-top">{l.arrivalStation}</td>
-              <td className="py-3.5 text-right text-slate2 font-mono2 align-top">{l.durationMinutes} min</td>
-              <td className="py-3.5 text-right pl-4 align-top">
-                <DemandCell demand={network?.lines.find((m) => m.lineId === l.id)?.demand} />
-              </td>
-              <td className="py-3.5 text-right pl-4 align-top">
-                <HubCell hub={network?.lines.find((m) => m.lineId === l.id)?.hub} />
-              </td>
-              <td className="py-3.5 pl-4 align-top">
-                <LineShareCell market={network?.lines.find((m) => m.lineId === l.id)} />
-                {(() => {
-                  const m = network?.lines.find((x) => x.lineId === l.id);
-                  return m ? <RivalsDetail market={m} premium={network!.isPremium} company={company} onChange={onChange} /> : null;
-                })()}
-              </td>
-              <td className="py-3.5 text-right align-top">
-                {confirmDeleteId === l.id ? (
-                  <span className="flex items-center justify-end gap-2">
-                    <span className="text-[11px] text-slate2 font-body">Supprimer ?</span>
-                    <button onClick={() => confirmDelete(l.id)} className="text-[11px] text-rail-red uppercase border border-rail-red/40 px-2 py-1 hover:bg-rail-red/10 transition-colors font-body">
-                      Oui
-                    </button>
-                    <button onClick={() => setConfirmDeleteId(null)} className="text-[11px] text-slate2 uppercase border border-line px-2 py-1 hover:text-offwhite transition-colors font-body">
-                      Annuler
-                    </button>
-                  </span>
-                ) : (
-                  <span className="flex items-center justify-end gap-2">
-                    <button onClick={() => startEdit(l)} className="text-[11px] text-cobalt uppercase border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 transition-colors font-body">
-                      Modifier
-                    </button>
-                    <button onClick={() => setConfirmDeleteId(l.id)} className="text-[11px] text-slate2 hover:text-rail-red uppercase border border-line px-2 py-1 transition-colors font-body">
-                      Supprimer
-                    </button>
-                  </span>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
+      {/* ce qui pèse sur vos lignes : temps fort, licence, gares du moment */}
+      {network && (
+        <div className="mt-10">
+          <h2 className="font-display text-[20px] mb-4">Autour de vos lignes</h2>
+          {network && <SeasonBanner network={network} onOpenShop={onOpenShop} />}
+          {network && <LicencePanel network={network} onChange={onChange} />}
+          {network && <RushPanel network={network} premium={company.isPremium} />}
+          {network && <StationEventsPanel network={network} company={company} onChange={onChange} />}
+        </div>
+      )}
     </div>
+  );
+}
+
+/* ---------------- 1.7 : itinéraire, remplissage, prix du billet ---------------- */
+
+type Ridership = NonNullable<LineMarket["ridership"]>;
+
+function RouteCell({ line }: { line: Line }) {
+  const stops = line.stops ?? [];
+  return (
+    <div>
+      <div className="flex items-center gap-1.5 text-offwhite whitespace-nowrap">
+        {line.departureStation}
+        <span className="text-slate2 text-xs">⇄</span>
+        {line.arrivalStation}
+      </div>
+      {(stops.length > 0 || line.electrified) && (
+        <div className="text-[11px] text-slate2 mt-0.5 flex items-center gap-1.5 flex-wrap">
+          {stops.length > 0 && <span>via {stops.join(", ")}</span>}
+          {line.electrified && (
+            <span className="font-mono2 text-[10px] uppercase text-amber" title="Ligne électrifiée : trajets 10 % plus rapides, usure réduite">
+              ϟ électrifiée
+            </span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* Jauge de remplissage : on lit d'un coup d'œil si la ligne manque de places
+   (voyageurs laissés à quai) ou si les rames roulent à moitié vides. */
+function FillCell({ ridership, onDetail, premium, quiet }: { ridership?: Ridership; onDetail: () => void; premium: boolean; quiet?: boolean }) {
+  if (!ridership) return <span className="text-slate2 font-mono2 text-xs">—</span>;
+  const { fill, carried, seats, left, estimated } = ridership;
+  const tone = left > 0 ? "bg-rail-red" : fill >= 70 ? "bg-rail-green" : fill >= 40 ? "bg-amber" : "bg-slate2";
+  return (
+    <div className="w-32">
+      <div className="flex items-baseline justify-between font-mono2 text-xs">
+        <span className="text-offwhite tabular-nums">{fill} %</span>
+        <span className="text-slate2 tabular-nums">{carried}/{seats}</span>
+      </div>
+      <div className="h-1.5 bg-navy-900 border border-line mt-1">
+        <div className={`h-full ${tone}`} style={{ width: `${Math.min(100, fill)}%` }} />
+      </div>
+      <div className={`text-[10.5px] font-body mt-1 leading-tight ${quiet ? "hidden" : ""}`}>
+        {estimated ? (
+          <span className="text-slate2">estimation, aucune rame en route</span>
+        ) : left > 0 ? (
+          <span className="text-rail-red">{left} voyageurs restés à quai</span>
+        ) : fill < 40 ? (
+          <span className="text-slate2">rames peu remplies</span>
+        ) : null}
+      </div>
+      {/* 1.7 — Premium : la courbe des 24 dernières heures */}
+      <button onClick={onDetail} className="mt-0.5 text-[10.5px] font-mono2 uppercase tracking-wide text-cobalt hover:underline flex items-center gap-1">
+        {!premium && <LockMark size={9} />} 24 h
+      </button>
+    </div>
+  );
+}
+
+const fmtPrice = (r: number) => `×${r.toFixed(2).replace(".", ",")}`;
+
+/* Prix du billet, de ×0,6 à ×2 du tarif de base. Plus cher, chaque voyageur
+   rapporte plus mais il en vient moins : le bon prix remplit juste les rames. */
+function PriceControl({ line, ridership, premium, onChange }: { line: Line; ridership?: Ridership; premium: boolean; onChange: () => void }) {
+  const saved = line.priceRatio ?? 1;
+  const [value, setValue] = useState(saved);
+  const [saving, setSaving] = useState(false);
+  const { showToast } = useToast();
+  useEffect(() => setValue(saved), [saved]);
+
+  async function save(next: number) {
+    const v = Math.round(Math.min(2, Math.max(0.6, next)) * 20) / 20;
+    setValue(v);
+    setSaving(true);
+    try {
+      await api.patch("/lines", { lineId: line.id, priceRatio: v });
+      onChange();
+    } catch (err: any) {
+      setValue(saved);
+      showToast(err?.response?.data?.error || "Erreur", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  // 1.7 — Premium : le prix se cale tout seul, chaque heure, sur le prix conseillé
+  const auto = Boolean(ridership?.auto);
+  async function toggleAuto() {
+    if (!premium) {
+      showToast("Le prix automatique est réservé aux abonnés Premium", "error");
+      return;
+    }
+    setSaving(true);
+    try {
+      await api.patch("/lines", { lineId: line.id, autoPrice: !auto });
+      onChange();
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || "Erreur", "error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const ideal = ridership?.idealPrice;
+  const gap = ideal == null ? 0 : ideal - value;
+  return (
+    <div className="w-36">
+      <div className="flex items-center gap-1">
+        <button type="button" disabled={saving || value <= 0.6} onClick={() => save(value - 0.05)} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label="Baisser le prix">−</button>
+        <input
+          type="range"
+          min={0.6}
+          max={2}
+          step={0.05}
+          value={value}
+          disabled={saving}
+          onChange={(e) => setValue(Number(e.target.value))}
+          onPointerUp={() => value !== saved && save(value)}
+          onKeyUp={() => value !== saved && save(value)}
+          className="flex-1 accent-[rgb(var(--c-cobalt))] h-1"
+          aria-label="Prix du billet"
+        />
+        <button type="button" disabled={saving || value >= 2} onClick={() => save(value + 0.05)} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label="Monter le prix">+</button>
+      </div>
+      <div className="flex items-baseline justify-between font-mono2 text-xs mt-1">
+        <span className={value > 1 ? "text-amber" : value < 1 ? "text-cobalt" : "text-offwhite"}>{fmtPrice(value)}</span>
+        {ideal != null && (
+          <button
+            type="button"
+            onClick={() => save(ideal)}
+            disabled={saving || Math.abs(gap) < 0.05}
+            className={`text-[10.5px] disabled:cursor-default ${Math.abs(gap) < 0.05 ? "text-rail-green" : "text-slate2 hover:text-cobalt"}`}
+            title={
+              Math.abs(gap) < 0.05
+                ? "Bon prix : il remplit juste vos rames"
+                : gap > 0
+                ? "Les rames sont pleines : vous pouvez monter le prix. Cliquer pour l'appliquer."
+                : "Trop cher pour remplir les rames. Cliquer pour appliquer le prix conseillé."
+            }
+          >
+            {Math.abs(gap) < 0.05 ? "✓ bon prix" : `${gap > 0 ? "↑" : "↓"} ${fmtPrice(ideal)}`}
+          </button>
+        )}
+      </div>
+      <button
+        type="button"
+        onClick={toggleAuto}
+        disabled={saving}
+        title={premium ? "Chaque heure, le prix se cale sur le prix conseillé. Régler le prix à la main désactive le mode automatique." : "Premium : le prix se règle tout seul, chaque heure"}
+        className={`mt-1 flex items-center gap-1.5 text-[10.5px] font-mono2 uppercase tracking-wide ${auto ? "text-rail-green" : "text-slate2 hover:text-offwhite"}`}
+      >
+        <span className={`w-6 h-3 border relative ${auto ? "border-rail-green bg-rail-green/20" : "border-line"}`}>
+          <span className={`absolute top-[1px] w-2 h-2 ${auto ? "right-[1px] bg-rail-green" : "left-[1px] bg-slate2"}`} />
+        </span>
+        {!premium && <LockMark size={9} />}
+        Prix auto
+      </button>
+    </div>
+  );
+}
+
+/* ---------------- 1.7 : composition des rames ---------------- */
+
+// doit rester aligné sur ridership.service.ts
+const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220 };
+const CAR_TYPES: { id: string; label: string; short: string; seats: number; first: boolean; price: number; unique?: boolean; blurb: string }[] = [
+  { id: "SECONDE", label: "Voiture de 2de classe", short: "2", seats: 100, first: false, price: 150, blurb: "+100 places. Pour les lignes où des voyageurs restent à quai." },
+  { id: "PREMIERE", label: "Voiture de 1re classe", short: "1", seats: 60, first: true, price: 300, blurb: "+60 places payées 1,8 fois le billet. Rentable sur les lignes chargées." },
+  { id: "BAR", label: "Voiture-bar", short: "B", seats: 0, first: false, price: 250, unique: true, blurb: "+8 % de recette par trajet. Une seule par rame." },
+];
+const MAX_CARS = 3;
+const CAR_SLOWDOWN = 0.03;
+
+function seatsOf(model: string, cars: string[]) {
+  const second = (MODEL_SEATS[model] ?? 400) + cars.reduce((n, c) => n + (c === "SECONDE" ? 100 : 0), 0);
+  const first = cars.filter((c) => c === "PREMIERE").length * 60;
+  return { second, first, total: second + first };
+}
+
+/* Petit schéma de la rame : la motrice, puis une case par voiture. */
+function ConsistMini({ model, cars }: { model: string; cars: string[] }) {
+  return (
+    <span className="inline-flex items-center gap-[2px]" aria-hidden>
+      <span className={`h-2 w-3.5 rounded-l-[3px] ${model === "EXPRESS" ? "bg-amber" : "bg-cobalt"}`} />
+      <span className="h-2 w-3 bg-slate2/70" />
+      {cars.map((c, i) => (
+        <span key={i} className={`h-2 w-3 ${c === "PREMIERE" ? "bg-amber/80" : c === "BAR" ? "bg-rail-green/80" : "bg-slate2/70"}`} />
+      ))}
+    </span>
+  );
+}
+
+function CompositionModal({ train, balance, livery, onClose, onChange }: { train: Train; balance: number; livery: string | null; onClose: () => void; onChange: () => void }) {
+  const cars = train.cars ?? [];
+  const seats = seatsOf(train.model, cars);
+  const [busy, setBusy] = useState<string | null>(null);
+  const { showToast } = useToast();
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  async function change(car: string, action: "add" | "remove") {
+    if (busy) return;
+    setBusy(car + action);
+    try {
+      await api.post("/trains/cars", { trainId: train.id, car, action });
+      const def = CAR_TYPES.find((c) => c.id === car)!;
+      showToast(action === "add" ? `${def.label} attelée à ${train.name}` : `${def.label} dételée, ${Math.floor(def.price / 2)} pi. récupérées`);
+      onChange();
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || "Erreur", "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const fill = train.lastSeats ? Math.round(((train.lastPassengers ?? 0) / train.lastSeats) * 100) : null;
+  const modelName = modelLabel(train.model);
+
+  /* dans <body> : la page est animée (transform), ce qui décalerait une fenêtre « fixed » */
+  return createPortal(
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="w-full max-w-xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Composition de ${train.name}`}>
+        <div className="flex items-start justify-between px-5 pt-4 pb-3 border-b border-line">
+          <div>
+            <div className="font-mono2 text-[10px] uppercase tracking-[0.18em] text-slate2">Composition · {modelName}</div>
+            <h3 className="font-display text-xl leading-tight">{train.name}</h3>
+          </div>
+          <button onClick={onClose} className="text-slate2 hover:text-offwhite text-lg leading-none px-1" aria-label="Fermer">×</button>
+        </div>
+
+        {/* 2.0 : la rame à quai ; la voiture attelée arrive et s'accroche */}
+        <div className="border-b border-line">
+          <TrainStage model={train.model} cars={cars} maxCars={MAX_CARS} livery={livery ?? "#38bdf8"} station={train.line?.departureStation ?? "Dépôt"} />
+          {cars.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-4 pb-3 pt-1 bg-navy-950">
+              {cars.map((c, i) => {
+                const def = CAR_TYPES.find((d) => d.id === c)!;
+                return (
+                  <button
+                    key={i}
+                    onClick={() => change(c, "remove")}
+                    disabled={!!busy}
+                    className="text-[12.5px] font-body text-slate2 border border-line px-2 py-1 hover:text-rail-red hover:border-rail-red/60 disabled:opacity-40"
+                    title={`Dételer (${Math.floor(def.price / 2)} pi. récupérées)`}
+                  >
+                    Dételer la {c === "BAR" ? "voiture-bar" : c === "PREMIERE" ? "1re classe" : "2de classe"} n° {i + 1}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="grid grid-cols-3 border-b border-line text-center">
+          <div className="py-3 border-r border-line">
+            <div className="font-mono2 text-lg tabular-nums">{seats.total}</div>
+            <div className="text-[10.5px] uppercase tracking-wide text-slate2 font-body">places{seats.first ? ` · ${seats.first} en 1re` : ""}</div>
+          </div>
+          <div className="py-3 border-r border-line">
+            <div className="font-mono2 text-lg tabular-nums">{fill == null ? "—" : `${fill} %`}</div>
+            <div className="text-[10.5px] uppercase tracking-wide text-slate2 font-body">remplissage</div>
+          </div>
+          <div className="py-3">
+            <div className="font-mono2 text-lg tabular-nums">{cars.length ? `−${Math.round(CAR_SLOWDOWN * cars.length * 100)} %` : "—"}</div>
+            <div className="text-[10.5px] uppercase tracking-wide text-slate2 font-body">vitesse</div>
+          </div>
+        </div>
+
+        <div className="p-5 space-y-2">
+          {CAR_TYPES.map((c) => {
+            const full = cars.length >= MAX_CARS;
+            const dup = c.unique && cars.includes(c.id);
+            const poor = balance < c.price;
+            return (
+              <div key={c.id} className="flex items-center gap-3 border border-line px-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-body text-offwhite">{c.label}</div>
+                  <div className="text-[11.5px] text-slate2 font-body">{c.blurb}</div>
+                </div>
+                <button
+                  onClick={() => change(c.id, "add")}
+                  disabled={!!busy || full || dup || poor}
+                  title={full ? `${MAX_CARS} voitures au plus` : dup ? "Une seule par rame" : poor ? "Trésorerie insuffisante" : undefined}
+                  className="shrink-0 text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-2.5 py-1.5 hover:bg-cobalt/10 disabled:opacity-35 disabled:hover:bg-transparent"
+                >
+                  Atteler · {c.price} pi.
+                </button>
+              </div>
+            );
+          })}
+          <p className="text-[11px] text-slate2 font-body pt-1">
+            Chaque voiture ralentit la rame de {Math.round(CAR_SLOWDOWN * 100)} %. Une voiture dételée rend la moitié de son prix.
+          </p>
+        </div>
+      </div>
+    </div>,
+    document.body
   );
 }
 
@@ -2132,7 +2892,19 @@ function TrainsSection({
   weatherType,
   onChange,
   onOpenCatalog,
+  composeId,
+  onComposeHandled,
+  onGoStaff,
+  onGoPremium,
+  sheetRequest,
+  onSheetHandled,
 }: {
+  sheetRequest?: string | null;
+  onSheetHandled?: () => void;
+  onGoStaff?: () => void;
+  onGoPremium?: () => void;
+  composeId?: string | null;
+  onComposeHandled?: () => void;
   trains: Train[];
   lines: Line[];
   incidents: Incident[];
@@ -2145,6 +2917,24 @@ function TrainsSection({
   // vue cabine (1.4) : la rame suivie, relue à chaque rafraîchissement du tableau de bord
   const [cabId, setCabId] = useState<string | null>(null);
   const cabTrain = cabId ? trains.find((x) => x.id === cabId) ?? null : null;
+  const [compoId, setCompoId] = useState<string | null>(null);
+  const compoTrain = compoId ? trains.find((x) => x.id === compoId) ?? null : null;
+  // 2.0 : la fiche atelier
+  const [sheetId, setSheetId] = useState<string | null>(null);
+  const sheetTrain = sheetId ? trains.find((x) => x.id === sheetId) ?? null : null;
+  useEffect(() => {
+    if (sheetRequest && trains.some((x) => x.id === sheetRequest)) {
+      setSheetId(sheetRequest);
+      onSheetHandled?.();
+    }
+  }, [sheetRequest, trains, onSheetHandled]);
+  // 2.0 : « Ajouter des voitures » depuis l'arrivée d'une rame neuve
+  useEffect(() => {
+    if (composeId && trains.some((x) => x.id === composeId)) {
+      setCompoId(composeId);
+      onComposeHandled?.();
+    }
+  }, [composeId, trains, onComposeHandled]);
   const [expanding, setExpanding] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -2207,7 +2997,8 @@ function TrainsSection({
     setRepairing(trainId);
     try {
       await api.post("/trains/repair", { trainId });
-      showComposter(preventive ? "Révision effectuée — usure remise à zéro" : "Rame réparée et remise en service");
+      showComposter(preventive ? "La rame part à l'atelier pour sa révision" : "Rame réparée et remise en service");
+      if (preventive) playChime();
       onChange();
     } catch (err: any) {
       showToast(err?.response?.data?.error || "Erreur lors de la réparation", "error");
@@ -2242,6 +3033,21 @@ function TrainsSection({
           onClose={() => setCabId(null)}
         />
       )}
+      {sheetTrain && (
+        <TrainSheet
+          train={sheetTrain}
+          trains={trains}
+          balance={company.balance}
+          isPremium={company.isPremium}
+          costPerPoint={repairCostPerPoint}
+          crew={staff.filter((s) => s.role === "CONTROLEUR" || s.role === "CONDUCTEUR").map((s) => ({ id: s.id, name: s.name ?? "Employé", role: s.role, level: s.level, trainId: s.trainId ?? null }))}
+          onClose={() => setSheetId(null)}
+          onChange={onChange}
+          onGoStaff={() => { setSheetId(null); onGoStaff?.(); }}
+          onGoPremium={() => { setSheetId(null); onGoPremium?.(); }}
+        />
+      )}
+      {compoTrain && <CompositionModal train={compoTrain} balance={company.balance} livery={company.isPremium ? company.liveryColor : null} onClose={() => setCompoId(null)} onChange={onChange} />}
       {/* 1.6 : la vue cabine s'installe en tête de la flotte (Premium) */}
       <LiveCab
         trains={trains as unknown as CabTrain[]}
@@ -2253,75 +3059,72 @@ function TrainsSection({
         onOpen={(id) => setCabId(id)}
         onSeen={onChange}
       />
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-3">
-          <span className="text-[11px] font-mono2 text-slate2 border border-line px-2 py-1">
-            {trains.length}/{company.maxTrains} rames
-          </span>
-          {!!company.upkeepPerHour && (
-            <span
-              className="text-[11px] font-mono2 text-slate2 border border-line px-2 py-1"
-              title="L'entretien croît avec le carré de votre parc : chaque rame supplémentaire coûte plus cher que la précédente."
-            >
-              entretien −{company.upkeepPerHour} pi./h
-            </span>
-          )}
+      {/* 2.0 : la flotte se lit rame par rame, comme les lignes */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+        <div>
+          <h2 className="font-display text-[20px]">Vos {trains.length} rame{trains.length > 1 ? "s" : ""}</h2>
+          <p className="text-[12.5px] text-slate2 font-body mt-0.5">
+            {trains.length} place{trains.length > 1 ? "s" : ""} prise{trains.length > 1 ? "s" : ""} sur {company.maxTrains} au dépôt
+            {company.upkeepPerHour ? (
+              <span title="L'entretien croît avec le carré de votre parc : chaque rame supplémentaire coûte plus cher que la précédente.">
+                , entretien {company.upkeepPerHour} pi. par heure
+              </span>
+            ) : null}
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
           {atCapacity && (
             <button
               onClick={expandFleet}
               /* Un seul chantier à la fois : mieux vaut griser le bouton que
                  laisser le joueur découvrir la règle par un message d'erreur. */
               disabled={expanding || (Boolean(company.construction) && !company.canQueue)}
-              className="text-[11px] font-mono2 text-amber uppercase border border-amber/40 px-2 py-1 hover:bg-amber/10 transition-colors disabled:opacity-50"
+              className="text-[13px] text-amber border border-amber/50 px-3 py-2 hover:bg-amber/10 transition-colors disabled:opacity-50 font-body"
             >
               {expanding
                 ? "Chantier…"
                 : company.construction && company.canQueue
-                ? `Mettre en file l'agrandissement (${expandCost} pi.)`
+                ? `Mettre en file l'agrandissement, ${expandCost} pi.`
                 : company.construction
                 ? company.queuedConstruction
-                  ? "Chantier en cours · file pleine"
+                  ? "Chantier en cours, file pleine"
                   : "Chantier déjà en cours"
-                : `Agrandir le dépôt (${expandCost} pi. · ${formatBuildHours(company.nextDepotHours ?? 0.5)})`}
+                : `Agrandir le dépôt, ${expandCost} pi. (${formatBuildHours(company.nextDepotHours ?? 0.5)})`}
             </button>
           )}
+          <button
+            onClick={onOpenCatalog}
+            disabled={atCapacity}
+            className="text-[13.5px] font-semibold font-body bg-cobalt text-onaccent px-3.5 py-2 hover:bg-cobalt/90 active:scale-[0.96] transition-transform disabled:opacity-40 disabled:active:scale-100"
+          >
+            {atCapacity ? "Dépôt complet" : "Acheter une rame"}
+          </button>
         </div>
-        <button onClick={onOpenCatalog} disabled={atCapacity} className="text-xs font-mono2 text-cobalt uppercase border border-cobalt/40 px-2.5 py-1 hover:bg-cobalt/10 active:scale-[0.96] transition-transform disabled:opacity-40 disabled:active:scale-100">
-          {atCapacity ? "Dépôt complet" : "+ Train"}
-        </button>
       </div>
 
-      <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-      <table className="w-full text-sm min-w-[560px]">
-        <thead>
-          <tr className="text-left text-[11px] text-slate2 font-body uppercase tracking-[0.14em] border-b border-line">
-            <th className="py-2.5 font-normal">Rame</th>
-            <th className="py-2.5 font-normal">Modèle</th>
-            <th className="py-2.5 font-normal">Statut</th>
-            <th className="py-2.5 font-normal">Ligne</th>
-            <th className="py-2.5 font-normal w-28">Usure</th>
-            <th className="py-2.5 font-normal w-28">Progression</th>
-          </tr>
-        </thead>
-        <tbody>
-          {trains.length === 0 && (
-            <tr>
-              <td colSpan={6} className="py-10">
-                <div className="flex flex-col items-center gap-2 text-slate2">
-                  <div className="w-32 h-px border-t border-dashed border-line" />
-                  <TrainMark size={18} className="opacity-40" />
-                  <span className="text-sm font-body">Le dépôt est vide — achetez votre première rame.</span>
-                </div>
-              </td>
-            </tr>
-          )}
-          {trains.map((t) => (
-            <tr key={t.id} className="border-b border-line last:border-0 hover:bg-navy-900/40 transition-colors">
-              <td className="py-3.5 font-body">
+      {trains.length === 0 && (
+        <div className="flex flex-col items-center gap-2 text-slate2 py-10 border-y border-line">
+          <TrainMark size={18} className="opacity-40" />
+          <span className="text-sm font-body">Le dépôt est vide : achetez votre première rame.</span>
+        </div>
+      )}
+      <ul className="border-t border-line">
+        {trains.map((t) => {
+          const inWorkshop = Boolean(t.workshopUntil);
+          const broken = !inWorkshop && (t.status === "MAINTENANCE" || t.wear >= 100);
+          const cost = Math.ceil(t.wear * repairCostPerPoint);
+          const serviceCost = Math.ceil(t.wear * repairCostPerPoint * 0.6);
+          const from = t.line ? (t.direction === 1 ? t.line.arrivalStation : t.line.departureStation) : "";
+          const to = t.line ? (t.direction === 1 ? t.line.departureStation : t.line.arrivalStation) : "";
+          const stops = t.line?.stops ?? [];
+          return (
+            <li key={t.id} className={`relative py-3.5 border-b border-line grid gap-x-6 gap-y-2.5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.4fr)_200px_auto] items-center ${broken ? "bg-rail-red/5" : ""}`}>
+              {/* la rame : nom, modèle, composition */}
+              <div className="min-w-0">
                 {renamingId === t.id ? (
                   <input
                     autoFocus
-                    className="bg-transparent border border-cobalt px-2 py-1 text-sm w-28 focus:outline-none"
+                    className="bg-transparent border border-cobalt px-2 py-1 text-sm w-36 focus:outline-none"
                     value={renameValue}
                     onChange={(e) => setRenameValue(e.target.value)}
                     onBlur={() => submitRename(t.id)}
@@ -2330,122 +3133,164 @@ function TrainsSection({
                 ) : (
                   <button
                     onClick={() => { setRenamingId(t.id); setRenameValue(t.name); }}
-                    className="hover:text-cobalt transition-colors text-left"
+                    className="text-[15.5px] font-semibold font-body hover:text-cobalt transition-colors text-left"
                     title="Renommer"
                   >
                     {t.name}
                   </button>
                 )}
-              </td>
-              <td className="py-3.5">
-                <span className={`text-xs font-mono2 uppercase ${t.model === "STANDARD" ? "text-slate2" : "text-amber"}`}>
-                  {t.model === "EXPRESS" ? "Express" : t.model === "FRET_LOURD" ? "Fret Lourd" : t.model === "COUCHETTES" ? "Couchettes" : "Standard"}
-                </span>
-                {t.model === "COUCHETTES" && (
-                  <span
-                    className={`ml-2 inline-flex items-center gap-1 text-[10px] font-mono2 uppercase ${isParisNight() ? "text-cobalt" : "text-slate2"}`}
-                    title="Recette ×3 de 22 h à 6 h (heure de Paris), ×0,8 le jour"
-                  >
-                    <MoonMark size={11} />
-                    {isParisNight() ? "Nuit ×3" : "Jour ×0,8"}
-                  </span>
-                )}
-              </td>
-              <td className={`py-3.5 font-body ${t.status === "EN_ROUTE" ? "text-rail-green" : t.status === "MAINTENANCE" ? "text-rail-red" : "text-slate2"}`}>
-                <span className="flex items-center gap-1.5">
-                  <span
-                    className={`w-1.5 h-1.5 rounded-full ${
-                      t.status === "EN_ROUTE" ? "bg-rail-green blink-dot" : t.status === "MAINTENANCE" ? "bg-rail-red blink-dot" : "bg-slate2"
-                    }`}
-                  />
-                  {t.status === "EN_ROUTE" ? "En route" : t.status === "MAINTENANCE" ? "En panne" : "À quai"}
-                </span>
-              </td>
-              <td className="py-3.5 font-mono2">
-                {(t.status === "MAINTENANCE" || t.wear >= 100) ? (
-                  <button
-                    onClick={() => repair(t.id)}
-                    className="text-xs font-mono2 text-rail-red uppercase border border-rail-red/40 px-2 py-1 hover:bg-rail-red/10 transition-colors"
-                  >
-                    Réparer ({Math.ceil(t.wear * repairCostPerPoint)} pi.)
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[12.5px] font-body text-slate2">
+                  {t.heritage ? (
+                    <span title={t.heritage.history} style={{ color: RARITY_COLOR[t.heritage.rarity] }}>
+                      Collection · {t.heritage.serial} · billet +{Math.round((t.heritage.prestige - 1) * 100)} %
+                    </span>
+                  ) : (
+                    <span className={t.model === "STANDARD" ? "" : "text-amber"}>{modelLabel(t.model)}</span>
+                  )}
+                  {t.model === "COUCHETTES" && (
+                    <span className={`inline-flex items-center gap-1 ${isParisNight() ? "text-cobalt" : ""}`} title="Recette ×3 de 22 h à 6 h (heure de Paris), ×0,8 le jour">
+                      <MoonMark size={11} />
+                      {isParisNight() ? "nuit ×3" : "jour ×0,8"}
+                    </span>
+                  )}
+                  {/* 1.7 : composition de la rame */}
+                  <button onClick={() => setCompoId(t.id)} className="flex items-center gap-1.5 whitespace-nowrap hover:text-cobalt transition-colors" title="Composition : ajouter ou retirer des voitures">
+                    <span className="inline-block w-[92px]">
+                      <TrainPicture model={t.model} skin={t.heritage?.skin} livery={t.heritage?.livery ?? company.liveryColor} cars={t.cars ?? []} firstLivery={company.isPremium && !t.heritage} height={30} track={false} fit={false} align="right" label={`Composition de ${t.name}`} />
+                    </span>
+                    {seatsOf(t.model, t.cars ?? []).total} places
                   </button>
+                  {(t.crew?.length ?? 0) > 0 && (
+                    <button onClick={() => setSheetId(t.id)} className="whitespace-nowrap hover:text-cobalt" title={t.crew!.map((c) => `${c.role === "CONTROLEUR" ? "Contrôleur" : "Conducteur"} : ${c.name}`).join(", ")}>
+                      {t.crew!.length === 2 ? "équipage complet" : t.crew![0].role === "CONTROLEUR" ? "contrôleur à bord" : "conducteur à bord"}
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* ce qu'elle fait */}
+              <div className="min-w-0 font-body">
+                {inWorkshop ? (
+                  <div className="text-[14px] text-cobalt flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-cobalt blink-dot" />
+                    En révision à l'atelier, sortie à {hhmm(t.workshopUntil!)}
+                  </div>
+                ) : broken ? (
+                  <>
+                    <div className="text-[14px] text-[#fca5a5] flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-rail-red blink-dot" />
+                      {t.brokenPart ? `${t.organs?.find((o) => o.id === t.brokenPart)?.label ?? "Organe"} hors service` : "En panne"}
+                      {t.line ? ` sur ${t.line.departureStation} – ${t.line.arrivalStation}` : ""}
+                    </div>
+                    {t.brokenPart && (
+                      <div className="text-[12.5px] text-slate2 mt-0.5 pl-3.5">
+                        {t.partsEta
+                          ? `${PART_LABEL[t.brokenPart]} en route, livrée à ${hhmm(t.partsEta)} (dans ${minutesLeft(t.partsEta)} min)`
+                          : `Il faut ${PART_NEED[t.brokenPart] ?? "la pièce"}`}
+                      </div>
+                    )}
+                  </>
                 ) : t.line ? (
-                  <span className="flex items-center gap-2 flex-wrap">
-                    {t.line.departureStation} → {t.line.arrivalStation}
+                  <>
+                    <div className="text-[14px] flex items-center gap-2 flex-wrap">
+                      <span className={`w-1.5 h-1.5 rounded-full ${t.status === "EN_ROUTE" ? "bg-rail-green blink-dot" : "bg-slate2"}`} />
+                      <span>
+                        {t.status === "EN_ROUTE" ? "Roule vers " : "À quai, part vers "}
+                        <span className="font-semibold">{to}</span>
+                        <span className="text-slate2"> depuis {from}{stops.length > 0 ? `, via ${(t.direction === 1 ? [...stops].reverse() : stops).join(", ")}` : ""}</span>
+                      </span>
+                    </div>
+                    {t.lastSeats ? (
+                      <div className="text-[12.5px] text-slate2 mt-0.5 pl-3.5" title="Voyageurs au dernier trajet / places">
+                        Dernier trajet : <span className="font-mono2 text-offwhite">{t.lastPassengers ?? 0}</span> voyageurs pour {t.lastSeats} places
+                      </div>
+                    ) : null}
+                  </>
+                ) : t.status === "IDLE" ? (
+                  <div className="text-[14px] text-slate2 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate2" />
+                    Au dépôt, sans ligne
+                  </div>
+                ) : (
+                  <div className="text-[14px] text-slate2">Occupée par un contrat de fret</div>
+                )}
+              </div>
+
+              {/* l'usure */}
+              <div className="flex items-center gap-3">
+                <button onClick={() => setSheetId(t.id)} className="flex items-center gap-2 group" title="Ouvrir l'atelier de la rame">
+                  <WearGauge value={t.wear} />
+                </button>
+                <div className="flex flex-col items-start gap-0.5">
+                  {/* Révision préventive : à l'atelier, au tarif réduit, sans pièce à commander. */}
+                  {t.wear > 0 && t.wear < 100 && t.status !== "MAINTENANCE" && (
                     <button
-                      onClick={() => setCabId(t.id)}
-                      className="text-[11px] text-cobalt hover:bg-cobalt/10 border border-cobalt/40 px-1.5 py-0.5 uppercase transition-colors font-body"
-                      title="Suivre cette rame en direct"
+                      onClick={() => repair(t.id, true)}
+                      disabled={repairing === t.id || company.balance < serviceCost || (t.status === "EN_ROUTE" && !t.line)}
+                      title={company.balance < serviceCost ? "Trésorerie insuffisante" : "La rame passe quelques minutes à l'atelier, au tarif réduit"}
+                      className={`whitespace-nowrap text-[12.5px] font-body transition-colors disabled:opacity-40 ${t.wear >= 70 ? "text-amber hover:underline" : "text-slate2 hover:text-amber"}`}
                     >
+                      {repairing === t.id ? "Révision…" : `Réviser, ${serviceCost} pi.`}
+                    </button>
+                  )}
+                  <button onClick={() => setSheetId(t.id)} className="text-[12.5px] font-body text-slate2 hover:text-cobalt whitespace-nowrap" title={t.serviceAt ? `Révision programmée à ${t.serviceAt} %` : "Ouvrir l'atelier de la rame"}>
+                    Atelier{t.serviceAt ? ` · auto ${t.serviceAt} %` : ""}
+                  </button>
+                </div>
+              </div>
+
+              {/* les actions */}
+              <div className="flex items-center gap-2 lg:justify-end">
+                {inWorkshop ? null : broken ? (
+                  t.partsEta ? (
+                    <button onClick={() => setSheetId(t.id)} className="text-[13px] font-body text-amber border border-amber/50 px-3 py-1.5 hover:bg-amber/10">
+                      Pièce en route
+                    </button>
+                  ) : t.brokenPart ? (
+                    <button onClick={() => setSheetId(t.id)} className="text-[13px] font-semibold font-body bg-rail-red text-white px-3 py-1.5 hover:bg-rail-red/90">
+                      Réparer…
+                    </button>
+                  ) : (
+                    <button onClick={() => repair(t.id)} className="text-[13px] font-semibold font-body bg-rail-red text-white px-3 py-1.5 hover:bg-rail-red/90">
+                      Réparer, {cost} pi.
+                    </button>
+                  )
+                ) : t.line ? (
+                  <>
+                    <button onClick={() => setCabId(t.id)} className="text-[13px] font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10" title="Suivre cette rame en direct">
                       Vue cabine
                     </button>
-                    <button
-                      onClick={() => release(t.id)}
-                      className="text-[11px] text-slate2 hover:text-rail-red border border-line px-1.5 py-0.5 uppercase transition-colors font-body"
-                    >
+                    <button onClick={() => release(t.id)} className="text-[13px] font-body text-slate2 hover:text-rail-red px-1">
                       Retirer
                     </button>
-                  </span>
+                  </>
                 ) : t.status === "IDLE" ? (
                   <AssignDropdown
-                    placeholder="Affecter…"
+                    placeholder="Affecter à une ligne…"
                     options={lines
                       // 1.6 : une rame couchettes ne fait que les grandes lignes
-                      .filter((l) => t.model !== "COUCHETTES" || l.durationMinutes >= 10)
+                      .filter((l) => (t.model !== "COUCHETTES" || l.durationMinutes >= 10) && (t.model !== "LUXE" || l.durationMinutes >= 12))
                       .map((l) => ({ id: l.id, label: `${l.departureStation} → ${l.arrivalStation}` }))}
                     onSelect={(lineId) => assign(t.id, lineId)}
                   />
-                ) : (
-                  <span className="text-xs text-slate2 font-body">Occupé (fret en cours)</span>
-                )}
-              </td>
-              <td className="py-3.5">
-                <WearGauge value={t.wear} />
-                {/* Révision préventive. Le coût est proportionnel à l'usure, donc
-                    réviser tôt ne coûte ni plus ni moins que réparer une panne :
-                    ce qu'on y gagne, c'est de ne pas tomber en panne un jour où la
-                    trésorerie ne suit pas. La rame ne s'arrête pas pour autant. */}
-                {t.wear > 0 && t.wear < 100 && t.status !== "MAINTENANCE" && (
-                  <button
-                    onClick={() => repair(t.id, true)}
-                    disabled={repairing === t.id || company.balance < Math.ceil(t.wear * repairCostPerPoint)}
-                    title={company.balance < Math.ceil(t.wear * repairCostPerPoint) ? "Trésorerie insuffisante" : "Remet l'usure à zéro sans arrêter la rame"}
-                    className="mt-1 text-[10.5px] font-mono2 text-slate2 hover:text-amber uppercase tracking-wide transition-colors disabled:opacity-40 disabled:hover:text-slate2"
-                  >
-                    {repairing === t.id ? "Révision…" : `Réviser · ${Math.ceil(t.wear * repairCostPerPoint)} pi.`}
-                  </button>
-                )}
-              </td>
-              <td className="py-3.5">
-                <div className="relative h-3 flex items-center">
-                  <div className="w-full h-1 bg-navy-900 border border-line">
-                    <div
-                      className={`h-full transition-all duration-700 ease-out ${
-                        t.status === "EN_ROUTE" ? "bg-rail-green" : "bg-cobalt"
-                      }`}
-                      style={{ width: `${t.progress}%` }}
-                    />
-                  </div>
-                  {t.line && (
-                    <TrainMark
-                      size={11}
-                      className={`absolute -translate-x-1/2 transition-all duration-700 ease-out ${
-                        t.status === "EN_ROUTE" ? "text-rail-green" : "text-cobalt"
-                      }`}
-                      style={{ left: `${t.progress}%` } as any}
-                    />
-                  )}
-                </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
+                ) : null}
+              </div>
+
+              {/* l'avancement du trajet, en filet sous la rame */}
+              {t.line && !broken && !inWorkshop && (
+                <span className="absolute left-0 bottom-[-1px] h-[2px] bg-rail-green/70 transition-all duration-700 ease-out" style={{ width: `${t.progress}%` }} aria-hidden="true" />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* 2.0 : les pièces détachées */}
+      {trains.length > 0 && <PartsStore balance={company.balance} onChange={onChange} />}
 
       {incidents.length > 0 && (
         <div className="mt-6">
-          <h2 className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em] mb-3">Journal d'incidents</h2>
+          <h2 className="font-display text-[20px] mb-3">Journal d'incidents</h2>
           <div className="border border-line">
             {incidents.slice(0, 5).map((inc) => (
               <div key={inc.id} className="flex justify-between px-3 py-2 border-b border-line last:border-0 text-xs">
@@ -2495,58 +3340,43 @@ function FreightSection({
   return (
     <div className="space-y-8" data-tutorial="freight-market">
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-[11px] font-body text-slate2">
-            {freeTrains.length} train{freeTrains.length !== 1 ? "s" : ""} disponible{freeTrains.length !== 1 ? "s" : ""}
+        {/* 2.0 : un contrat se lit comme une annonce : quoi, d'où vers où, ce que ça paie */}
+        <div className="flex items-center justify-between gap-3 mb-3">
+          <h2 className="font-display text-[20px]">Contrats proposés</h2>
+          <span className={`text-[13px] font-body ${freeTrains.length === 0 ? "text-amber" : "text-slate2"}`}>
+            {freeTrains.length === 0 ? "Aucune rame libre pour les prendre" : `${freeTrains.length} rame${freeTrains.length > 1 ? "s" : ""} libre${freeTrains.length > 1 ? "s" : ""} pour les prendre`}
           </span>
         </div>
-
-        <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
-      <table className="w-full text-sm min-w-[560px]">
-          <thead>
-            <tr className="text-left text-[11px] text-slate2 font-body uppercase tracking-[0.14em] border-b border-line">
-              <th className="py-2.5 font-normal">Marchandise</th>
-              <th className="py-2.5 font-normal">Trajet</th>
-              <th className="py-2.5 font-normal">Durée</th>
-              <th className="py-2.5 font-normal">Récompense</th>
-              <th className="py-2.5 font-normal w-24">Expire</th>
-              <th className="py-2.5 font-normal w-40"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {market.length === 0 && (
-              <tr><td colSpan={6} className="py-8">
-                <div className="flex flex-col items-center gap-2 text-slate2">
-                  <CargoMark size={18} className="opacity-40" />
-                  <span className="text-sm font-body">Le marché se réapprovisionne…</span>
-                </div>
-              </td></tr>
-            )}
+        {market.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 text-slate2 py-8 border-y border-line">
+            <CargoMark size={18} className="opacity-40" />
+            <span className="text-sm font-body">Le marché se réapprovisionne…</span>
+          </div>
+        ) : (
+          <ul className="border-t border-line">
             {market.map((c) => (
-              <tr key={c.id} className={`border-b border-line last:border-0 hover:bg-navy-900/40 transition-colors ${c.risky ? "bg-rail-red/5" : ""}`}>
-                <td className="py-3.5 font-body">
-                  <span className="flex items-center gap-1.5">
-                    {c.risky && (
-                      <span title="Marchandise fragile : risque de dommage en cours de route">
-                        <FragileMark size={13} className="text-rail-red shrink-0" />
-                      </span>
-                    )}
+              <li key={c.id} className="py-3.5 border-b border-line grid gap-x-6 gap-y-2 sm:grid-cols-[minmax(0,1fr)_110px_100px_auto] items-center">
+                <div className="min-w-0">
+                  <div className="text-[15.5px] font-semibold font-body flex items-center gap-1.5">
+                    {c.risky && <FragileMark size={13} className="text-rail-red shrink-0" />}
                     {c.cargoType}
-                  </span>
-                </td>
-                <td className="py-3.5 text-slate2 font-mono2">{c.originStation} → {c.destinationStation}</td>
-                <td className="py-3.5 text-slate2 font-mono2">{c.durationMinutes} min</td>
-                <td className={`py-3.5 font-mono2 ${c.risky ? "text-rail-red" : "text-amber"}`}>+{c.reward} pi.</td>
-                <td className="py-3.5 font-mono2">
-                  <ExpiryCountdown expiresAt={c.expiresAt} />
-                </td>
-                <td className="py-3.5">
+                  </div>
+                  <div className="text-[12.5px] text-slate2 font-body mt-0.5">
+                    {c.originStation} → {c.destinationStation}, {c.durationMinutes} min
+                    {c.risky && <span className="text-[#fca5a5]">, fragile</span>}
+                  </div>
+                </div>
+                <div className={`font-mono2 text-[17px] tabular-nums ${c.risky ? "text-rail-red" : "text-amber"}`}>+{c.reward} pi.</div>
+                <div className="text-[12.5px] text-slate2 font-body">
+                  expire dans <span className="font-mono2 text-offwhite"><ExpiryCountdown expiresAt={c.expiresAt} /></span>
+                </div>
+                <div className="sm:justify-self-end">
                   {freeTrains.length === 0 ? (
-                    <span className="text-xs font-mono2 text-slate2 uppercase">Aucun train libre</span>
+                    <span className="text-[12.5px] font-body text-slate2">Pas de rame libre</span>
                   ) : (
-                    <div className="flex flex-col gap-1.5 items-start">
+                    <div className="flex flex-col gap-1.5 items-start sm:items-end">
                       {c.risky && (
-                        <label className="flex items-center gap-1.5 text-[11px] font-mono2 text-slate2 cursor-pointer select-none">
+                        <label className="flex items-center gap-1.5 text-[12px] font-body text-slate2 cursor-pointer select-none">
                           <input
                             type="checkbox"
                             checked={!!insuredSelections[c.id]}
@@ -2564,12 +3394,11 @@ function FreightSection({
                       />
                     </div>
                   )}
-                </td>
-              </tr>
+                </div>
+              </li>
             ))}
-          </tbody>
-        </table>
-      </div>
+          </ul>
+        )}
 
       <p className="text-[11px] text-slate2 font-body mt-2 flex items-center gap-1.5">
         <FragileMark size={11} className="text-rail-red" /> Marchandise fragile : récompense plus élevée mais risque de dommage à la livraison (usure accrue, gain réduit).
@@ -2577,7 +3406,7 @@ function FreightSection({
       </div>
 
       <div>
-        <h2 className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em] mb-3">Livraisons en cours</h2>
+        <h2 className="font-display text-[20px] mb-3">Livraisons en cours</h2>
         {activeContracts.length === 0 ? (
           <p className="py-6 text-center text-slate2 font-body text-sm border border-line">Aucune livraison en cours.</p>
         ) : (
@@ -2608,7 +3437,7 @@ function FreightSection({
 
       {deliveredContracts.length > 0 && (
         <div>
-          <h2 className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em] mb-3">Dernières livraisons</h2>
+          <h2 className="font-display text-[20px] mb-3">Dernières livraisons</h2>
           <div className="space-y-1">
             {deliveredContracts.map((c) => (
               <div key={c.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-line last:border-0 text-slate2 flex-wrap">
@@ -2634,6 +3463,7 @@ interface ClientMission {
   offerUntil: string;
   dueAt: string | null;
   ref: string;
+  waitsFor?: string | null; // 2.0 : un ordre plus ancien de la même marchandise passe avant
 }
 
 interface ClientCard {
@@ -2824,6 +3654,11 @@ function ClientCardView({
           <p className="font-display text-base leading-snug px-4 pt-2 max-w-[52ch]">
             Acheminer {m.target} cargaison{m.target > 1 ? "s" : ""} {ofCargo(m.cargoType)}.
           </p>
+          {m.waitsFor && (
+            <p className="text-[12.5px] font-body text-slate2 px-4 pt-1 max-w-[60ch]">
+              En attente : vos livraisons de cette marchandise comptent d'abord pour l'ordre nº {m.waitsFor}, puis pour celui-ci.
+            </p>
+          )}
 
           <div className={`flex items-center gap-4 flex-wrap px-4 py-4 ${failed || accepted ? "pr-[150px]" : ""}`}>
             <div className="flex-1 min-w-[180px] max-w-[320px]">
@@ -3311,8 +4146,10 @@ function LeaderRowView({ c, fmt }: { c: LeaderEntry; fmt: (v: number) => string 
       <td className="py-3.5 font-body">
         <span className="flex items-center gap-2 flex-wrap">
           <span className="w-2 h-2 shrink-0" style={{ background: c.liveryColor }} />
-          {c.emblem && <Emblem id={c.emblem} size={13} className="text-slate2" />}
-          {c.name}
+          <Plate plate={c.plate}>
+            {c.emblem && <Emblem id={c.emblem} size={13} className={c.plate ? "" : "text-slate2"} />}
+            {c.name}
+          </Plate>
           {c.title && (
             <span className="text-[10px] text-amber font-mono2 uppercase border border-amber/40 px-1.5">
               {c.title}
@@ -3520,19 +4357,42 @@ function StatBars({ level, max = 3, active }: { level: number; max?: number; act
 const GRADE_NAMES = [
   "Apprenti exploitant", "Gestionnaire confirmé", "Chef de réseau", "Baron du rail", "Magnat",
   "Directeur régional", "Directeur national", "Administrateur des chemins de fer", "Président de compagnie", "Légende du rail",
+  "Bâtisseur de gares", "Maître des caténaires", "Magnat européen", "Empereur du rail",
 ];
+
+interface DlcInfo {
+  id: string;
+  name: string;
+  tagline: string;
+  priceCents: number;
+  premium: boolean;
+  owned: boolean;
+  models: { id: string; label: string; cost: number; minGradeId: number; seats: number; blurb: string }[];
+  stations: string[];
+  features: string[];
+}
 
 function TrainCatalogModal({
   buying,
   gradeId,
   onBuy,
   onClose,
+  onOpenShop,
+  livery,
 }: {
   buying: boolean;
   gradeId: number;
   onBuy: (model: string) => void;
   onClose: () => void;
+  onOpenShop?: (dlcId: string) => void;
+  livery?: string;
 }) {
+  const liveryForCatalog = livery ?? "#4f7fa3";
+  // 2.0 : le matériel des extensions
+  const [dlcs, setDlcs] = useState<DlcInfo[]>([]);
+  useEffect(() => {
+    api.get("/dlc").then(({ data }) => setDlcs(data?.dlcs ?? [])).catch(() => setDlcs([]));
+  }, []);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-6">
       <div className="w-full max-w-5xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[92vh] overflow-y-auto">
@@ -3554,7 +4414,9 @@ function TrainCatalogModal({
                   </span>
                 )}
 
-                <TrainMark size={26} className={locked ? "text-slate2 mb-3" : "text-cobalt mb-3"} />
+                <div className={`-mx-2 mb-3 ${locked ? "opacity-60 grayscale" : ""}`}>
+                  <TrainPicture model={model.id} livery={liveryForCatalog} height={50} label={model.name} />
+                </div>
 
                 <div className="font-display text-lg leading-snug mb-1 pr-16">{model.name}</div>
                 <p className="text-xs text-slate2 font-body mb-4 flex-1">{model.spec}</p>
@@ -3594,6 +4456,48 @@ function TrainCatalogModal({
           })}
         </div>
 
+        {dlcs.some((d) => d.models.length > 0) && (
+          <div className="border-t border-line">
+            <div className="px-6 pt-5 pb-1">
+              <h3 className="font-display text-xl">Matériel des extensions</h3>
+              <p className="text-sm text-slate2 font-body mt-0.5">Des rames qui se jouent autrement. Elles ne sont pas plus fortes : elles gagnent d'un côté ce qu'elles perdent de l'autre.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-line">
+              {dlcs.flatMap((d) =>
+                d.models.map((m) => {
+                  const gradeLocked = m.minGradeId > gradeId;
+                  return (
+                    <div key={m.id} className={`p-5 flex flex-col ${!d.owned || gradeLocked ? "opacity-80" : ""}`}>
+                      <div className="-mx-2 mb-3">
+                        <TrainPicture model={m.id} livery={liveryForCatalog} height={50} label={`Rame ${m.label}`} />
+                      </div>
+                      <div className="text-[12.5px] font-body text-amber mb-2">
+                        Extension « {d.name} »{d.premium ? ", incluse dans le Premium" : ""}
+                      </div>
+                      <div className="font-display text-lg leading-snug mb-1">Rame {m.label}</div>
+                      <p className="text-[13px] text-slate2 font-body mb-4 flex-1">{m.blurb}</p>
+                      <div className="text-[13px] font-mono2 text-amber mb-3">{m.cost} pi. · {m.seats} places</div>
+                      {!d.owned ? (
+                        <button onClick={() => onOpenShop?.(d.id)} className="w-full border border-amber/50 text-amber text-[13.5px] font-body py-2.5 hover:bg-amber/10">
+                          Voir l'extension, {(d.priceCents / 100).toFixed(2).replace(".", ",")} €
+                        </button>
+                      ) : gradeLocked ? (
+                        <button disabled className="w-full border border-line text-slate2 text-[13.5px] font-body py-2.5 cursor-not-allowed">
+                          Grade « {GRADE_NAMES[m.minGradeId]} » requis
+                        </button>
+                      ) : (
+                        <button onClick={() => onBuy(m.id)} disabled={buying} className="w-full bg-cobalt text-onaccent text-[13.5px] font-semibold font-body py-2.5 hover:bg-cobalt/90 disabled:opacity-60">
+                          {buying ? "Achat…" : "Commander"}
+                        </button>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="flex justify-end px-6 py-4 border-t border-line">
           <button onClick={onClose} className="text-xs text-slate2 hover:text-offwhite font-body uppercase tracking-wide">
             Fermer
@@ -3628,6 +4532,19 @@ const TYPE_LABEL: Record<string, string> = {
   LICENCE: "Licence internationale",
   EVENEMENT: "Décision",
   COMPENSATION: "Geste commercial",
+  // 1.7
+  COMPOSITION: "Composition des rames",
+  ELECTRIFICATION: "Électrification",
+  GARE: "Achat de gare",
+  REDEVANCE_QUAI: "Redevances de quai",
+  COMMERCES: "Commerces en gare",
+  ATELIER: "Atelier régional",
+  EMPRUNT: "Emprunt bancaire",
+  REMBOURSEMENT: "Remboursement d'emprunt",
+  BOURSE: "Bourse",
+  DIVIDENDE: "Dividendes",
+  // 2.0
+  VENTE_TRAIN: "Revente de matériel",
 };
 
 function BalanceChart({ transactions, currentBalance }: { transactions: Transaction[]; currentBalance: number }) {
@@ -3899,113 +4816,6 @@ const LABEL_ABOVE = new Set(["Clermont-Ferrand"]);
 const LABEL_BELOW = new Set(["Montpellier"]);
 
 // Positions approximatives des gares sur une carte stylisée de France (viewBox 0 0 340 380)
-const STATION_COORDS: Record<string, { x: number; y: number }> = {
-  "Lille": { x: 190, y: 20 },
-  "Le Havre": { x: 108.13, y: 71 },
-  "Rouen": { x: 131.9, y: 71 },
-  "Metz": { x: 282.44, y: 85 },
-  "Paris": { x: 168.87, y: 96 },
-  "Nancy": { x: 282.44, y: 103 },
-  "Strasbourg": { x: 324.69, y: 109 },
-  "Chartres": { x: 143.78, y: 114 },
-  "Rennes": { x: 50.02, y: 128 },
-  "Le Mans": { x: 105.49, y: 133 },
-  "Mulhouse": { x: 316.77, y: 144 },
-  "Dijon": { x: 248.1, y: 162 },
-  "Nantes": { x: 53.98, y: 167 },
-  "Lyon": { x: 242.82, y: 229 },
-  "Grenoble": { x: 269.23, y: 254 },
-  "Bordeaux": { x: 81.72, y: 269 },
-  "Toulouse": { x: 142.46, y: 322 },
-  "Marseille": { x: 258.67, y: 335 },
-  // v1.3 — mêmes positions que côté serveur (geography.service), même projection
-  "Brest": { x: -33.17, y: 116 },
-  "Caen": { x: 88.32, y: 82 },
-  "Amiens": { x: 167.55, y: 52 },
-  "Reims": { x: 219.05, y: 79 },
-  "Troyes": { x: 220.37, y: 120 },
-  "Orléans": { x: 155.67, y: 137 },
-  "Tours": { x: 120.01, y: 159 },
-  "Angers": { x: 83.04, y: 156 },
-  "Poitiers": { x: 109.45, y: 194 },
-  "La Rochelle": { x: 65.87, y: 212 },
-  "Limoges": { x: 137.18, y: 226 },
-  "Clermont-Ferrand": { x: 190, y: 228 },
-  "Saint-Étienne": { x: 229.62, y: 243 },
-  "Besançon": { x: 277.16, y: 166 },
-  "Avignon": { x: 241.5, y: 307 },
-  "Montpellier": { x: 213.77, y: 322 },
-  "Nice": { x: 314.13, y: 318 },
-  "Perpignan": { x: 184.72, y: 361 },
-  "Pau": { x: 88.32, y: 335 },
-  "Bayonne": { x: 56.63, y: 327 },
-  // v1.6 — l'étranger, même projection (voir international.service côté serveur)
-  "Londres": { x: 96.24, y: -19 },
-  "Bruxelles": { x: 228.3, y: 11 },
-  "Francfort": { x: 356.39, y: 42 },
-  "Genève": { x: 281.12, y: 210 },
-  "Milan": { x: 372.23, y: 241 },
-  "Barcelone": { x: 162.27, y: 418 },
-};
-
-/* Géométrie d'une ligne sur la carte : un léger arc (courbe de Bézier
-   quadratique), alterné selon la parité pour que deux lignes qui se croisent ne
-   se superposent pas. La même fonction sert à tracer la ligne ET à placer les
-   trains dessus : sinon un train roule en ligne droite à côté de sa voie. */
-function lineCurve(index: number, from: { x: number; y: number }, to: { x: number; y: number }) {
-  const mx = (from.x + to.x) / 2;
-  const my = (from.y + to.y) / 2;
-  const dx = to.x - from.x;
-  const dy = to.y - from.y;
-  const dist = Math.hypot(dx, dy) || 1;
-  const bend = (index % 2 === 0 ? 1 : -1) * Math.min(dist * 0.12, 22);
-  return { cx: mx - (dy / dist) * bend, cy: my + (dx / dist) * bend };
-}
-
-// point et direction sur la courbe, à la fraction t du trajet (0 → 1)
-function pointOnCurve(from: { x: number; y: number }, c: { cx: number; cy: number }, to: { x: number; y: number }, t: number) {
-  const u = 1 - t;
-  const x = u * u * from.x + 2 * u * t * c.cx + t * t * to.x;
-  const y = u * u * from.y + 2 * u * t * c.cy + t * t * to.y;
-  const tx = 2 * u * (c.cx - from.x) + 2 * t * (to.x - c.cx);
-  const ty = 2 * u * (c.cy - from.y) + 2 * t * (to.y - c.cy);
-  return { x, y, angle: (Math.atan2(ty, tx) * 180) / Math.PI };
-}
-
-const LINE_PALETTE = ["#4f7fa3", "#c99a3e", "#5c8a68", "#a8483a", "#8a6ba3", "#c97a3e"];
-
-/* Projection inverse de STATION_COORDS : on remonte aux degrés pour calculer une
-   vraie distance. Les constantes sont celles qui ont servi à placer les gares. */
-function toLonLat(p: { x: number; y: number }) {
-  // 1.6 : 29,58 px par degré de longitude (42,97 × cos 46,5°) : la carte n'est plus étirée en hauteur
-  return { lon: 3.06 + (p.x - 190) / 29.58, lat: 50.63 - (p.y - 20) / 42.97 };
-}
-
-/* Distance à vol d'oiseau, en kilomètres. Équirectangulaire : sur l'emprise de
-   la France l'écart avec une vraie orthodromie est de l'ordre du kilomètre. */
-function distanceKm(a: { x: number; y: number }, b: { x: number; y: number }) {
-  const A = toLonLat(a), B = toLonLat(b);
-  const midLat = ((A.lat + B.lat) / 2) * (Math.PI / 180);
-  const dx = (B.lon - A.lon) * 111.32 * Math.cos(midLat);
-  const dy = (B.lat - A.lat) * 110.57;
-  return Math.round(Math.hypot(dx, dy));
-}
-
-/* Durée de trajet déduite de la distance. La recette valant 8 pi. par minute
-   quelle que soit la longueur, ce calcul ne déplace pas l'équilibre : il rend
-   seulement le réseau cohérent — Paris–Lille ne peut plus durer autant que
-   Lille–Marseille. */
-export function durationFromKm(km: number) {
-  return Math.max(3, Math.min(20, Math.round(km / 55)));
-}
-
-/* Doit rester aligné sur lengthYield() dans simulation.job.ts. Un long-courrier
-   rapporte plus à la minute qu'un omnibus : +0 % à 3 min, +25 % à 20 min. */
-export function lengthYieldPct(durationMinutes: number) {
-  const d = Math.max(3, Math.min(20, durationMinutes));
-  return Math.round(25 * ((d - 3) / 17));
-}
-
 /* Trois premières lignes sûres : de grandes gares, un trajet court pour voir
    la rame revenir vite. Un clic ouvre le formulaire déjà rempli. */
 const FIRST_LINE_IDEAS: [string, string][] = [["Paris", "Lille"], ["Paris", "Lyon"], ["Lyon", "Marseille"]];
@@ -4053,6 +4863,12 @@ function FirstLineIdeas({ network, onPick }: { network: NetworkData | null; onPi
   );
 }
 
+/* 1.7 : durée réelle d'un trajet, comme la simulation la calcule : Express
+   plus rapide, chaque voiture ajoutée ralentit, l'électrification fait gagner 10 %. */
+function tripDurationMs(t: { model: string; cars?: string[]; line?: { durationMinutes?: number; electrified?: boolean } | null }) {
+  return (t.line?.durationMinutes ?? 0) * 60_000 * modelSpeed(t.model) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1);
+}
+
 /* Recette horaire théorique d'une rame sur la ligne, réputation parfaite.
    C'est le seul chiffre qui permet de comparer deux tracés. */
 function hourlyRevenue(durationMinutes: number) {
@@ -4093,14 +4909,30 @@ function NetworkMap({
   contracts,
   onChange,
   network,
+  livery,
+  onOpenWrecks,
 }: {
   lines: Line[];
   trains: Train[];
   contracts: Contract[];
   onChange: () => void;
   network: NetworkData | null;
+  livery?: string;
+  onOpenWrecks?: () => void;
 }) {
   const { showToast } = useToast();
+  // 2.0 : les épaves à l'abandon, posées près de leur gare
+  const [wrecks, setWrecks] = useState<WreckInfo[]>([]);
+  useEffect(() => {
+    const load = () => void loadWrecks().then((d) => setWrecks(d?.open ?? []));
+    load();
+    const t = setInterval(load, 60_000);
+    return () => clearInterval(t);
+  }, []);
+  // 1.7 — Premium : vos gares à vos couleurs sur la carte
+  const myOwned = new Map(
+    network?.isPremium ? (network.ownedStations ?? []).filter((o) => o.mine).map((o) => [o.station, o.level] as [string, number]) : []
+  );
   // horloge de la carte : fait avancer les trains en continu entre deux rafraîchissements
   const [clock, setClock] = useState(Date.now());
   useEffect(() => {
@@ -4110,8 +4942,10 @@ function NetworkMap({
   const camera = useMapCamera(MAP_WORLD, MAP_HOME);
   const { k, cam } = camera;
   const [drawing, setDrawing] = useState(false);
-  const [from, setFrom] = useState<string | null>(null);
-  const [to, setTo] = useState<string | null>(null);
+  /* 1.7 : le tracé est une suite de gares : départ, arrêts, terminus */
+  const [picks, setPicks] = useState<string[]>([]);
+  const from = picks[0] ?? null;
+  const to = picks.length >= 2 ? picks[picks.length - 1] : null;
   const [lineName, setLineName] = useState("");
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<MapSelection>(null);
@@ -4121,8 +4955,7 @@ function NetworkMap({
   const frameRef = useRef<HTMLDivElement | null>(null);
 
   function resetDraw() {
-    setFrom(null);
-    setTo(null);
+    setPicks([]);
     setLineName("");
   }
 
@@ -4133,24 +4966,17 @@ function NetworkMap({
       setFollow(null);
       return;
     }
-    if (from === name) return resetDraw();
-    if (!from) {
-      setFrom(name);
-      setTo(null);
-      return;
-    }
-    if (to === name) return setTo(null);
-    setTo(name);
-    setLineName(`${from} — ${name}`);
+    // retoucher la dernière gare l'enlève ; une gare déjà prise ne revient pas ; au plus 4 arrêts
+    if (picks[picks.length - 1] === name) return setPicks((p) => p.slice(0, -1));
+    if (picks.includes(name)) return;
+    if (picks.length >= MAX_STOPS + 2) return showToast(`Une ligne s'arrête dans ${MAX_STOPS} gares au plus`, "error");
+    const next = [...picks, name];
+    setPicks(next);
+    if (next.length >= 2) setLineName(`${next[0]} — ${name}`);
   }
 
   const draft =
-    from && to && STATION_COORDS[from] && STATION_COORDS[to]
-      ? (() => {
-          const km = distanceKm(STATION_COORDS[from], STATION_COORDS[to]);
-          return { km, minutes: durationFromKm(km) };
-        })()
-      : null;
+    picks.length >= 2 ? { km: routeKm(picks), minutes: routeMinutes(picks), stops: picks.length - 2 } : null;
 
   async function createFromMap() {
     if (!from || !to || !draft) return;
@@ -4160,6 +4986,7 @@ function NetworkMap({
         name: lineName.trim() || `${from} — ${to}`,
         departureStation: from,
         arrivalStation: to,
+        stops: picks.slice(1, -1),
         durationMinutes: draft.minutes,
       });
       showToast(`Ligne ${from} — ${to} ouverte (${draft.minutes} min)`);
@@ -4186,18 +5013,19 @@ function NetworkMap({
   const night = !!network?.night?.active;
 
   /* Position courante de chaque rame en ligne : sert au dessin, à la fiche et au suivi. */
-  const trainPos = new Map<string, { x: number; y: number; angle: number; ratio: number; color: string; lineIndex: number; curve: { cx: number; cy: number }; from: { x: number; y: number }; to: { x: number; y: number } }>();
+  /* 1.7 : la rame suit son itinéraire (arrêts compris) dans son sens de marche */
+  type TrainPos = { x: number; y: number; angle: number; ratio: number; color: string; lineIndex: number; route: string[]; direction: number; stoppedAt: string | null; next: string };
+  const trainPos = new Map<string, TrainPos>();
   for (const t of trains) {
     if (!t.line || t.status !== "EN_ROUTE") continue;
-    const a = STATION_COORDS[t.line.departureStation];
-    const b = STATION_COORDS[t.line.arrivalStation];
-    if (!a || !b) continue;
     const lineIndex = Math.max(0, lines.findIndex((l) => l.id === t.line!.id));
-    const curve = lineCurve(lineIndex, a, b);
-    const duration = (t.line.durationMinutes ?? 0) * 60_000 * (t.model === "EXPRESS" ? 0.7 : 1);
+    const route = routeStations(t.line);
+    const duration = tripDurationMs(t);
     const ratio = t.departedAt && duration > 0 ? Math.min(1, Math.max(0, (clock - new Date(t.departedAt).getTime()) / duration)) : t.progress / 100;
-    const p = pointOnCurve(a, curve, b, ratio);
-    trainPos.set(t.id, { ...p, ratio, color: LINE_PALETTE[lineIndex % LINE_PALETTE.length], lineIndex, curve, from: a, to: b });
+    const direction = t.direction ?? 0;
+    const p = positionOnRoute(route, lineIndex, direction, ratio);
+    if (!p) continue;
+    trainPos.set(t.id, { x: p.x, y: p.y, angle: p.angle, ratio, color: LINE_PALETTE[lineIndex % LINE_PALETTE.length], lineIndex, route, direction, stoppedAt: p.stoppedAt, next: p.to });
   }
 
   // suivi d'une rame : la caméra reste sur elle
@@ -4338,8 +5166,8 @@ function NetworkMap({
             if (!a || !b) return null;
             const running = trains.some((t) => t.line?.id === l.id && t.status === "EN_ROUTE");
             const color = LINE_PALETTE[i % LINE_PALETTE.length];
-            const { cx, cy } = lineCurve(i, a, b);
-            const path = `M ${a.x},${a.y} Q ${cx},${cy} ${b.x},${b.y}`;
+            // 1.7 : un arc par tronçon, arrêts compris
+            const path = routePath(routeStations(l), i);
             return (
               <g key={l.id}>
                 {running && <path d={path} fill="none" stroke="rgb(var(--c-navy-950))" strokeWidth={5 * k} strokeLinecap="round" opacity="0.9" />}
@@ -4359,16 +5187,24 @@ function NetworkMap({
           })}
 
           {/* tracé en cours */}
-          {from && to && STATION_COORDS[from] && STATION_COORDS[to] && (
-            <line x1={STATION_COORDS[from].x} y1={STATION_COORDS[from].y} x2={STATION_COORDS[to].x} y2={STATION_COORDS[to].y} stroke="rgb(var(--c-cobalt))" strokeWidth={2.4 * k} strokeDasharray={`${5 * k} ${4 * k}`} opacity="0.95" />
+          {picks.length >= 2 && (
+            <polyline
+              points={picks.filter((n) => STATION_COORDS[n]).map((n) => `${STATION_COORDS[n].x},${STATION_COORDS[n].y}`).join(" ")}
+              fill="none"
+              stroke="rgb(var(--c-cobalt))"
+              strokeWidth={2.4 * k}
+              strokeDasharray={`${5 * k} ${4 * k}`}
+              strokeLinejoin="round"
+              opacity="0.95"
+            />
           )}
 
           {/* les gares */}
-          {Object.entries(STATION_COORDS).map(([name, pos]) => {
+          {Object.entries(STATION_COORDS).filter(([name]) => stationVisible(name)).map(([name, pos]) => {
             const active = usedStations.has(name);
             const pulsing = activeStations.has(name);
             const size = stationOf(network, name)?.size ?? 2;
-            const picked = from === name || to === name || selStation === name;
+            const picked = picks.includes(name) || selStation === name;
             const big = size >= 4;
             const showLabel = active || picked || big || showAllLabels || drawing;
             const left = LABEL_LEFT.has(name);
@@ -4399,6 +5235,15 @@ function NetworkMap({
                     </g>
                   );
                 })()}
+                {myOwned.has(name) && livery && (
+                  <g pointerEvents="none">
+                    {/* la plaque de gare : un carré à votre livrée, un cran par niveau de commerces */}
+                    <rect x={pos.x - 7.5 * k} y={pos.y - 7.5 * k} width={15 * k} height={15 * k} fill={livery} opacity="0.22" stroke={livery} strokeWidth={1.4 * k} />
+                    {Array.from({ length: myOwned.get(name) ?? 1 }).map((_, n) => (
+                      <rect key={n} x={pos.x - 7.5 * k + n * 3.2 * k} y={pos.y + 9 * k} width={2.4 * k} height={2.4 * k} fill={livery} />
+                    ))}
+                  </g>
+                )}
                 {hub && (
                   <g pointerEvents="none">
                     <rect x={pos.x - 6.5 * k} y={pos.y - 6.5 * k} width={13 * k} height={13 * k} transform={`rotate(45 ${pos.x} ${pos.y})`} fill="none" stroke="rgb(var(--c-cobalt))" strokeWidth={1.2 * k} />
@@ -4416,7 +5261,7 @@ function NetworkMap({
                     fontSize={(big || active ? 9.5 : 8.5) * k}
                     fontWeight={size >= 5 ? 700 : 400}
                     fontFamily="var(--font-mono2)"
-                    fill={active ? "rgb(var(--c-offwhite))" : "rgb(var(--c-slate2))"}
+                    fill={myOwned.has(name) && livery ? livery : active ? "rgb(var(--c-offwhite))" : "rgb(var(--c-slate2))"}
                     opacity={active ? 1 : 0.8}
                     stroke="rgb(var(--c-navy-950))"
                     strokeWidth={2.6 * k}
@@ -4432,11 +5277,37 @@ function NetworkMap({
             );
           })}
 
+          {/* 2.0 : les épaves, un wagon rouillé à côté de la gare */}
+          {wrecks.map((w) => {
+            const at = STATION_COORDS[w.station];
+            if (!at) return null;
+            const c = RARITY_COLOR[w.rarity] ?? "#9aa7b8";
+            return (
+              <g
+                key={w.id}
+                transform={`translate(${at.x + 10 * k},${at.y - 10 * k}) scale(${1.25 * k})`}
+                onClick={(e) => { e.stopPropagation(); if (!camera.wasDrag()) { setSelected({ kind: "gare", name: w.station }); setFollow(null); } }}
+                style={{ cursor: "pointer" }}
+                aria-label={`Épave près de ${w.station}`}
+              >
+                <circle r="10" fill="transparent" />
+                {w.rarity === "LEGENDAIRE" && <circle r="8" fill="none" stroke={c} strokeWidth="1" className="map-wreck-ping" />}
+                <rect x="-6" y="-3.5" width="12" height="6" rx="1" fill="#6b3a1c" stroke={c} strokeWidth="1" transform="rotate(-8)" />
+                <rect x="-4" y="-2" width="2.4" height="2" fill="#2a1a10" transform="rotate(-8)" />
+                <rect x="0" y="-2" width="2.4" height="2" fill="#2a1a10" transform="rotate(-8)" />
+                <circle cx="-3.5" cy="3.4" r="1.4" fill="#2a1a10" />
+                <circle cx="3.8" cy="2.4" r="1.4" fill="#2a1a10" />
+              </g>
+            );
+          })}
+
           {/* les rames : couleur de leur ligne, une traînée derrière elles */}
           {trains.map((t) => {
             const p = trainPos.get(t.id);
             if (!p) return null;
-            const trail = [1, 2, 3, 4, 5, 6].map((n) => pointOnCurve(p.from, p.curve, p.to, Math.max(0, p.ratio - n * 0.018)));
+            const trail = [1, 2, 3, 4, 5, 6]
+              .map((n) => positionOnRoute(p.route, p.lineIndex, p.direction, Math.max(0, p.ratio - n * 0.018)))
+              .filter((q): q is NonNullable<typeof q> => !!q);
             const pts = [{ x: p.x, y: p.y }, ...trail];
             const couchettes = t.model === "COUCHETTES";
             const isSel = selTrain?.id === t.id;
@@ -4500,17 +5371,23 @@ function NetworkMap({
             {!from && <p className="text-xs font-body text-slate2">Touchez la gare de départ.</p>}
             {from && !to && (
               <p className="text-xs font-body text-slate2">
-                Départ : <span className="text-offwhite">{from}</span>. Touchez la gare d'arrivée.
+                Départ : <span className="text-offwhite">{from}</span>. Touchez la gare suivante.
               </p>
             )}
             {from && to && draft && (
               <div className="flex flex-col gap-2">
-                <div className="text-xs font-body text-slate2">
-                  <span className="text-offwhite">{from}</span> → <span className="text-offwhite">{to}</span>
-                  <span className="font-mono2 text-[11px] ml-2">
-                    {draft.km} km · <span className="text-amber">{draft.minutes} min</span> · ~<span className="text-amber">{hourlyRevenue(draft.minutes)} pi./h</span>
-                    {lengthYieldPct(draft.minutes) > 0 && <> · <span className="text-rail-green">+{lengthYieldPct(draft.minutes)} %</span></>}
-                  </span>
+                <div className="text-xs font-body text-slate2 leading-relaxed">
+                  {picks.map((n, i) => (
+                    <span key={n}>
+                      {i > 0 && <span className="text-slate2/60"> → </span>}
+                      <span className={i === 0 || i === picks.length - 1 ? "text-offwhite" : "text-cobalt"}>{n}</span>
+                    </span>
+                  ))}
+                  <div className="font-mono2 text-[11px] mt-0.5">
+                    {draft.km} km · <span className="text-amber">{draft.minutes} min</span>
+                    {draft.stops > 0 && <> · {draft.stops} arrêt{draft.stops > 1 ? "s" : ""} <span className="text-rail-green">(+{draft.stops * 20} % de voyageurs)</span></>}
+                  </div>
+                  <div className="text-[11px] text-slate2/80 mt-0.5">Touchez une autre gare pour prolonger ; retouchez la dernière pour l'enlever.</div>
                 </div>
                 <div className="flex gap-2">
                   <input value={lineName} onChange={(e) => setLineName(e.target.value)} className="flex-1 min-w-0 bg-navy-950 border border-line px-2.5 py-1.5 text-sm font-body text-offwhite focus:border-cobalt outline-none" placeholder="Nom de la ligne (facultatif)" />
@@ -4625,8 +5502,19 @@ function NetworkMap({
                   {mine.length ? `${mine.length} de vos lignes y passent` : "Aucune de vos lignes ne la dessert"}
                   {rivals > 0 && ` · ${rivals} liaison${rivals > 1 ? "s" : ""} concurrente${rivals > 1 ? "s" : ""}`}
                 </div>
+                {wrecks.filter((w) => w.station === selStation).map((w) => (
+                  <div key={w.id} className="mt-2 border-t border-line pt-2">
+                    <div className="text-[12px] font-body" style={{ color: RARITY_COLOR[w.rarity] }}>Épave {w.rarityLabel.toLowerCase()} à l'abandon</div>
+                    <div className="text-[13px] font-body text-offwhite">{w.label} {w.serial}</div>
+                    {onOpenWrecks && (
+                      <button onClick={() => { setSelected(null); onOpenWrecks(); }} className="mt-1.5 w-full border border-amber/60 text-amber text-[12.5px] font-body py-1 hover:bg-amber/10">
+                        Voir l'épave, {w.price} pi.
+                      </button>
+                    )}
+                  </div>
+                ))}
                 <button
-                  onClick={() => { setSelected(null); resetDraw(); setDrawing(true); setFrom(selStation); }}
+                  onClick={() => { setSelected(null); resetDraw(); setDrawing(true); setPicks([selStation]); }}
                   className="mt-2.5 w-full bg-cobalt text-onaccent font-mono2 text-[10.5px] uppercase tracking-[0.12em] py-1.5 hover:bg-cobalt/90"
                 >
                   Tracer une ligne d'ici
@@ -4640,11 +5528,17 @@ function NetworkMap({
               <>
                 <div className="font-mono2 text-[10px] uppercase tracking-[0.18em] text-slate2">{selTrain.model.replace("_", " ").toLowerCase()}</div>
                 <div className="font-display text-xl leading-tight">{selTrain.name}</div>
-                {selTrain.line && (
+                {selTrain.line && p && (
                   <div className="text-[12.5px] font-body text-offwhite mt-1">
-                    {selTrain.line.departureStation} → {selTrain.line.arrivalStation}
+                    {p.stoppedAt ? <>À quai à <b>{p.stoppedAt}</b></> : <>Vers <b>{p.next}</b></>}
+                    <span className="text-slate2"> · terminus {p.direction === 1 ? selTrain.line.departureStation : selTrain.line.arrivalStation}</span>
                   </div>
                 )}
+                {selTrain.lastSeats ? (
+                  <div className="text-[11.5px] font-mono2 text-slate2 mt-1">
+                    Dernier trajet : {selTrain.lastPassengers ?? 0}/{selTrain.lastSeats} voyageurs
+                  </div>
+                ) : null}
                 <div className="h-1 bg-line mt-2">
                   <div className="h-full bg-rail-green" style={{ width: `${Math.round((p?.ratio ?? 0) * 100)}%` }} />
                 </div>
@@ -4765,6 +5659,10 @@ interface StaffMember {
   nextEffect: string | null;
   covered?: number | null;
   savingsPerHour?: number;
+  // 2.0 : équipage
+  crew?: boolean;
+  trainId?: string | null;
+  trainName?: string | null;
 }
 
 interface StaffOverview {
@@ -4793,7 +5691,7 @@ function formatHoursShort(h: number) {
    2. Mon équipe suit-elle ma flotte ? (la couverture, poste par poste)
    Le reste — la fiche de chaque employé — se consulte ensuite.
    ============================================================ */
-function StaffSection({ staff, gradeId, onChange }: { staff: Staff[]; gradeId: number; onChange: () => void }) {
+function StaffSection({ staff, gradeId, onChange, trains = [] }: { staff: Staff[]; gradeId: number; onChange: () => void; trains?: { id: string; name: string; model: string }[] }) {
   const [overview, setOverview] = useState<StaffOverview | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -4837,6 +5735,22 @@ function StaffSection({ staff, gradeId, onChange }: { staff: Staff[]; gradeId: n
       await api.post("/staff/fire", { staffId: m.id });
       showToast(`${m.name} a quitté la compagnie`);
       setConfirmFire(null);
+      await load();
+      onChange();
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || "Erreur", "error");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  // 2.0 : faire monter un équipier à bord d'une rame (ou l'en faire descendre)
+  async function assignTo(m: StaffMember, trainId: string | null) {
+    setBusy(`assign:${m.id}`);
+    try {
+      await api.post("/staff/assign", { staffId: m.id, trainId });
+      const tn = trains.find((t) => t.id === trainId)?.name;
+      showToast(trainId ? `${m.name} monte à bord de ${tn ?? "la rame"}` : `${m.name} redescend au dépôt`);
       await load();
       onChange();
     } catch (err: any) {
@@ -4947,7 +5861,13 @@ function StaffSection({ staff, gradeId, onChange }: { staff: Staff[]; gradeId: n
                       </span>
                     )}
                   </h2>
-                  {covered !== null ? (
+                  {role.id === "CONTROLEUR" || role.id === "CONDUCTEUR" ? (
+                    <p className="text-xs text-slate2 font-body mt-1">
+                      Monte à bord d'une rame :{" "}
+                      {team.filter((m) => m.trainId).length} affecté{team.filter((m) => m.trainId).length > 1 ? "s" : ""} sur {trainCount} rame{trainCount > 1 ? "s" : ""}
+                      {team.some((m) => !m.trainId) ? " — un équipier au dépôt est payé sans rien apporter" : ""}
+                    </p>
+                  ) : covered !== null ? (
                     <p className={`text-xs font-body mt-1 ${uncovered ? "text-amber" : "text-slate2"}`}>
                       {trainCount === 0
                         ? "Aucune rame à couvrir pour l'instant"
@@ -4996,6 +5916,27 @@ function StaffSection({ staff, gradeId, onChange }: { staff: Staff[]; gradeId: n
                           <span className="font-mono2 text-[11px] text-slate2 shrink-0">Niv. {m.level}</span>
                         </div>
                         <p className="text-xs text-slate2 font-body mt-1">{m.effect}</p>
+                        {m.crew && (
+                          <label className="flex items-center gap-2 mt-2 text-[13px] font-body">
+                            <span className={m.trainId ? "text-rail-green" : "text-amber"}>{m.trainId ? "À bord de" : "Au dépôt"}</span>
+                            <select
+                              value={m.trainId ?? ""}
+                              onChange={(e) => assignTo(m, e.target.value || null)}
+                              disabled={busy !== null}
+                              className="bg-navy-950 border border-line px-2 py-1 text-[13px] min-w-0 flex-1"
+                              aria-label={`Rame de ${m.name}`}
+                            >
+                              <option value="">Aucune rame</option>
+                              {trains
+                                .filter((t) => m.role !== "CONTROLEUR" || t.model !== "FRET_LOURD")
+                                .map((t) => (
+                                  <option key={t.id} value={t.id}>
+                                    {t.name}
+                                  </option>
+                                ))}
+                            </select>
+                          </label>
+                        )}
 
                         <div className="mt-3">
                           <div className="h-1 bg-line" aria-hidden>
@@ -5268,6 +6209,8 @@ function SettingsSection({
         </form>
       </div>
 
+      <SoundsPanel />
+
       <ThemePanel
         current={company.theme ?? readLocalTheme()}
         owned={company.unlocked?.themes ?? ["sombre", "papier"]}
@@ -5366,5 +6309,33 @@ function SettingsSection({
         )}
       </div>
     </div>
+  );
+}
+
+/* 2.0 : sons et vibrations, réglés par appareil */
+function SoundsPanel() {
+  const [on, setOn] = useState(soundsOn());
+  return (
+    <section className="border border-line p-5 mb-6">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2 className="font-display text-lg">Sons et vibrations</h2>
+          <p className="text-[13px] text-slate2 font-body mt-0.5">Le choc de l'attelage, le carillon de quai et une alerte quand une rame casse. Réglé sur cet appareil.</p>
+        </div>
+        <button
+          role="switch"
+          aria-checked={on}
+          onClick={() => {
+            setSoundsOn(!on);
+            setOn(!on);
+            if (!on) playChime();
+          }}
+          className={`shrink-0 w-12 h-7 border relative transition-colors ${on ? "bg-cobalt/30 border-cobalt" : "bg-navy-950 border-line"}`}
+        >
+          <span className={`absolute top-[3px] w-5 h-5 transition-all ${on ? "left-[24px] bg-cobalt" : "left-[3px] bg-slate2"}`} />
+          <span className="sr-only">{on ? "Désactiver" : "Activer"} les sons</span>
+        </button>
+      </div>
+    </section>
   );
 }

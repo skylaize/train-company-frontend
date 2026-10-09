@@ -396,3 +396,118 @@ tbody tr:nth-child(n+6) { animation-delay: 0.16s; }
 @media (prefers-reduced-motion: reduce) {
   .gain-pop, .ticker-in { animation: none; }
 }
+
+/* 1.7 : les tableaux prennent l'allure d'un tableau des départs — bandeau
+   d'en-tête plein, première et dernière colonnes décollées du bord. Sélecteurs
+   sans poids (:where) : une classe posée sur une cellule garde toujours le dernier mot. */
+:where(main table thead tr) {
+  background: rgb(var(--c-navy-900) / 0.85);
+}
+:where(main table th:first-child, main table td:first-child) {
+  padding-left: 0.75rem;
+}
+:where(main table th:last-child, main table td:last-child) {
+  padding-right: 0.75rem;
+}
+
+/* 2.0 : le panneau « Plus » du téléphone monte du bas de l'écran */
+@keyframes sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+.sheet-up { animation: sheet-up 0.22s cubic-bezier(0.2, 0, 0, 1); }
+@media (prefers-reduced-motion: reduce) { .sheet-up { animation: none; } }
+
+/* 2.0 : le quai — la voiture qui s'attelle, la rame neuve qui entre en gare */
+@keyframes ts-arrive {
+  0% { transform: translateX(440px); }
+  82% { transform: translateX(-4px); }
+  100% { transform: translateX(0); }
+}
+.ts-arrive { animation: ts-arrive 950ms cubic-bezier(0.22, 0.8, 0.3, 1) both; }
+@keyframes ts-jolt {
+  0% { transform: translateX(0); }
+  30% { transform: translateX(-4px); }
+  65% { transform: translateX(1.5px); }
+  100% { transform: translateX(0); }
+}
+.ts-jolt { animation: ts-jolt 360ms ease-out; }
+@keyframes ts-tag {
+  0% { opacity: 0; transform: var(--ts-at) translateY(8px); }
+  12% { opacity: 1; transform: var(--ts-at) translateY(0); }
+  80% { opacity: 1; transform: var(--ts-at) translateY(0); }
+  100% { opacity: 0; transform: var(--ts-at) translateY(-6px); }
+}
+.ts-tag { animation: ts-tag 2200ms ease-out both; }
+@keyframes ts-enter {
+  0% { transform: translateX(640px); }
+  72% { transform: translateX(22px); }
+  100% { transform: translateX(0); }
+}
+.ts-enter { animation: ts-enter 2300ms cubic-bezier(0.15, 0.6, 0.35, 1) both; }
+@media (prefers-reduced-motion: reduce) {
+  .ts-arrive, .ts-jolt, .ts-tag, .ts-enter { animation: none; }
+}
+
+/* 2.0 : la Gazette du Rail, imprimée sur le papier de la page d'accueil */
+.gazette {
+  background: #ebe5d6;
+  padding: 14px 18px 16px;
+  box-shadow: 3px 3px 0 rgb(0 0 0 / 0.35);
+}
+.gazette-title { font-family: "Instrument Serif", Georgia, serif; font-size: 30px; line-height: 1; letter-spacing: -0.01em; }
+.gazette-meta { font-family: "Barlow Condensed", "Work Sans", sans-serif; font-size: 14px; font-weight: 500; }
+.gazette-lead { font-family: "Instrument Serif", Georgia, serif; font-size: 26px; line-height: 1.08; }
+.gazette-head { font-family: "Barlow Condensed", "Work Sans", sans-serif; font-weight: 600; font-size: 17px; line-height: 1.15; }
+.gazette-body { font-family: "Barlow", "Work Sans", sans-serif; font-size: 14px; line-height: 1.4; color: #3b3630; }
+
+/* 2.0 : le déballage — l'objet acheté (ou offert) arrive en gare */
+.pr-backdrop { background: radial-gradient(ellipse at 50% 44%, color-mix(in srgb, var(--pr) 22%, #0a1220) 0%, #070d18 62%); opacity: 0; animation: pr-fade 260ms ease-out forwards; }
+.pr-rays {
+  width: 220vmax; height: 220vmax; margin: -110vmax 0 0 -110vmax;
+  background: repeating-conic-gradient(from 0deg, color-mix(in srgb, var(--pr) 30%, transparent) 0deg 5deg, transparent 5deg 18deg);
+  -webkit-mask-image: radial-gradient(circle, #000 0%, transparent 34%);
+  mask-image: radial-gradient(circle, #000 0%, transparent 34%);
+  opacity: 0; animation: pr-rays-in 700ms 380ms ease-out forwards, pr-spin 40s 380ms linear infinite;
+}
+.pr-glow { width: 520px; height: 520px; margin: -260px 0 0 -260px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--pr) 55%, transparent) 0%, transparent 62%); opacity: 0; transform: scale(0.3); animation: pr-glow 900ms 420ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards; }
+.pr-streak { height: 2px; background: linear-gradient(90deg, transparent, #fff 45%, var(--pr) 55%, transparent); transform: scaleX(0); transform-origin: left; opacity: 0; animation: pr-streak 520ms ease-in forwards; box-shadow: 0 0 18px var(--pr); }
+.pr-flash { background: #fff; opacity: 0; animation: pr-flash 420ms 470ms ease-out; pointer-events: none; }
+.pr-hero { opacity: 0; transform: scale(0.55); animation: pr-pop 640ms 480ms cubic-bezier(0.18, 1.5, 0.4, 1) forwards; filter: drop-shadow(0 18px 30px rgba(0, 0, 0, 0.55)); }
+.pr-line { opacity: 0; animation: pr-up 380ms 240ms ease-out forwards; }
+.pr-name { opacity: 0; letter-spacing: 0.08em; animation: pr-name 560ms 820ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards; }
+.pr-line2 { opacity: 0; animation: pr-up 380ms 1050ms ease-out forwards; }
+.pr-chip { opacity: 0; transform: translateY(-14px); animation: pr-drop 320ms cubic-bezier(0.3, 1.6, 0.5, 1) forwards; }
+.pr-chip-txt { border: 1px solid rgb(255 255 255 / 0.4); background: #0b2a4a; color: #f1f5f9; padding: 4px 9px; font-family: "Work Sans", sans-serif; font-size: 13px; }
+.pr-chad { left: 0; top: 0; opacity: 0; animation: pr-chad 1500ms cubic-bezier(0.15, 0.7, 0.4, 1) forwards; }
+.pr-ticket { opacity: 0; transform: perspective(900px) rotateY(-80deg) scale(0.8); animation: pr-ticket 820ms 420ms cubic-bezier(0.2, 1.2, 0.4, 1) forwards; }
+.pr-stamp { opacity: 0; transform: rotate(-8deg) scale(2.4); animation: pr-stamp 260ms 1350ms cubic-bezier(0.3, 1.4, 0.5, 1) forwards; }
+.pr-hole, .pr-punch { opacity: 0; transform: scale(0); animation: pr-hole 160ms 1380ms ease-out forwards; }
+.pr-punch { animation-delay: 1100ms; }
+.pr-perk { opacity: 0; transform: translateX(-10px); animation: pr-perk 320ms ease-out forwards; }
+@keyframes pr-fade { to { opacity: 1; } }
+@keyframes pr-rays-in { to { opacity: 1; } }
+@keyframes pr-spin { to { transform: rotate(360deg); } }
+@keyframes pr-glow { to { opacity: 1; transform: scale(1); } }
+@keyframes pr-streak { 0% { transform: scaleX(0); opacity: 1; } 75% { transform: scaleX(1); opacity: 1; } 100% { transform: scaleX(1); opacity: 0; } }
+@keyframes pr-flash { 0% { opacity: 0; } 15% { opacity: 0.55; } 100% { opacity: 0; } }
+@keyframes pr-pop { to { opacity: 1; transform: scale(1); } }
+@keyframes pr-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes pr-name { from { opacity: 0; letter-spacing: 0.08em; transform: translateY(10px); } to { opacity: 1; letter-spacing: 0; transform: none; } }
+@keyframes pr-drop { to { opacity: 1; transform: none; } }
+@keyframes pr-chad {
+  0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(0.4); }
+  45% { opacity: 1; transform: translate(var(--x), var(--y)) rotate(var(--r)) scale(1); }
+  100% { opacity: 0; transform: translate(calc(var(--x) * 1.15), calc(var(--y) + 220px)) rotate(calc(var(--r) * 2)) scale(0.9); }
+}
+@keyframes pr-ticket { to { opacity: 1; transform: perspective(900px) rotateY(0deg) scale(1); } }
+@keyframes pr-stamp { to { opacity: 1; transform: rotate(-8deg) scale(1); } }
+@keyframes pr-hole { to { opacity: 1; transform: scale(1); } }
+@keyframes pr-perk { to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .pr-backdrop, .pr-rays, .pr-glow, .pr-hero, .pr-line, .pr-name, .pr-line2, .pr-chip, .pr-ticket, .pr-stamp, .pr-hole, .pr-punch, .pr-perk { animation: none; opacity: 1; transform: none; letter-spacing: 0; }
+  .pr-streak, .pr-flash, .pr-chad { display: none; }
+  .pr-stamp { transform: rotate(-8deg); }
+}
+
+/* 2.0 : une épave légendaire sur la carte */
+@keyframes map-wreck-ping { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(1.8); opacity: 0; } }
+.map-wreck-ping { transform-box: fill-box; transform-origin: center; animation: map-wreck-ping 1.8s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .map-wreck-ping { animation: none; opacity: 0.6; } }

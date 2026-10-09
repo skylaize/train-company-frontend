@@ -1,4 +1,5 @@
-export const CURRENT_VERSION = "1.6.0";
+
+export const CURRENT_VERSION = "2.0.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -12,7 +13,76 @@ export interface ChangelogEntry {
 // à partir de maintenant (la version 1.0.0 ci-dessous est le tout premier lancement,
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
-export const CHANGELOG: ChangelogEntry[] = [
+const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.0.0",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "La vraie météo : chaque gare relève le temps qu'il fait réellement, toutes les 20 minutes (données MET Norway). Chaque rame subit la pire météo de son itinéraire — la pluie rend les retards un peu plus fréquents, l'orage et la neige ralentissent, le verglas double le risque de retard, le brouillard fait lever le pied, la canicule (32 °C et plus) use le matériel ×1,5. Les épisodes météo inventés, qui frappaient tout le réseau d'un coup, disparaissent. En vue cabine, vous voyez le temps qu'il fait là où roule la rame, avec la ville et la température ; la Gazette signale les orages, la neige et le brouillard du jour" },
+      { type: "ameliore", text: "La météo quitte le tableau de bord et se vit en vue cabine : le ciel suit l'heure de Paris (aube, plein jour, crépuscule, nuit étoilée), le soleil fait sa course, et chaque météo change le paysage — arbres et toits enneigés, rails givrés qui scintillent, collines avalées par le brouillard, terre jaunie par la canicule. Phares allumés par brouillard et neige, givre sur la vitre, et l'effet sur vos rames affiché en haut de l'écran" },
+      { type: "nouveau", text: "Épaves à restaurer : de vieilles rames dorment près des gares, signalées sur la carte. La première compagnie qui en rachète une la ramène au dépôt (elle y prend une place) et la restaure organe par organe avec ses pièces, la rouille disparaissant au fil du chantier. Remise en service, elle garde son numéro d'origine, son histoire et sa livrée d'époque, et son prestige fait payer le billet plus cher : +10 % pour une commune, +18 % pour une rare, +30 % pour la légendaire 141 R. Elle ne perd pas de valeur avec l'âge" },
+      { type: "nouveau", text: "Quatre succès : Ferrailleur, Restaurateur, Conservateur et Pièce de musée" },
+      { type: "nouveau", text: "Le déballage : chaque achat arrive en gare dans un éclat de lumière, objet en grand et confettis de composteur, avec « Porter maintenant » d'un clic. Un cadeau reçu se déballe aussi, au nom de qui l'offre, même si vous étiez hors ligne. Le Premium a sa propre scène : votre billet de première classe, composté sous vos yeux" },
+      { type: "nouveau", text: "Saisons : quatre semaines, un classement qui repart à zéro, et des divisions par taille — Bronze, Argent, Or, Platine — découpées en groupes de douze compagnies de valeur proche. Une compagnie fondée hier affronte des compagnies fondées hier. Votre compagnie, elle, garde tout : rames, lignes, argent et grades" },
+      { type: "nouveau", text: "Points de saison : +1 par trajet voyageurs, +2 de plus s'il était rempli à 80 %, +5 par contrat de fret livré, et trois objectifs par semaine, de 60 à 120 points. En fin de saison, les trois premiers de chaque groupe montent de division, les trois derniers redescendent, et la première moitié du groupe gagne la livrée et le titre de la saison, jamais vendus en boutique" },
+      { type: "nouveau", text: "Alliances : jusqu'à cinq compagnies. Une gare que desservent aussi vos alliés rapporte 3 % de plus par allié (jusqu'à +9 %), vos alliés ne paient pas de redevance dans vos gares, et l'alliance a son classement, la somme des points de saison de ses membres. Un tableau d'affichage pour se coordonner, et un lien vers le salon Discord de l'alliance" },
+      { type: "nouveau", text: "Le Grand Chantier : tout le réseau creuse le tunnel du Mont-Blanc. Chaque trajet voyageurs de chaque joueur le fait avancer ; à son ouverture, Turin et Zurich rejoignent la carte pour tout le monde. 300 trajets apportés au chantier valent l'emblème « Bâtisseur du tunnel »" },
+      { type: "nouveau", text: "Cadeau de lancement : la livrée « Bleu Mont-Blanc » offerte à toutes les compagnies" },
+      { type: "nouveau", text: "L'atelier : chaque rame a quatre organes — freins, bogies, moteur, caisse — qui s'usent à leur rythme. Celui qui lâche demande sa pièce : au magasin, commandée (30 à 90 min) ou en express (10 min). Au-delà de 85 % d'usure, une rame peut casser avant 100 %" },
+      { type: "nouveau", text: "Révision à l'atelier : 60 % du prix d'une réparation, sans pièce, quelques minutes sans rouler. Programmez-la à 40, 60 ou 80 % et la rame y passe d'elle-même en fin de trajet" },
+      { type: "nouveau", text: "Magasin de pièces détachées : une pièce en stock répare une rame tout de suite, et la réparation automatique s'en sert d'abord" },
+      { type: "nouveau", text: "Incidents sur la voie : un sanglier, une branche sur la caténaire, un objet oublié. La rame s'abîme, et casse parfois" },
+      { type: "nouveau", text: "Équipages : le contrôleur (+4 % de recette et de la réputation) et le conducteur (retards −40 %, incidents et casse divisés par deux, usure réduite) montent à bord de la rame que vous choisissez" },
+      { type: "nouveau", text: "Décisions : les montants suivent désormais vos recettes, et de nouvelles situations ne se règlent pas qu'en pièces — revendications salariales, inspection de sécurité, rappel du constructeur, recrutement d'un vétéran. Certaines réponses ont une suite quelques heures plus tard" },
+      { type: "nouveau", text: "Deux extensions : « Trains de légende » (la vapeur du week-end et le grand luxe, inclus dans le Premium) et « Montagne » (Chamonix, Bourg-Saint-Maurice, Briançon, Font-Romeu et la crémaillère)" },
+      { type: "nouveau", text: "Premium : revente de vos rames au prix de reprise du jour" },
+      { type: "nouveau", text: "Le Pass de saison : trente paliers franchis avec vos points de saison. Des pièces pour tout le monde tous les trois paliers, et avec le pass (2,99 € la saison) neuf livrées, deux emblèmes, sept titres et trois plaques, jusqu'à la livrée et le titre de légende, gardés pour toujours" },
+      { type: "nouveau", text: "La boutique du jour : deux objets à la une et six du jour, qui changent chaque nuit à minuit. Des livrées et des titres à l'unité, à 0,99 €. Le Pass et les extensions restent toujours en vente" },
+      { type: "nouveau", text: "Offrir : le Pass de saison, une extension, un objet de la boutique ou le Premium, payé par vous pour une autre compagnie" },
+      { type: "nouveau", text: "La Gazette du Rail : le petit journal du réseau sur la page de la flotte" },
+      { type: "nouveau", text: "12 nouveaux succès, 112 en tout : première saison, montée, platine, allié, bâtisseur du tunnel, chef d'atelier, magasinier, pièces détachées, rien ne casse, équipage complet, légende vivante et premier sommet" },
+      { type: "ameliore", text: "Nouvelle console : chaque page dit d'abord ce qui se passe, en une phrase (« 3 lignes sont pleines et laissent 122 voyageurs à quai »). La Flotte s'ouvre sur les prochaines arrivées comme sur un tableau de gare, le gain du jour, la saison et le chantier ; les lignes, les rames et les contrats de fret se lisent ligne par ligne au lieu de tableaux à huit colonnes" },
+      { type: "ameliore", text: "Une rubrique « Compétition » dans le menu : Saison, Alliance et Classement" },
+      { type: "ameliore", text: "Le quai : une rame neuve entre en gare sous vos yeux, et chaque voiture attelée arrive, s'accroche et fait basculer le compteur de places" },
+      { type: "ameliore", text: "Boutique : un objet s'essaie en vitrine par-dessus la page, sans remonter tout en haut" },
+      { type: "ameliore", text: "Des sons discrets (attelage, carillon de quai, alerte de panne) et une vibration sur téléphone quand une rame casse, à couper dans Paramètres" },
+      { type: "corrige", text: "Une rame réparée sans ligne ne reste plus « en panne » à 0 % d'usure, et un salaire manqué ne fait plus partir votre personnel sur-le-champ : il patiente une heure et vous êtes prévenu" },
+      { type: "nouveau", text: "Vidéos récompensées : regardez une publicité jusqu'au bout et touchez des pièces, jusqu'à cinq fois par jour. La récompense grandit avec votre compagnie (15 % d'une heure de recettes, de 20 à 400 pi.). C'est facultatif : rien ne s'interrompt pour une publicité" },
+      { type: "nouveau", text: "Une bannière discrète en bas de quelques pages de consultation (classement, finances, progression, appels d'offres, cours) — jamais sur la carte, la flotte, la vue cabine ni pendant les premiers pas" },
+      { type: "nouveau", text: "Boutique : le Coffret Belle Époque (voitures Pullman bordeaux filetées d'or, livrée, emblème de la lanterne et titre), le Coffret Grande Vitesse (rame au long nez profilé, livrée argent, emblème de la flèche et titre), la rame à deux niveaux, et les emblèmes de l'atelier" },
+      { type: "nouveau", text: "Plaques d'honneur : votre nom encadré au classement, en laiton gravé, en émail bleu ou en or fin, vu par tous les joueurs. À essayer dans la vitrine de la boutique" },
+      { type: "nouveau", text: "Billet sans pub : 1,99 € une fois pour toutes, et plus aucune bannière. Le bouton est juste au-dessus de la bannière. Si vous passez ensuite au Premium, il ne vous coûte plus qu'à partir de 4 €" },
+      { type: "nouveau", text: "Premium — Aucune publicité : ni bannière, ni script publicitaire chargé tant que vous ne demandez pas vous-même une vidéo" },
+      { type: "ameliore", text: "Le résumé du jour tient sur une ligne : le solde net, les trajets, les livraisons et les incidents, avec le détail des recettes et dépenses à déplier" },
+    ],
+  },
+  {
+    version: "1.7.0",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Arrêts intermédiaires : une ligne peut desservir jusqu'à quatre gares entre ses deux terminus. Chaque arrêt amène 20 % de voyageurs en plus et coûte une minute à quai. Sur la carte, on trace une ligne gare après gare" },
+      { type: "nouveau", text: "Aller-retour : une rame fait l'aller puis le retour, et la carte, le tableau des rames et la vue cabine la montrent dans son vrai sens de marche, arrêt par arrêt" },
+      { type: "nouveau", text: "Places et remplissage : chaque rame a un nombre de places (400 pour une Standard). Les voyageurs qui ne trouvent pas de place restent à quai, et plusieurs rames sur une même ligne se partagent la clientèle. Le tableau des lignes montre le remplissage de chacune, le tableau des rames les voyageurs du dernier trajet" },
+      { type: "nouveau", text: "Prix du billet : réglable ligne par ligne, de ×0,6 à ×2. Plus cher, chaque voyageur rapporte plus mais il en vient moins. Le jeu indique le prix qui remplit juste vos rames" },
+      { type: "nouveau", text: "Composition des rames : attelez jusqu'à trois voitures — 2de classe (+100 places), 1re classe (+60 places payées 1,8 fois) ou voiture-bar (+8 % de recette). Chaque voiture ralentit la rame de 3 %" },
+      { type: "nouveau", text: "Infrastructures : achetez des gares (leurs commerces encaissent à chaque train qui s'y arrête, les autres compagnies y paient une redevance de quai, vos propres trajets y rapportent plus), ouvrez des ateliers régionaux (usure −25 % sur les lignes qui y passent) et électrifiez vos lignes (10 % plus rapides, usure −20 %). Une gare peut vous être rachetée au prix fort par un concurrent" },
+      { type: "nouveau", text: "Banque : empruntez jusqu'à la moitié de la valeur de votre compagnie, sur un, trois ou sept jours. Remboursement automatique chaque heure, et la moitié des intérêts restants effacée si vous soldez en avance. Une échéance impayée coûte une pénalité et un point de réputation" },
+      { type: "nouveau", text: "Bourse : chaque compagnie est cotée en 1000 actions. Achetez celles des autres (10 % au plus par compagnie), touchez des dividendes chaque soir à 20 h, revendez quand le cours a monté" },
+      { type: "nouveau", text: "Rapport de la semaine : entrées, sorties, résultat d'exploitation, recettes ligne par ligne et comparaison avec la semaine d'avant. Une notification le lundi matin" },
+      { type: "nouveau", text: "Heures de pointe : les voyageurs ne viennent plus à la même heure toute la journée. Beaucoup de monde de 7 h à 9 h et de 17 h à 19 h, moins l'après-midi, peu la nuit (les rames couchettes gardent leur service de nuit). Sur la journée, une ligne amène autant de voyageurs qu'avant, mais une rame trop petite déborde à la pointe et roule à moitié vide au creux. La page Lignes montre l'affluence heure par heure" },
+      { type: "nouveau", text: "Carrière agrandie : quatre grades de plus après la Légende du rail — Bâtisseur de gares, Maître des caténaires, Magnat européen et Empereur du rail. Il faut posséder des gares, ouvrir des ateliers, électrifier ses lignes et passer les six frontières. Chacun donne son nom en titre à afficher au classement" },
+      { type: "nouveau", text: "Premium — Prix automatique : sur les lignes de votre choix, le billet se recale sur le prix qui remplit juste vos rames, à chaque changement d'heure pour suivre la pointe" },
+      { type: "nouveau", text: "Premium — Remplissage heure par heure : la courbe des 24 dernières heures de chaque ligne, l'heure de pointe et les voyageurs restés à quai" },
+      { type: "nouveau", text: "Premium — Bourse : ordres automatiques (acheter sous un cours, vendre au-dessus), exécutés même jeu fermé, et la liste de vos actionnaires" },
+      { type: "nouveau", text: "Premium — Rapport sur quatre semaines et export en tableur (CSV)" },
+      { type: "nouveau", text: "Premium — Alertes : une gare qui sort de sa protection, une gare rachetée par un concurrent, une échéance que la trésorerie ne couvrira pas" },
+      { type: "nouveau", text: "Premium — Vos gares à vos couleurs sur la carte, et vos voitures de 1re classe peintes à votre livrée dans la vue cabine" },
+      { type: "nouveau", text: "12 nouveaux succès, 100 en tout : omnibus, salle comble, rame longue, chef de gare, fil de contact, atelier régional, bon payeur, actionnaire, heure de pointe, heures creuses, bâtisseur et empereur du rail" },
+      { type: "ameliore", text: "Nouvelle interface : le menu et les en-têtes de page prennent les codes de la signalétique de gare — pictogrammes dans leur carré, onglets et tableaux façon tableau des départs" },
+      { type: "ameliore", text: "« Comptes » devient « Finances » : rapport de la semaine, rentabilité, banque, bourse et grand livre au même endroit" },
+      { type: "ameliore", text: "La valeur des compagnies au classement compte les gares, les ateliers et les actions détenues, et retranche ce qui est dû à la banque" },
+    ],
+  },
   {
     version: "1.6.0",
     date: "Octobre 2026",
@@ -192,3 +262,6 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
   },
 ];
+
+// 2.0 : la 1.7.1 n'est jamais sortie seule, son contenu fait partie de la 2.0
+export const CHANGELOG: ChangelogEntry[] = ALL_ENTRIES;

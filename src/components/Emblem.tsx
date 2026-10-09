@@ -21,6 +21,23 @@ export const EMBLEM_LABELS: Record<string, string> = {
   sapin: "Sapin de Noël",
   flocon: "Flocon",
   soleil: "Soleil d'été",
+  // 1.7
+  lanterne: "Lanterne Belle Époque",
+  fleche: "Flèche de la grande vitesse",
+  aiguillage: "Aiguillage",
+  sifflet: "Sifflet du chef de gare",
+  // 2.0 : le Grand Chantier
+  tunnel: "Bâtisseur du tunnel",
+  sommet: "Sommet",
+  // 2.0 : Pass de saison
+  feuille: "Feuille d'érable",
+  givre: "Cristal de givre",
+  fleur: "Fleur de cerisier",
+  phare: "Phare",
+  gland: "Gland de chêne",
+  "etoile-polaire": "Étoile polaire",
+  papillon: "Papillon",
+  vague: "Vague",
 };
 
 export function Emblem({ id, size = 14, className = "" }: { id: string; size?: number; className?: string }) {
@@ -137,6 +154,114 @@ export function Emblem({ id, size = 14, className = "" }: { id: string; size?: n
         <svg {...common}>
           <circle cx="8" cy="8" r="3" />
           <path d="M8 1.4v2M8 12.6v2M1.4 8h2M12.6 8h2M3.3 3.3l1.4 1.4M11.3 11.3l1.4 1.4M3.3 12.7l1.4-1.4M11.3 4.7l1.4-1.4" />
+        </svg>
+      );
+    case "lanterne":
+      return (
+        <svg {...common}>
+          <path d="M6 2.2h4M8 2.2v1.6M5.2 3.8h5.6l-.8 7.4H6z" />
+          <path d="M6 11.2h4v1.4H6zM8 6.2v2.6" />
+          <path d="M4.6 14h6.8" />
+        </svg>
+      );
+    case "fleche":
+      return (
+        <svg {...common}>
+          <path d="M1.8 11.5h8.6c1.8 0 3.2-.6 3.8-1.8L15 8.4H6.6" />
+          <path d="M3 8.4h1.8M1.8 5.6h6" />
+        </svg>
+      );
+    case "aiguillage":
+      return (
+        <svg {...common}>
+          <path d="M3 14.2V1.8M3 9.5c0-3 1.8-4.6 6.6-5.4l4-.7" />
+          <path d="M1.6 12.4h2.8M1.6 9h2.8M1.6 5.6h2.8M6.4 7l1 1.6M9.6 5.6l.6 1.8" />
+        </svg>
+      );
+    case "sifflet":
+      return (
+        <svg {...common}>
+          <path d="M2 6.4h7.4a3.6 3.6 0 1 1-3.4 4.8H4.6A2.6 2.6 0 0 1 2 8.6z" />
+          <circle cx="9.6" cy="10" r="1.2" />
+          <path d="M12.6 3.6l1.6-1.2M13.6 6l1.8-.4" />
+        </svg>
+      );
+    case "tunnel":
+      return (
+        <svg {...common}>
+          <path d="M1 14.5l4-7.5 2.2 2.6L10 4l5 10.5" />
+          <path d="M5.6 14.5v-2.4a2.4 2.4 0 0 1 4.8 0v2.4" />
+          <path d="M1 14.5h14" />
+        </svg>
+      );
+    case "feuille":
+      return (
+        <svg {...common}>
+          <path d="M8 1.5l1.3 2.8 2.4-1-0.6 2.6 2.9 0.4-2 2 1.4 1.4-3 .3.2 2.4L8 11l-2.6 1.4.2-2.4-3-.3 1.4-1.4-2-2 2.9-.4-.6-2.6 2.4 1z" />
+          <path d="M8 11v3.5" />
+        </svg>
+      );
+    case "givre":
+      return (
+        <svg {...common}>
+          <path d="M8 1v14M1.9 4.5l12.2 7M1.9 11.5l12.2-7" />
+          <path d="M6.4 2.4L8 4l1.6-1.6M6.4 13.6L8 12l1.6 1.6M2.2 6.6l2.2-.6-.6-2.2M13.8 9.4l-2.2.6.6 2.2M2.2 9.4l2.2.6-.6 2.2M13.8 6.6l-2.2-.6.6-2.2" />
+        </svg>
+      );
+    case "fleur":
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="8" r="1.4" />
+          <path d="M8 6.6C6.6 4.6 7 2.2 8 1.6c1 .6 1.4 3 0 5zM9.3 7.6c1.6-1.8 4-2.3 4.8-1.5-.4 1.1-2.5 2.4-4.8 1.5zM8.8 9.2c2.2 1.1 3.2 3.3 2.6 4.2-1.2.1-2.9-1.7-2.6-4.2zM7.2 9.2c.3 2.5-1.4 4.3-2.6 4.2-.6-.9.4-3.1 2.6-4.2zM6.7 7.6C4.4 8.5 2.3 7.2 1.9 6.1c.8-.8 3.2-.3 4.8 1.5z" />
+        </svg>
+      );
+    case "phare":
+      return (
+        <svg {...common}>
+          <path d="M6.2 5h3.6l1 9.5H5.2z" />
+          <path d="M6 3h4v2H6zM7 1.5h2V3H7zM5.7 9h4.6M5.4 12h5.2" />
+          <path d="M10.5 3.6L15 2.4M10.5 4.4L15 5.6M5.5 3.6L1 2.4M5.5 4.4L1 5.6" />
+          <path d="M3 14.5h10" />
+        </svg>
+      );
+    case "gland":
+      return (
+        <svg {...common}>
+          <path d="M4 6.5h8c0-2.2-1.8-3.6-4-3.6S4 4.3 4 6.5z" />
+          <path d="M4.6 6.5c0 4 1.6 7 3.4 7.6 1.8-.6 3.4-3.6 3.4-7.6" />
+          <path d="M8 2.9V1.2M5.5 4.6l5 0" />
+        </svg>
+      );
+    case "etoile-polaire":
+      return (
+        <svg {...common}>
+          <path d="M8 1l1.3 5.7L15 8l-5.7 1.3L8 15l-1.3-5.7L1 8l5.7-1.3z" />
+          <path d="M3.5 3.5l2 2M12.5 3.5l-2 2M3.5 12.5l2-2M12.5 12.5l-2-2" />
+        </svg>
+      );
+    case "papillon":
+      return (
+        <svg {...common}>
+          <path d="M8 4.5v8" />
+          <path d="M8 6C6.5 3 2.5 2 1.8 3.6 1.2 5.4 4 8 8 8.2 12 8 14.8 5.4 14.2 3.6 13.5 2 9.5 3 8 6z" />
+          <path d="M8 8.6c-1.6.2-4.4 1.6-4 3.4.4 1.4 2.8 1 4-1.4 1.2 2.4 3.6 2.8 4 1.4.4-1.8-2.4-3.2-4-3.4z" />
+          <path d="M8 4.5L6.8 2.5M8 4.5l1.2-2" />
+        </svg>
+      );
+    case "vague":
+      return (
+        <svg {...common}>
+          <path d="M1 11c1.6 0 2.2-1.6 3.5-1.6S6.4 11 8 11s2.2-1.6 3.5-1.6S13.4 11 15 11" />
+          <path d="M1 14c1.6 0 2.2-1.6 3.5-1.6S6.4 14 8 14s2.2-1.6 3.5-1.6S13.4 14 15 14" />
+          <path d="M2.5 8.2C3 4.5 6 2.2 9.4 2.6c2.2.3 3.4 2 2.6 3.4-.7 1.2-2.4.8-2.6-.4" />
+        </svg>
+      );
+    case "sommet":
+      return (
+        <svg {...common}>
+          <path d="M1 14l5-8 2.5 3.5L11 5l4 9z" />
+          <path d="M9.6 7.2l1.4-2.2 1.4 2.2" />
+          <path d="M3 14l11-6" strokeDasharray="1.4 1.4" />
         </svg>
       );
     default:

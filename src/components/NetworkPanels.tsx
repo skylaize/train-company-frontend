@@ -41,6 +41,8 @@ export interface LineMarket {
   rivals: Rival[];
   self: { reputation: number; expressPct: number; comfortPct: number; trains: number } | null;
   hub?: number; // 1.5 : multiplicateur de correspondance, 1 = aucune
+  // 1.7 : voyageurs par départ, places, remplissage
+  ridership?: { perDeparture: number; seats: number; carried: number; left: number; fill: number; trains: number; price: number; idealPrice: number; estimated: boolean; auto?: boolean };
 }
 
 export interface SeasonInfo {
@@ -79,7 +81,12 @@ export interface NetworkData {
     revenueBonus: number;
     tollRate: number;
   };
+  // 1.7 : heures de pointe
+  tunnel?: { open: boolean; stations: string[] };
+  peak?: { hour: number; kind: "pointe" | "creuse" | "nuit" | "normale"; factor: number; until: number; curve: number[] };
   night?: { active: boolean; from: number; to: number; multiplier: number; dayMultiplier: number; minDuration: number };
+  // 1.7
+  ownedStations?: { station: string; mine: boolean; level: number }[];
 }
 
 const dayMonth = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
@@ -137,27 +144,28 @@ export function HubCell({ hub }: { hub: number | undefined }) {
    qu'elle ouvre ou renforce, calculées comme sur le serveur — destinations
    distinctes, lignes où roule au moins une rame. */
 export function hubPreview(
-  lines: { departureStation: string; arrivalStation: string; id?: string; trains?: unknown[] }[],
-  a: string,
-  b: string,
+  lines: { departureStation: string; arrivalStation: string; stops?: string[]; id?: string; trains?: unknown[] }[],
+  route: string[],
   rule: { step: number; cap: number } | undefined,
   excludeId?: string | null
 ) {
-  if (!rule || !a || !b || a === b) return [];
+  if (!rule || route.length < 2 || route.some((s) => !s) || new Set(route).size !== route.length) return [];
+  const all = (l: { departureStation: string; arrivalStation: string; stops?: string[] }) => [l.departureStation, ...(l.stops ?? []), l.arrivalStation];
   // modification d'une ligne sans changer ses gares : rien de nouveau à annoncer
   const edited = excludeId ? lines.find((l) => l.id === excludeId) : null;
-  if (edited && ((edited.departureStation === a && edited.arrivalStation === b) || (edited.departureStation === b && edited.arrivalStation === a))) return [];
+  if (edited && [...all(edited)].sort().join("|") === [...route].sort().join("|")) return [];
   const bonus = (n: number) => Math.min(rule.cap, rule.step * Math.max(0, n - 1));
   const served = lines.filter((l) => l.id !== excludeId && (!l.trains || l.trains.length > 0));
-  return [[a, b], [b, a]]
-    .map(([st, other]) => {
+  // 1.7 : comme côté serveur, chaque gare d'un itinéraire est reliée à toutes les autres
+  return route
+    .map((st) => {
       const dests = new Set<string>();
       for (const l of served) {
-        if (l.departureStation === st) dests.add(l.arrivalStation);
-        if (l.arrivalStation === st) dests.add(l.departureStation);
+        const r = all(l);
+        if (r.includes(st)) r.forEach((x) => x !== st && dests.add(x));
       }
       const before = dests.size;
-      dests.add(other);
+      route.forEach((x) => x !== st && dests.add(x));
       const after = dests.size;
       return { station: st, before, after, gain: Math.round((bonus(after) - bonus(before)) * 100), total: Math.round(bonus(after) * 100) };
     })
@@ -174,6 +182,62 @@ export function stationOf(network: NetworkData | null, name: string) {
 
 export function pairOf(network: NetworkData | null, a: string, b: string) {
   return network?.pairs.find((p) => (p.a === a && p.b === b) || (p.a === b && p.b === a)) ?? null;
+}
+
+/* 1.7 : l'affluence de la journée. Une barre par heure, l'heure en cours
+   en ambre : on voit d'un coup d'œil quand vos rames vont déborder. */
+export function RushPanel({ network, premium }: { network: NetworkData; premium: boolean }) {
+  const p = network.peak;
+  if (!p) return null;
+  const pctOf = (f: number) => Math.round(Math.abs(f - 1) * 100);
+  const sentence =
+    p.kind === "pointe"
+      ? `Heure de pointe jusqu'à ${p.until} h : ${pctOf(p.factor)} % de voyageurs en plus. Une rame trop petite en laisse sur le quai.`
+      : p.kind === "creuse"
+      ? `Heures creuses jusqu'à ${p.until} h : ${pctOf(p.factor)} % de voyageurs en moins. Un billet moins cher remplit les rames.`
+      : p.kind === "nuit"
+      ? `La nuit, jusqu'à ${p.until} h : moitié moins de voyageurs, sauf dans les trains de nuit.`
+      : `Affluence ordinaire jusqu'à ${p.until} h (×${p.factor.toFixed(2).replace(".", ",")}).`;
+  const max = Math.max(...p.curve);
+  const W = 240, H = 44, bw = W / 24;
+  return (
+    <section className="border border-line mb-6">
+      <div className="px-4 py-2.5 border-b border-line flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-slate2">Affluence de la journée</h2>
+        <span className="text-[11px] font-body text-slate2">Pointe de 7 h à 9 h et de 17 h à 19 h, creux de 14 h à 16 h.</span>
+      </div>
+      <div className="px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <p className={`flex-1 min-w-[220px] font-body text-[13px] ${p.kind === "pointe" ? "text-amber" : "text-offwhite"}`}>
+          {sentence}
+          {!premium && <span className="block text-[11.5px] text-slate2 mt-1">Premium : le prix automatique recale le billet à chaque changement d'heure.</span>}
+        </p>
+        <svg width={W} height={H + 12} viewBox={`0 0 ${W} ${H + 12}`} role="img" aria-label={`Affluence heure par heure, ${p.hour} h en cours`} className="shrink-0">
+          {p.curve.map((f, h) => {
+            const bh = Math.max(2, (f / max) * H);
+            const now = h === p.hour;
+            const rush = f >= 1.3;
+            return (
+              <rect
+                key={h}
+                x={h * bw + 1}
+                y={H - bh}
+                width={bw - 2}
+                height={bh}
+                fill={now ? "rgb(var(--c-amber))" : rush ? "rgb(var(--c-cobalt) / 0.7)" : "rgb(var(--c-slate2) / 0.35)"}
+              >
+                <title>{`${h} h : ×${f.toFixed(2).replace(".", ",")}`}</title>
+              </rect>
+            );
+          })}
+          {[0, 6, 12, 18].map((h) => (
+            <text key={h} x={h * bw + 1} y={H + 11} fontSize="9" fill="rgb(var(--c-slate2))" fontFamily="Space Mono, monospace">
+              {h} h
+            </text>
+          ))}
+        </svg>
+      </div>
+    </section>
+  );
 }
 
 /* Le tableau des événements : ce qui se passe maintenant, et — pour les

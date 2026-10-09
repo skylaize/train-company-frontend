@@ -1,37 +1,39 @@
 /* ──────────────────────────────────────────────────────────────
-   Page d'accueil — direction « papier imprimé ».
-   Tout est préfixé .lp-* et porté par le conteneur .lp, pour ne
-   jamais entrer en conflit avec le thème sombre de la console.
+   Page d'accueil — papier imprimé, formes du chemin de fer.
+   Rien n'est carré par défaut : fenêtres de voiture, arcades de gare,
+   étiquettes à bagages, horloge de quai, billets à encoches.
+   Tout est préfixé .lp-* et porté par .lp, pour ne jamais toucher
+   au thème sombre de la console.
    ────────────────────────────────────────────────────────────── */
 
 .lp {
   --paper: #e9e4d7;
-  --paper2: #f2eee4;
-  --paper3: #ded8c8;
+  --paper2: #f4f0e6;
+  --paper3: #ded7c5;
   --ink: #1c1b17;
-  --ink2: #5c5849;
-  --ink3: #8a8472;
-  --pline: #b9b2a0;
+  --ink2: #57534a;
+  --ink3: #85806f;
+  --pline: #c4bca8;
   --vert: #1f5c4d;
+  --vert2: #d5e1d8;
   --rouge: #a33b2c;
-  --board: #16181a;
-  --board2: #22262a;
+  --rose: #ecd5c8;
+  --night: #121a26;
+  --board: #17191c;
+  --board2: #24282d;
   --snap: cubic-bezier(0.2, 0, 0, 1);
+  --lp-col: 1120px;
 
   background: var(--paper);
   color: var(--ink);
   font-family: "Barlow", sans-serif;
-  font-size: 16px;
+  font-size: 16.5px;
   line-height: 1.55;
   min-height: 100vh;
   position: relative;
   -webkit-font-smoothing: antialiased;
 }
-
-/* le fond de page suit, y compris au-delà du contenu */
-body.lp-body {
-  background: #e9e4d7;
-}
+body.lp-body { background: #e9e4d7; }
 
 /* grain de papier, très discret */
 .lp::after {
@@ -44,295 +46,249 @@ body.lp-body {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.65' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23p)' opacity='.09'/%3E%3C/svg%3E");
 }
 
-.lp {
-  /* largeur de la colonne de contenu : une seule valeur, reprise par le tracé
-     du héros pour que les deux restent alignés quelle que soit la taille d'écran */
-  --lp-col: 1080px;
-}
-.lp-wrap { max-width: var(--lp-col); margin: 0 auto; padding: 0 32px; }
+.lp-wrap { max-width: var(--lp-col); margin: 0 auto; padding: 0 24px; }
+@media (min-width: 1600px) { .lp { --lp-col: 1260px; font-size: 17px; } }
+@media (min-width: 2200px) { .lp { --lp-col: 1420px; font-size: 18px; } }
 
-/* Grands écrans : la page s'élargit ET grossit un peu. Élargir seul laissait
-   une colonne de texte perdue au milieu d'un écran vide ; grossir seul donnait
-   un texte énorme sur un portable. */
-@media (min-width: 1600px) {
-  .lp { --lp-col: 1240px; font-size: 17px; }
-}
-@media (min-width: 2200px) {
-  .lp { --lp-col: 1400px; font-size: 18px; }
-}
-.lp-serif { font-family: "Instrument Serif", serif; font-weight: 400; }
-.lp-ov {
-  font-family: "Barlow Condensed", sans-serif; font-size: 13px; font-weight: 600;
-  letter-spacing: 0.26em; text-transform: uppercase; color: var(--vert);
-}
+.lp a { color: inherit; }
+.lp :focus-visible { outline: 2.5px solid var(--vert); outline-offset: 3px; border-radius: 999px; }
 
-/* ─────────── EN-TÊTE ─────────── */
-.lp-header {
-  position: sticky; top: 0; z-index: 100;
-  background: var(--paper); border-bottom: 2px solid var(--ink);
-}
-.lp-hd { display: flex; align-items: center; gap: 26px; padding: 13px 0; }
-.lp-mark { display: flex; align-items: center; gap: 10px; }
-.lp-mark svg { display: block; }
-.lp-mark b {
-  font-family: "Barlow Condensed", sans-serif; font-size: 19px; font-weight: 700;
-  letter-spacing: 0.2em; text-transform: uppercase;
-}
-.lp-nav { margin-left: auto; display: flex; align-items: center; gap: 26px; }
-.lp-nav a {
-  font-family: "Barlow Condensed", sans-serif; font-size: 15px; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--ink2); text-decoration: none;
-  padding-bottom: 2px; border-bottom: 1.5px solid transparent;
-  transition: color 0.12s, border-color 0.12s; cursor: pointer;
-}
-.lp-nav a:hover { color: var(--ink); border-bottom-color: var(--rouge); }
-.lp-clk {
-  font-family: "Barlow Condensed", sans-serif; font-size: 15px; letter-spacing: 0.14em;
-  color: var(--ink2); font-variant-numeric: tabular-nums;
-}
-@media (max-width: 780px) { .lp-nav a.lp-navlink, .lp-clk { display: none; } }
-
+/* ─────────── BOUTONS : des pastilles, pas des briques ─────────── */
 .lp-btn {
-  font-family: "Barlow Condensed", sans-serif; font-size: 15px; font-weight: 600;
-  letter-spacing: 0.11em; text-transform: uppercase; text-decoration: none;
-  background: var(--ink); color: var(--paper2); padding: 10px 18px;
-  border: none; cursor: pointer; display: inline-block;
-  transition: transform 0.09s var(--snap), background 0.12s;
+  font-family: "Barlow", sans-serif; font-size: 16px; font-weight: 600;
+  background: var(--ink); color: var(--paper2); padding: 13px 24px;
+  border: 1.5px solid var(--ink); border-radius: 999px; cursor: pointer; display: inline-block;
+  transition: transform 0.12s var(--snap), background 0.15s, color 0.15s;
 }
-.lp-btn:hover { background: var(--vert); }
-.lp-btn:active { transform: translateY(2px); }
-.lp-btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
-.lp-btn.ghost:hover { background: var(--ink); color: var(--paper2); }
-.lp-btn.vert { background: var(--vert); }
-.lp-btn.vert:hover { background: var(--ink); }
+.lp-btn:hover { background: var(--vert); border-color: var(--vert); }
+.lp-btn:active { transform: translateY(1px) scale(0.99); }
+.lp-btn.sm { padding: 9px 18px; font-size: 15px; }
+.lp-btn.ghost { background: transparent; color: var(--ink); }
+.lp-btn.ghost:hover { background: var(--ink); color: var(--paper2); border-color: var(--ink); }
+.lp-btn.vert { background: var(--vert); border-color: var(--vert); }
+.lp-btn.vert:hover { background: var(--ink); border-color: var(--ink); }
+.lp-btn.light { background: var(--paper2); color: var(--vert); border-color: var(--paper2); }
+.lp-btn.light:hover { background: transparent; color: var(--paper2); }
+.lp-btn.wide { width: 100%; text-align: center; }
 
-/* ─────────── HERO ─────────── */
-.lp-hero { position: relative; padding: 74px 0 0; overflow: hidden; }
-.lp-hero .lp-wrap { position: relative; z-index: 2; }
+/* ─────────── EN-TÊTE : une barre en pastille qui flotte ─────────── */
+.lp-header { position: sticky; top: 12px; z-index: 100; padding: 0 16px; margin-top: 12px; }
+.lp-hd {
+  max-width: calc(var(--lp-col) - 16px); margin: 0 auto;
+  display: flex; align-items: center; gap: 22px;
+  background: rgb(244 240 230 / 0.92); backdrop-filter: blur(8px);
+  border: 1.5px solid var(--ink); border-radius: 999px; padding: 7px 8px 7px 14px;
+}
+.lp-mark { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.lp-mark svg { display: block; border-radius: 9px; }
+.lp-mark b { font-family: "Instrument Serif", serif; font-weight: 400; font-size: 25px; letter-spacing: 0; }
+.lp-nav { margin-left: auto; display: flex; gap: 4px; }
+.lp-nav a {
+  font-size: 15.5px; color: var(--ink2); text-decoration: none; padding: 7px 13px; border-radius: 999px;
+  transition: background 0.15s, color 0.15s;
+}
+.lp-nav a:hover { background: var(--paper3); color: var(--ink); }
+.lp-social { display: inline-flex; padding: 8px; border-radius: 999px; color: var(--ink2); }
+.lp-social:hover { background: var(--paper3); color: var(--vert); }
+@media (max-width: 860px) { .lp-nav { display: none; } .lp-social { margin-left: auto; } }
+@media (max-width: 420px) { .lp-mark b { display: none; } }
+
+/* ─────────── HÉROS ─────────── */
+.lp-hero { padding: 64px 0 84px; }
+.lp-hero-grid { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 56px; align-items: center; }
+@media (max-width: 960px) { .lp-hero-grid { grid-template-columns: 1fr; gap: 40px; } }
+.lp-kicker { font-size: 15.5px; color: var(--vert); font-weight: 500; margin: 0 0 14px; }
 .lp-hero h1 {
   font-family: "Instrument Serif", serif; font-weight: 400;
-  font-size: clamp(42px, 6.4vw, 74px); line-height: 1.02;
-  letter-spacing: -0.005em; margin: 10px 0 0; max-width: 15ch;
+  font-size: clamp(46px, 6vw, 80px); line-height: 0.98; letter-spacing: -0.012em;
+  margin: 0; max-width: 12ch; text-wrap: balance;
 }
-.lp-hero h1 em { font-style: italic; color: var(--vert); }
-.lp-lede { font-size: 18px; color: var(--ink2); max-width: 52ch; margin-top: 18px; }
-.lp-cta { display: flex; gap: 12px; margin-top: 26px; flex-wrap: wrap; }
+.lp-lede { font-size: 18.5px; color: var(--ink2); max-width: 44ch; margin: 22px 0 0; }
+.lp-cta { display: flex; gap: 10px; margin-top: 30px; flex-wrap: wrap; }
 
-/* tracé à l'encre */
-/* Le tracé était ancré au bord droit de l'ÉCRAN, large de 56 % de l'écran, avec
-   un SVG qui se déforme pour remplir sa boîte : sur un grand écran il s'étirait
-   à l'horizontale (la locomotive comprise) et partait loin du texte. Il est
-   désormais ancré au bord droit de la COLONNE de contenu, avec une largeur
-   plafonnée proche de ses proportions d'origine (700 × 430), et son extrémité
-   droite se fond au lieu de s'arrêter net. */
-.lp-route {
-  position: absolute; top: 28px;
-  right: max(0px, calc((100% - var(--lp-col)) / 2));
-  /* plus étroit sur les écrans moyens, où la colonne de texte occupe davantage
-     de place : sinon le premier segment venait mordre sur l'introduction */
-  width: min(48%, 660px); height: 430px;
-  z-index: 1; pointer-events: none;
-  /* fondu aux deux bouts : à droite pour ne pas s'arrêter net au bord de la
-     colonne, à gauche pour ne pas barrer le paragraphe d'introduction, que le
-     premier segment traversait à toutes les largeurs d'écran */
-  -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 30%, #000 84%, transparent 100%);
-  mask-image: linear-gradient(to right, transparent 0%, #000 30%, #000 84%, transparent 100%);
+/* la fenêtre de la voiture */
+.lp-cab { margin: 0; }
+.lp-window {
+  position: relative; overflow: hidden;
+  border-radius: 46px;
+  border: 14px solid var(--night);
+  box-shadow: 0 0 0 1.5px var(--ink), inset 0 0 0 2px rgb(255 255 255 / 0.08), 14px 18px 0 -4px var(--paper3);
+  background: var(--night);
 }
-@media (min-width: 1600px) {
-  .lp-hero h1 { font-size: 84px; }
-  .lp-lede { font-size: 19px; }
-  .lp-route { width: min(56%, 720px); }
+.lp-window canvas { display: block; width: 100%; aspect-ratio: 5 / 3.6; }
+/* reflet sur la vitre */
+.lp-glare {
+  position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(115deg, rgb(255 255 255 / 0.16) 0%, rgb(255 255 255 / 0) 34%, rgb(255 255 255 / 0) 62%, rgb(255 255 255 / 0.07) 70%, rgb(255 255 255 / 0) 78%);
 }
-@media (min-width: 2200px) {
-  .lp-hero h1 { font-size: 96px; }
-  .lp-route { width: min(56%, 820px); height: 490px; }
+.lp-cab-hud {
+  display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; margin: 16px 0 0 18px;
+  background: var(--paper2); border: 1.5px solid var(--ink); border-radius: 999px; padding: 8px 18px;
+  font-size: 15px; color: var(--ink2); font-variant-numeric: tabular-nums;
 }
-@media (max-width: 1000px) { .lp-route { display: none; } }
-.lp-route path.ln { fill: none; stroke: var(--pline); stroke-width: 1.6; }
-.lp-route path.ink { fill: none; stroke: var(--vert); stroke-width: 2.2; opacity: 0.85; }
-.lp-route circle.halte { fill: var(--paper); stroke: var(--vert); stroke-width: 2; }
-.lp-loco { opacity: 0; }
+.lp-cab-hud .trip { color: var(--ink); font-weight: 600; }
+.lp-cab-hud .wx { color: var(--vert); font-weight: 600; }
+.lp-cab-hud .live { display: inline-flex; align-items: center; gap: 7px; color: var(--rouge); font-weight: 600; }
+.lp-cab-hud .live i { width: 8px; height: 8px; border-radius: 50%; background: var(--rouge); animation: lp-blink 1.6s infinite; }
+@keyframes lp-blink { 50% { opacity: 0.25; } }
+@media (max-width: 600px) { .lp-window { border-width: 10px; border-radius: 32px; } .lp-window canvas { aspect-ratio: 4 / 3.4; } .lp-cab-hud { margin-left: 0; } }
 
-/* ─────────── PANNEAU À PALETTES ─────────── */
+/* ─────────── LE PANNEAU DES DÉPARTS ─────────── */
 .lp-board {
-  margin-top: 52px; background: var(--board); border: 1px solid #000;
-  padding: 18px 20px 20px;
+  position: relative; margin-top: 72px; background: var(--board);
+  border-radius: 26px; padding: 24px 28px 22px;
+  box-shadow: 0 0 0 6px #2c3036, 0 0 0 7.5px var(--ink);
 }
-.lp-board-hd {
-  display: flex; align-items: center; gap: 12px; padding-bottom: 12px;
-  border-bottom: 1px solid #31363b; margin-bottom: 16px;
-}
-.lp-board-hd span {
-  font-family: "Barlow Condensed", sans-serif; font-size: 12.5px;
-  letter-spacing: 0.24em; text-transform: uppercase; color: #7b838b;
-}
-.lp-live { margin-left: auto; display: flex; align-items: center; gap: 7px; color: #5ec27f; }
-.lp-live i { width: 7px; height: 7px; border-radius: 50%; background: #5ec27f; display: block; }
-.lp-brow { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.lp-brow + .lp-brow { margin-top: 14px; }
-.lp-lab {
-  font-family: "Barlow Condensed", sans-serif; font-size: 12.5px; letter-spacing: 0.2em;
-  text-transform: uppercase; color: #7b838b; flex-shrink: 0;
-}
-.lp-lab.w { width: 96px; }
+.lp-board .screw { position: absolute; top: 12px; width: 7px; height: 7px; border-radius: 50%; background: #3a3f46; }
+.lp-board .screw.a { left: 14px; } .lp-board .screw.b { right: 14px; }
+.lp-board-row { display: flex; align-items: center; gap: 14px 26px; flex-wrap: wrap; }
+.lp-board-row + .lp-board-row { margin-top: 18px; padding-top: 18px; border-top: 1px dashed #353a40; }
+.lp-board-row.main .lp-lab { color: #b9c0c7; font-size: 15px; }
+.lp-board-clock { margin-left: auto; font-family: "Barlow Condensed", sans-serif; font-size: 30px; font-weight: 600; color: #f2b84b; font-variant-numeric: tabular-nums; }
+.lp-stat { display: inline-flex; align-items: center; gap: 10px; }
+.lp-lab { font-size: 14px; color: #8d959d; }
 .lp-flaps { display: flex; gap: 3px; }
 .lp-flap {
   position: relative; width: 34px; height: 48px; background: var(--board2);
-  border-radius: 2px; overflow: hidden;
+  border-radius: 5px; overflow: hidden;
   font-family: "Barlow Condensed", sans-serif; font-weight: 700; font-size: 31px;
   color: #f0ece2; display: flex; align-items: center; justify-content: center;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
 }
-.lp-flap::after {
-  content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px;
-  background: rgba(0, 0, 0, 0.55);
-}
-.lp-flap.sm { width: 26px; height: 36px; font-size: 22px; }
-.lp-flap span {
-  display: block; transform-origin: center; backface-visibility: hidden;
-  animation: lp-flip 0.06s steps(2, end);
-}
-@keyframes lp-flip {
-  0% { transform: rotateX(0); }
-  50% { transform: rotateX(-88deg); }
-  100% { transform: rotateX(0); }
-}
+.lp-flap::after { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: rgba(0, 0, 0, 0.55); }
+.lp-flap.sm { width: 24px; height: 34px; font-size: 21px; border-radius: 4px; }
+.lp-flap span { display: block; transform-origin: center; backface-visibility: hidden; animation: lp-flip 0.06s steps(2, end); }
+@keyframes lp-flip { 0% { transform: rotateX(0); } 50% { transform: rotateX(-88deg); } 100% { transform: rotateX(0); } }
 @media (max-width: 720px) {
+  .lp-board { padding: 22px 18px 18px; }
   .lp-flap { width: 24px; height: 34px; font-size: 22px; }
-  .lp-flap.sm { width: 20px; height: 28px; font-size: 17px; }
-  .lp-lab.w { width: 100%; }
+  .lp-flap.sm { width: 19px; height: 27px; font-size: 16px; }
+  .lp-board-clock { font-size: 22px; }
 }
 
-/* ─────────── SECTIONS ─────────── */
-.lp section { padding: 84px 0; }
-.lp-sec-hd { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; flex-wrap: wrap; }
-.lp-sec-hd h2 { font-family: "Instrument Serif", serif; font-weight: 400; font-size: 36px; }
-.lp-sec-hd .n {
-  font-family: "Barlow Condensed", sans-serif; font-size: 13px; letter-spacing: 0.2em;
-  text-transform: uppercase; color: var(--ink3);
+/* ─────────── TITRES DE SECTION ─────────── */
+.lp section { scroll-margin-top: 90px; }
+.lp-h2 {
+  font-family: "Instrument Serif", serif; font-weight: 400;
+  font-size: clamp(36px, 4.4vw, 54px); line-height: 1.02; letter-spacing: -0.008em; margin: 0; max-width: 18ch;
 }
-.lp-sub { color: var(--ink2); max-width: 56ch; margin-bottom: 34px; }
-.lp-alt { background: var(--paper3); border-top: 1px solid var(--pline); border-bottom: 1px solid var(--pline); }
+.lp-sub { color: var(--ink2); max-width: 54ch; margin: 14px 0 0; font-size: 17.5px; }
 
-/* catalogue numéroté */
-.lp-cat { border-top: 2px solid var(--ink); }
-.lp-item { display: flex; gap: 22px; padding: 22px 0; position: relative; align-items: flex-start; }
-.lp-item::after {
-  content: ""; position: absolute; left: 0; bottom: 0; height: 1px; width: 100%;
-  background: var(--pline); transform: scaleX(0); transform-origin: left;
-  transition: transform 0.34s var(--snap);
+/* ─────────── LA 2.0 : DES ARCADES DE GARE ─────────── */
+.lp-arcade-sec { padding: 96px 0; background: var(--paper3); border-radius: 56px; margin: 0 12px; }
+.lp-arcades { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-top: 48px; }
+@media (max-width: 960px) { .lp-arcades { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .lp-arcade-sec, .lp-clock-sec { border-radius: 32px; margin: 0 8px; padding: 64px 0; } }
+@media (max-width: 620px) { .lp-arcades { grid-template-columns: 1fr; } }
+.lp-arch {
+  position: relative; padding: 46px 28px 30px; text-align: center;
+  border-radius: 999px 999px 22px 22px / 260px 260px 22px 22px;
+  background: var(--paper2); border: 1.5px solid var(--ink);
 }
-.lp-item.in::after { transform: scaleX(1); }
-.lp-item .num {
-  font-family: "Barlow Condensed", sans-serif; font-size: 14px; font-weight: 600;
-  color: var(--rouge); letter-spacing: 0.1em; width: 34px; flex-shrink: 0;
-  padding-top: 6px; font-variant-numeric: tabular-nums;
-}
-.lp-item .bd { flex: 1; min-width: 0; }
-.lp-item h3 {
-  font-family: "Barlow Condensed", sans-serif; font-size: 22px; font-weight: 600;
-  margin-bottom: 3px;
-}
-.lp-item p { color: var(--ink2); font-size: 15.5px; max-width: 62ch; }
-.lp-item .side {
-  font-family: "Barlow Condensed", sans-serif; font-size: 13px; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--ink3); flex-shrink: 0; padding-top: 7px;
-  text-align: right; width: 120px;
-}
-@media (max-width: 700px) { .lp-item .side { display: none; } }
+.lp-arch.t1 { background: var(--vert2); }
+.lp-arch.t2 { background: var(--rose); }
+.lp-arch-motif { width: 92px; height: 66px; margin: 0 auto 14px; color: var(--vert); }
+.lp-arch.t2 .lp-arch-motif { color: var(--rouge); }
+.lp-arch-motif svg { width: 100%; height: 100%; display: block; }
+.lp-arch h3 { font-family: "Instrument Serif", serif; font-weight: 400; font-size: 32px; line-height: 1.05; margin: 0; }
+.lp-arch p { margin: 12px auto 0; color: var(--ink2); max-width: 32ch; font-size: 16px; }
 
-/* deux colonnes sur grand écran : la liste se lit d'un coup d'œil au lieu de défiler */
-@media (min-width: 900px) {
-  .lp-cat.two { display: grid; grid-template-columns: 1fr 1fr; column-gap: 56px; }
-  .lp-cat.two .lp-item .side { display: none; }
-  .lp-cat.two .lp-item p { font-size: 15px; }
+/* ─────────── LES SYSTÈMES : DES ÉTIQUETTES À BAGAGES ─────────── */
+.lp-tags-sec { padding: 104px 0 96px; }
+.lp-tags { columns: 3 300px; column-gap: 22px; margin-top: 46px; }
+.lp-tag {
+  position: relative; break-inside: avoid; margin: 0 0 22px;
+  background: var(--paper2); border: 1.5px solid var(--ink);
+  /* une étiquette : le côté du trou est coupé en biais, l'autre est arrondi */
+  border-radius: 10px 22px 22px 10px;
+  clip-path: polygon(22px 0, 100% 0, 100% 100%, 22px 100%, 0 calc(100% - 22px), 0 22px);
+  padding: 18px 22px 20px 52px;
+  transform: rotate(var(--tilt, 0deg));
+  transition: transform 0.25s var(--snap);
 }
+.lp-tag:hover { transform: rotate(0deg) translateY(-2px); }
+/* le bord biseauté, redessiné puisque clip-path coupe la bordure */
+.lp-tag::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background:
+    linear-gradient(to bottom right, transparent calc(50% - 1px), var(--ink) calc(50% - 1px), var(--ink) calc(50% + 0.6px), transparent calc(50% + 0.6px)) 0 0 / 22px 22px no-repeat,
+    linear-gradient(to top right, transparent calc(50% - 1px), var(--ink) calc(50% - 1px), var(--ink) calc(50% + 0.6px), transparent calc(50% + 0.6px)) 0 100% / 22px 22px no-repeat;
+}
+.lp-tag-hole {
+  position: absolute; left: 20px; top: 24px; width: 14px; height: 14px; border-radius: 50%;
+  background: var(--paper); box-shadow: 0 0 0 1.5px var(--ink), 0 0 0 5px var(--paper3), 0 0 0 6.5px var(--ink);
+}
+.lp-tag:nth-child(3n + 2) { background: #f1ebdc; }
+.lp-tag:nth-child(4n + 3) { background: #e7eee6; }
+.lp-tag h3 { font-family: "Barlow", sans-serif; font-weight: 600; font-size: 19px; margin: 0 0 4px; }
+.lp-tag p { margin: 0; color: var(--ink2); font-size: 15.5px; }
 
-/* vue cabine en vitrine */
-.lp-bord { padding-bottom: 64px !important; }
-.lp-cab { margin: 0; box-shadow: 8px 8px 0 var(--paper3); }
-.lp-cab-win { position: relative; border: 1.5px solid var(--ink); background: var(--board); }
-.lp-cab-win canvas { display: block; width: 100%; aspect-ratio: 16 / 6.2; max-width: 100%; }
-@media (max-width: 720px) { .lp-cab-win canvas { aspect-ratio: 4 / 3; } .lp-cab { box-shadow: none; } }
-.lp-cab-live {
-  position: absolute; top: 12px; left: 12px; display: flex; align-items: center; gap: 7px;
-  font-family: "Barlow Condensed", sans-serif; font-size: 12.5px; font-weight: 600;
-  letter-spacing: 0.16em; text-transform: uppercase; color: var(--paper2);
-  background: rgb(22 24 26 / 0.78); padding: 5px 10px;
-}
-.lp-cab-live i { width: 7px; height: 7px; border-radius: 50%; background: #d4553f; animation: lp-blink 1.6s infinite; }
-@keyframes lp-blink { 50% { opacity: 0.25; } }
-.lp-cab-hud {
-  display: flex; flex-wrap: wrap; gap: 8px 28px; align-items: baseline;
-  border: 1.5px solid var(--ink); border-top: 0; background: var(--paper2); padding: 12px 18px;
-  font-family: "Barlow Condensed", sans-serif; font-size: 15px; letter-spacing: 0.06em;
-  text-transform: uppercase; color: var(--ink2); font-variant-numeric: tabular-nums;
-}
-.lp-cab-hud b { color: var(--ink); font-weight: 700; }
-.lp-cab-hud .trip { color: var(--ink); font-weight: 700; font-size: 17px; letter-spacing: 0.04em; }
-.lp-cab-hud .wx { margin-left: auto; color: var(--vert); font-weight: 600; }
-.lp-cab-note { margin-top: 16px; color: var(--ink3); font-size: 14.5px; }
+/* ─────────── EN CONTINU : L'HORLOGE DE QUAI ─────────── */
+.lp-clock-sec { padding: 96px 0; background: var(--vert); color: var(--paper2); border-radius: 56px; margin: 0 12px; }
+.lp-clock-sec .lp-sub { color: #c9d8cf; }
+.lp-clock-grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 64px; align-items: center; }
+@media (max-width: 820px) { .lp-clock-grid { grid-template-columns: 1fr; gap: 36px; } .lp-clock { width: 220px; } }
+.lp-clock { width: 100%; height: auto; display: block; }
+.lp-clock .rim { fill: var(--ink); }
+.lp-clock .face { fill: var(--paper2); }
+.lp-clock .tick { stroke: var(--ink); stroke-width: 2; }
+.lp-clock .tick.big { stroke-width: 6; }
+.lp-clock .hand { stroke: var(--ink); stroke-linecap: butt; }
+.lp-clock .hand.h { stroke-width: 9; }
+.lp-clock .hand.m { stroke-width: 6.5; }
+.lp-clock .hand.s line { stroke: var(--rouge); stroke-width: 2.5; }
+.lp-clock .hand.s circle { fill: var(--rouge); }
+.lp-clock .pin { fill: var(--ink); }
+.lp-continu { list-style: none; padding: 0; margin: 28px 0 0; display: grid; gap: 14px; max-width: 58ch; }
+.lp-continu li { position: relative; padding-left: 26px; color: #e3ece6; }
+.lp-continu li::before { content: ""; position: absolute; left: 2px; top: 0.55em; width: 10px; height: 10px; border-radius: 50%; border: 2px solid #f2b84b; }
+.lp-continu b { color: var(--paper2); font-weight: 600; }
 
-/* billets */
-.lp-tickets { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; align-items: start; }
-@media (max-width: 760px) { .lp-tickets { grid-template-columns: 1fr; } }
+/* ─────────── DEUX BILLETS ─────────── */
+.lp-billets-sec { padding: 104px 0 110px; }
+.lp-tickets { display: grid; grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: 28px; align-items: start; margin-top: 46px; }
+@media (max-width: 860px) { .lp-tickets { grid-template-columns: 1fr; } }
 .lp-tk {
-  position: relative; background: var(--paper2); border: 1.5px solid var(--ink);
-  /* les deux billets n'ont pas le même nombre de lignes : la liste absorbe
-     l'écart pour que les deux boutons restent alignés en bas */
-  display: flex; flex-direction: column;
-  /* sans cela, le contenu insécable de l'en-tête élargit la colonne de grille
-     et fait déborder la page sur mobile */
-  min-width: 0;
+  --notch: 15px;
+  position: relative; background: var(--paper2); border: 1.5px solid var(--ink); border-radius: 26px;
+  display: flex; flex-direction: column; min-width: 0;
 }
+.lp-tk.prem { border-color: var(--vert); background: #f2f2e8; }
 .lp-tk-hd {
-  position: relative; padding: 20px 24px 16px; border-bottom: 1px dashed var(--pline);
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
-  /* la classe et le prix ne se coupent plus en deux : s'ils ne tiennent pas
-     côte à côte, c'est la ligne entière qui passe dessous */
-  flex-wrap: wrap;
+  position: relative; padding: 24px 28px 20px; border-bottom: 2px dotted var(--pline);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap;
 }
+/* les encoches du composteur, de part et d'autre de la ligne pointillée */
 .lp-tk-hd::before, .lp-tk-hd::after {
-  content: ""; position: absolute; bottom: 0; width: 17px; height: 17px;
-  background: var(--paper); border: 1.5px solid var(--ink); border-radius: 50%;
-  transform: translateY(50%);
+  content: ""; position: absolute; bottom: 0; width: calc(var(--notch) * 2); height: calc(var(--notch) * 2);
+  background: var(--paper); border: 1.5px solid var(--ink); border-radius: 50%; transform: translateY(50%);
+  clip-path: inset(0 0 0 50%);
 }
-.lp-tk-hd::before { left: -10px; }
-.lp-tk-hd::after { right: -10px; }
-.lp-tk .cls {
-  font-family: "Barlow Condensed", sans-serif; font-size: 13px; letter-spacing: 0.22em;
-  text-transform: uppercase; color: var(--ink3);
-  /* « Première classe » se coupait en deux dès que le prix s'allongeait */
-  white-space: nowrap;
-}
-.lp-tk h3 { font-family: "Instrument Serif", serif; font-weight: 400; font-size: 30px; margin-top: 2px; }
-.lp-tk .px {
-  font-family: "Barlow Condensed", sans-serif; font-size: 24px; font-weight: 700;
-  text-align: right; line-height: 1.1; white-space: nowrap;
-}
-.lp-tk .px small {
-  display: block; font-size: 12px; font-weight: 500; letter-spacing: 0.14em;
-  text-transform: uppercase; color: var(--ink3);
-}
-.lp-tk ul { list-style: none; padding: 18px 24px 6px; margin: 0; flex: 1; }
-.lp-tk li { display: flex; gap: 10px; padding: 6px 0; font-size: 15.5px; color: var(--ink2); }
-.lp-tk li b { color: var(--vert); font-weight: 600; flex-shrink: 0; }
-.lp-tk-ft { padding: 14px 24px 22px; }
-.lp-tk-ft .lp-btn { width: 100%; text-align: center; }
-.lp-tk-note {
-  margin: 10px 0 0; font-size: 12.5px; line-height: 1.45; color: var(--ink3);
-  text-align: center; text-wrap: balance;
-}
-.lp-tk.prem { border-color: var(--vert); }
-.lp-tk.prem .cls { color: var(--vert); }
+.lp-tk-hd::before { left: calc(var(--notch) * -1 - 1.5px); }
+.lp-tk-hd::after { right: calc(var(--notch) * -1 - 1.5px); clip-path: inset(0 50% 0 0); }
 .lp-tk.prem .lp-tk-hd::before, .lp-tk.prem .lp-tk-hd::after { border-color: var(--vert); }
+.lp-tk .cls { font-size: 15px; font-weight: 500; color: var(--ink3); white-space: nowrap; }
+.lp-tk.prem .cls { color: var(--vert); }
+.lp-tk h3 { font-family: "Instrument Serif", serif; font-weight: 400; font-size: 38px; line-height: 1; margin: 4px 0 0; }
+.lp-tk .px { font-family: "Instrument Serif", serif; font-size: 38px; line-height: 1; text-align: right; white-space: nowrap; }
+.lp-tk .px small { display: block; font-family: "Barlow", sans-serif; font-size: 13.5px; color: var(--ink3); margin-top: 4px; }
+.lp-tk ul { list-style: none; padding: 20px 28px 8px; margin: 0; flex: 1; }
+.lp-tk ul.cols { columns: 2 230px; column-gap: 26px; }
+.lp-tk li { position: relative; padding: 5px 0 5px 20px; font-size: 15.5px; color: var(--ink2); break-inside: avoid; }
+.lp-tk li::before { content: ""; position: absolute; left: 2px; top: 0.85em; width: 7px; height: 7px; border-radius: 50%; background: var(--ink3); }
+.lp-tk.prem li::before { background: var(--vert); }
+.lp-tk-ft { padding: 16px 28px 26px; }
+.lp-tk-note { margin: 12px 0 0; font-size: 13px; line-height: 1.45; color: var(--ink3); text-align: center; text-wrap: balance; }
 
-/* pied */
-.lp-footer { border-top: 2px solid var(--ink); padding: 44px 0 56px; }
-.lp-ft { display: flex; align-items: flex-end; justify-content: space-between; gap: 30px; flex-wrap: wrap; }
+/* ─────────── PIED : LE QUAI ─────────── */
+.lp-footer { position: relative; margin-top: 24px; }
+.lp-quai { display: block; width: 100%; height: 60px; }
+.lp-quai path { fill: var(--vert); }
+.lp-foot { background: var(--vert); color: var(--paper2); padding: 30px 0 46px; }
+.lp-ft { display: flex; align-items: center; justify-content: space-between; gap: 30px; flex-wrap: wrap; }
 .lp-ft .left { max-width: 46ch; }
-.lp-ft h2 { font-family: "Instrument Serif", serif; font-weight: 400; font-size: 34px; margin-bottom: 8px; }
-.lp-ft p { color: var(--ink2); margin-bottom: 20px; }
+.lp-ft h2 { font-family: "Instrument Serif", serif; font-weight: 400; font-size: clamp(40px, 5vw, 60px); line-height: 1; margin: 0 0 12px; }
+.lp-ft p { color: #c9d8cf; margin: 0 0 24px; }
 .lp-stamp { transform: rotate(-8deg) scale(0.4); opacity: 0; }
 .lp-stamp.hit { animation: lp-hit 0.34s var(--snap) forwards; }
 @keyframes lp-hit {
@@ -342,19 +298,14 @@ body.lp-body {
   100% { transform: rotate(-8deg) scale(1); opacity: 0.88; }
 }
 .lp-credit {
-  margin-top: 34px; padding-top: 16px; border-top: 1px solid var(--pline);
-  font-family: "Barlow Condensed", sans-serif; font-size: 13.5px; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--ink3); display: flex; gap: 18px; flex-wrap: wrap;
+  margin-top: 40px; padding-top: 18px; border-top: 1px solid rgb(255 255 255 / 0.18);
+  font-size: 14.5px; color: #b4c7bc; display: flex; gap: 10px 26px; flex-wrap: wrap;
 }
-.lp-credit b { color: var(--ink2); font-weight: 600; }
-.lp-credit-link { display: inline-flex; align-items: center; gap: 6px; color: var(--ink2); text-decoration: none; text-transform: none; letter-spacing: 0.04em; }
-.lp-credit-link:hover { color: var(--vert); }
-/* lien Instagram de l'en-tête : une icône, pas un soulignement de menu */
-.lp-nav a.lp-social { display: inline-flex; align-items: center; padding: 6px; border-bottom: 0; color: var(--ink2); }
-.lp-nav a.lp-social:hover { color: var(--vert); }
+.lp-credit b { color: var(--paper2); font-weight: 600; }
+.lp-credit-link { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.lp-credit-link:hover { color: var(--paper2); }
 
 @media (prefers-reduced-motion: reduce) {
   .lp *, .lp *::after, .lp *::before { animation: none !important; transition: none !important; }
-  .lp-item::after { transform: scaleX(1); }
   .lp-stamp { opacity: 0.88; transform: rotate(-8deg) scale(1); }
 }

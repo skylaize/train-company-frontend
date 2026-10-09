@@ -13,6 +13,7 @@ const TRIPS = [
   { dep: "Marseille", arr: "Nice", weather: "nuit", livery: "#1f5c4d", express: false },
   { dep: "Lille", arr: "Paris", weather: "brouillard", livery: "#6b1f2a", express: false },
   { dep: "Grenoble", arr: "Lyon", weather: "neige", livery: "#1d4e89", express: false },
+  { dep: "Brest", arr: "Rennes", weather: "pluie", livery: "#1f5c4d", express: false },
 ];
 
 const LABEL: Record<string, string> = {
@@ -20,7 +21,8 @@ const LABEL: Record<string, string> = {
   canicule: "Canicule",
   nuit: "De nuit",
   brouillard: "Brouillard",
-  neige: "Verglas",
+  neige: "Neige",
+  pluie: "Pluie",
 };
 
 const TRIP_S = 26; // durée d'un trajet de démonstration
@@ -62,7 +64,8 @@ export function LandingCab() {
     let hudTick = 0;
 
     const step = (now: number) => {
-      const dt = Math.min(0.05, (now - last) / 1000);
+      // l'horodatage d'une image peut précéder le précédent : jamais de pas négatif
+      const dt = Math.max(0, Math.min(0.05, (now - last) / 1000));
       last = now;
       if (!reduce) clock += dt;
 
@@ -124,14 +127,15 @@ export function LandingCab() {
   const trip = TRIPS[hud.trip];
   return (
     <figure className="lp-cab">
-      <div className="lp-cab-win">
+      {/* une fenêtre de voiture : cadre arrondi, vitre, et le paysage qui défile */}
+      <div className="lp-window">
         <canvas ref={canvasRef} aria-label={`Une rame en route de ${trip.dep} à ${trip.arr}`} />
-        <span className="lp-cab-live"><i />Vue cabine</span>
+        <span className="lp-glare" aria-hidden="true" />
       </div>
       <figcaption className="lp-cab-hud">
+        <span className="live"><i />En direct</span>
         <span className="trip">{trip.dep} → {trip.arr}</span>
-        <span><b>{hud.kmh}</b> km/h</span>
-        <span>Arrivée <b>{hud.left}</b></span>
+        <span>{hud.kmh} km/h</span>
         <span className="wx">{LABEL[trip.weather]}</span>
       </figcaption>
     </figure>

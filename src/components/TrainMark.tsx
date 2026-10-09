@@ -273,3 +273,44 @@ export function ShopMark({ size = 20, className = "" }: { size?: number; classNa
     </svg>
   );
 }
+
+/* 1.7 — Infrastructures : une façade de gare avec son horloge */
+export function StationMark({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 20h18M5 20V10l7-5 7 5v10" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+      <circle cx="12" cy="10.5" r="2.2" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M9.5 20v-4.5h5V20" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+/* 1.7 — Finances : une pièce et une flèche montante */
+export function BankMark({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path d="M3 9.5 12 4l9 5.5M4.5 20h15M6 11v6.5M10 11v6.5M14 11v6.5M18 11v6.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* 2.0 : la saison, un fanion de course */
+export function SeasonMark({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path d="M6 21V4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M6 4h12l-3 4 3 4H6" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/* 2.0 : l'alliance, deux voies qui se rejoignent */
+export function AllianceMark({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 5c4 0 6 3 8 7s4 7 8 7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <path d="M4 19c4 0 6-3 8-7s4-7 8-7" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="12" cy="12" r="2" fill="currentColor" />
+    </svg>
+  );
+}
