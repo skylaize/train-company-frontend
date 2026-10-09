@@ -515,7 +515,29 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function loadAll() {
+  /* 2.0 : le tableau de bord demandait tout, toutes les dix secondes, même
+     onglet caché : une vingtaine de requêtes, dont des calculs lourds, par
+     joueur connecté. Désormais trois rythmes : l'essentiel (trésorerie, rames,
+     lignes) toutes les 10 s, le reste toutes les 30 s, et les succès, la
+     carrière, les ordres et la météo toutes les 2 min. Rien quand l'onglet
+     est caché. Une action du joueur recharge tout, tout de suite. */
+  const loadingRef = useRef(false);
+  const queuedRef = useRef(false);
+  const lastMidRef = useRef(0);
+  const lastSlowRef = useRef(0);
+  async function loadAll(opts?: { auto?: boolean }) {
+    if (loadingRef.current) {
+      if (!opts?.auto) queuedRef.current = true;
+      return;
+    }
+    loadingRef.current = true;
+    const nowMs = Date.now();
+    const mid = !opts?.auto || nowMs - lastMidRef.current >= 30_000;
+    const slow = !opts?.auto || nowMs - lastSlowRef.current >= 120_000;
+    if (mid) lastMidRef.current = nowMs;
+    if (slow) lastSlowRef.current = nowMs;
+    const SKIP = { data: undefined as any, skipped: true };
+    const when = (due: boolean, call: () => Promise<{ data: any }>) => (due ? call() : Promise.resolve(SKIP));
     try {
       const { data: c } = await api.get("/company");
       setCompany(c);
@@ -526,11 +548,13 @@ export default function Dashboard() {
         lastBalance.current = c.balance;
       }
       api.get("/decisions").then(({ data }) => setDecisions(data?.decisions ?? [])).catch(() => undefined);
-      api.get("/news").then(({ data }) => setNews(data?.items ?? [])).catch(() => undefined);
-      // 2.0
-      reloadSeason();
-      reloadAlliance();
-      api.get("/world").then(({ data }) => setWorld(data)).catch(() => undefined);
+      if (mid) {
+        api.get("/news").then(({ data }) => setNews(data?.items ?? [])).catch(() => undefined);
+        // 2.0
+        reloadSeason();
+        reloadAlliance();
+        api.get("/world").then(({ data }) => setWorld(data)).catch(() => undefined);
+      }
       // 1.6 : ouverte depuis l'écran d'accueil — une fois suffit pour le succès
       if (isStandalone() && c && !(c.hintsSeen ?? "").split(",").includes("app")) {
         api.patch("/company", { seenHint: "app" }).catch(() => undefined);
@@ -546,24 +570,26 @@ export default function Dashboard() {
       const [{ data: l }, { data: t }, { data: mkt }, { data: mine }, { data: lb }, { data: inc }, { data: tx }, { data: ach }, { data: dc }, { data: st }, { data: wx }, { data: sum }, { data: car }, { data: ref }, { data: cli }] = await Promise.all([
         api.get("/lines"),
         api.get("/trains"),
-        api.get("/contracts/market"),
+        when(mid, () => api.get("/contracts/market")),
         api.get("/contracts/mine"),
-        api.get("/leaderboard"),
+        when(mid, () => api.get("/leaderboard")),
         api.get("/incidents/mine"),
-        api.get("/transactions/mine"),
-        api.get("/achievements/mine"),
-        api.get("/daily-challenge/mine"),
-        api.get("/staff/mine"),
-        api.get("/weather/stations").catch(() => ({ data: null })),
-        api.get("/summary/today"),
-        api.get("/career/mine"),
-        api.get("/referral/mine").catch(() => ({ data: null })),
-        api.get("/clients/mine").catch(() => ({ data: null })),
+        when(mid, () => api.get("/transactions/mine")),
+        when(slow, () => api.get("/achievements/mine")),
+        when(mid, () => api.get("/daily-challenge/mine")),
+        when(mid, () => api.get("/staff/mine")),
+        when(slow, () => api.get("/weather/stations").catch(() => ({ data: null }))),
+        when(mid, () => api.get("/summary/today")),
+        when(slow, () => api.get("/career/mine")),
+        when(slow, () => api.get("/referral/mine").catch(() => ({ data: null }))),
+        when(slow, () => api.get("/clients/mine").catch(() => ({ data: null }))),
       ]);
       setLines(l);
-      setMarket(mkt);
-      setLeaderTotal(lb?.total ?? 0);
-      setLeaderMe(lb?.me ?? null);
+      if (mid) {
+        setMarket(mkt);
+        setLeaderTotal(lb?.total ?? 0);
+        setLeaderMe(lb?.me ?? null);
+      }
 
       /* Pastille du menu : seuls les ordres qui appellent une action comptent.
          Un ordre échoué ou terminé n'a plus rien à demander au joueur. */
@@ -575,12 +601,12 @@ export default function Dashboard() {
             : (c.missions ?? []).filter((m) => m.status === "PROPOSEE" || m.status === "ACCEPTEE").length),
         0
       );
-      setMissionCount(liveMissions);
+      if (slow) setMissionCount(liveMissions);
 
       /* Un filleul qui prend le départ est la seule bonne nouvelle du parrainage
          que le joueur ne peut pas deviner : on la lui annonce. */
       const nextReferral: ReferralInfo | null = ref ?? null;
-      setReferral((prev) => {
+      if (slow) setReferral((prev) => {
         const ref = nextReferral;
         if (ref && prev) {
           if (ref.totalReferred > prev.totalReferred) {
@@ -595,15 +621,18 @@ export default function Dashboard() {
         }
         return ref ?? prev;
       });
-      setTransactions(tx);
-      setTodaySummary(sum);
-      setCareer(car);
-
-      // 2.0 : la vraie météo des gares, lue par la vue cabine
-      setStationWeather(wx?.stations);
+      if (mid) {
+        setTransactions(tx);
+        setTodaySummary(sum);
+      }
+      if (slow) {
+        setCareer(car);
+        // 2.0 : la vraie météo des gares, lue par la vue cabine
+        setStationWeather(wx?.stations);
+      }
 
       // notifie si un employé est parti faute de trésorerie
-      setStaff((prevStaff) => {
+      if (mid) setStaff((prevStaff) => {
         prevStaff.forEach((prevS) => {
           const now = st.find((newS: Staff) => newS.id === prevS.id);
           if (!now) {
@@ -617,7 +646,7 @@ export default function Dashboard() {
       });
 
       // notifie quand le défi du jour vient d'être complété
-      setDailyChallenge((prev) => {
+      if (mid) setDailyChallenge((prev) => {
         if (prev && !prev.completed && dc.completed) {
           showComposter(`Défi accompli : ${dc.label}`);
         }
@@ -625,7 +654,7 @@ export default function Dashboard() {
       });
 
       // notifie les succès nouvellement débloqués
-      setAchievements((prevAchievements) => {
+      if (slow) setAchievements((prevAchievements) => {
         ach.forEach((newA: Achievement) => {
           const prev = prevAchievements.find((p) => p.id === newA.id);
           if (prev && !prev.unlocked && newA.unlocked) {
@@ -687,13 +716,28 @@ export default function Dashboard() {
       }
     } finally {
       setLoading(false);
+      loadingRef.current = false;
+      if (queuedRef.current) {
+        queuedRef.current = false;
+        void loadAll();
+      }
     }
   }
 
   useEffect(() => {
     loadAll();
-    const interval = setInterval(loadAll, 10_000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") void loadAll({ auto: true });
+    }, 10_000);
+    // retour sur l'onglet : tout est remis à jour d'un coup
+    const onVisible = () => {
+      if (document.visibilityState === "visible") void loadAll();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, []);
 
   useEffect(() => {
