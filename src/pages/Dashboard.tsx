@@ -10,6 +10,7 @@ import { UpdateBanner } from "../components/UpdateBanner";
 import { useInstall, isStandalone } from "../install";
 import { InstallGuide, InstallPanel } from "../components/InstallApp";
 import { InstagramMark } from "../components/InstagramMark";
+import { DiscordPanel } from "../components/DiscordPanel";
 import { INSTAGRAM } from "../social";
 import { createPortal } from "react-dom";
 import { api } from "../api/client";
@@ -443,6 +444,17 @@ export default function Dashboard() {
     /* 2.0 : Stripe renvoie l'identifiant de la session ; le serveur la redemande
        à Stripe et livre tout de suite, sans attendre le webhook. Sans effet si
        le webhook est déjà passé, et rien n'est accordé sans paiement. */
+    /* 2.1 : retour de la liaison Discord */
+    const discord = params.get("discord");
+    if (discord) {
+      window.history.replaceState({}, "", window.location.pathname);
+      setView("parametres");
+      if (discord === "ok") showToast("Discord lié : vos rôles arrivent sur le serveur");
+      else if (discord === "annule") showToast("Liaison Discord annulée");
+      else showToast(params.get("raison") ?? "Liaison Discord impossible", "error");
+      return;
+    }
+
     const sessionId = params.get("session_id");
     if (sessionId) void api.post("/billing/confirm", { sessionId }).catch(() => undefined);
 
@@ -6263,6 +6275,8 @@ function SettingsSection({
       />
 
       <NotificationsPanel />
+
+      <DiscordPanel />
 
       <InstallPanel />
 

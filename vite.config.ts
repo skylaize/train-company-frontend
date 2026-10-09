@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv, Plugin } from "vite";
 import react from "@vitejs/plugin-react";
+import { CHANGELOG } from "./src/changelog";
 
 /* 1.6 : chaque build porte un identifiant, publié aussi dans /version.json.
    Le jeu compare les deux de temps en temps : un onglet ouvert depuis des
@@ -13,6 +14,18 @@ function versionFile(): Plugin {
     name: "reseau-version",
     generateBundle() {
       this.emitFile({ type: "asset", fileName: "version.json", source: JSON.stringify({ build: BUILD_ID }) });
+    },
+  };
+}
+
+/* 2.1 : la dernière entrée du changelog, publiée dans /changelog.json. Le
+   serveur la lit toutes les dix minutes et poste les nouveautés d'une
+   nouvelle version dans #patch-notes sur Discord. */
+function changelogFile(): Plugin {
+  return {
+    name: "reseau-changelog",
+    generateBundle() {
+      this.emitFile({ type: "asset", fileName: "changelog.json", source: JSON.stringify(CHANGELOG[0] ?? null) });
     },
   };
 }
@@ -34,7 +47,7 @@ function adsense(client: string): Plugin {
 }
 
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), versionFile(), adsense((loadEnv(mode, process.cwd(), "VITE_").VITE_ADSENSE_CLIENT || "").trim())],
+  plugins: [react(), versionFile(), changelogFile(), adsense((loadEnv(mode, process.cwd(), "VITE_").VITE_ADSENSE_CLIENT || "").trim())],
   define: { __BUILD_ID__: JSON.stringify(BUILD_ID) },
   server: { port: 5173 },
 }));
