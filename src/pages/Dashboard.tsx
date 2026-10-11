@@ -10,8 +10,9 @@ import { UpdateBanner } from "../components/UpdateBanner";
 import { useInstall, isStandalone } from "../install";
 import { InstallGuide, InstallPanel } from "../components/InstallApp";
 import { InstagramMark } from "../components/InstagramMark";
+import { DiscordMark } from "../components/DiscordMark";
 import { DiscordPanel } from "../components/DiscordPanel";
-import { INSTAGRAM } from "../social";
+import { INSTAGRAM, DISCORD } from "../social";
 import { createPortal } from "react-dom";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
@@ -1062,6 +1063,9 @@ export default function Dashboard() {
             <button onClick={() => setShowWhatsNew(true)} title="Voir les notes de version" className="font-mono2 text-[11.5px] hover:text-cobalt">v{CURRENT_VERSION}</button>
             <a href={INSTAGRAM.url} target="_blank" rel="noopener noreferrer" title={`Suivre Réseau sur Instagram (@${INSTAGRAM.handle})`} aria-label={`Réseau sur Instagram (@${INSTAGRAM.handle})`} className="hover:text-offwhite">
               <InstagramMark size={14} />
+            </a>
+            <a href={DISCORD.url} target="_blank" rel="noopener noreferrer" title="Rejoindre le serveur Discord de Réseau" aria-label="Réseau sur Discord" className="hover:text-offwhite">
+              <DiscordMark size={14} />
             </a>
             <button onClick={logout} className="ml-auto hover:text-offwhite">Quitter</button>
           </div>

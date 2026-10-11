@@ -3,3 +3,8 @@ export const INSTAGRAM = {
   handle: "reseau.lejeu",
   url: "https://www.instagram.com/reseau.lejeu/",
 };
+
+/* 2.1 : le serveur Discord officiel. Lien d'invitation permanent. */
+export const DISCORD = {
+  url: "https://discord.gg/xRwhUJQxtR",
+};

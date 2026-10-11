@@ -90,7 +90,7 @@ body.lp-body { background: #e9e4d7; }
 .lp-nav a:hover { background: var(--paper3); color: var(--ink); }
 .lp-social { display: inline-flex; padding: 8px; border-radius: 999px; color: var(--ink2); }
 .lp-social:hover { background: var(--paper3); color: var(--vert); }
-@media (max-width: 860px) { .lp-nav { display: none; } .lp-social { margin-left: auto; } }
+@media (max-width: 860px) { .lp-nav { display: none; } .lp-social { margin-left: auto; } .lp-social + .lp-social { margin-left: 0; } }
 @media (max-width: 420px) { .lp-mark b { display: none; } }
 
 /* ─────────── HÉROS ─────────── */

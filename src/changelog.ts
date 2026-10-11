@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.0.0";
+export const CURRENT_VERSION = "2.1.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.1.0",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Réseau a son serveur Discord officiel ! Discutez avec les autres compagnies, recrutez pour votre alliance, suivez les saisons et le Grand Chantier en direct, et soyez les premiers informés des mises à jour. Le lien est en bas de ce bulletin, et dans le menu à côté d'Instagram" },
+      { type: "nouveau", text: "Liez votre compte dans Paramètres → « Lier mon Discord » : vous rejoignez le serveur en un clic et recevez automatiquement vos rôles — Joueur, Premium, Chef d'alliance et Champion de saison — tenus à jour par le jeu" },
+      { type: "nouveau", text: "Le bot du réseau : /profil pour afficher votre compagnie (ou celle d'un autre joueur), /classement pour les tops du jeu, /alliance pour une alliance. Le classement, la saison et l'avancée du tunnel du Mont-Blanc s'affichent en direct sur le serveur" },
+    ],
+  },
   {
     version: "2.0.0",
     date: "Octobre 2026",

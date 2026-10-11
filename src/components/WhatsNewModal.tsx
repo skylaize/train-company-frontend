@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { InstagramMark } from "./InstagramMark";
-import { INSTAGRAM } from "../social";
+import { INSTAGRAM, DISCORD } from "../social";
+import { DiscordMark } from "./DiscordMark";
 import { CHANGELOG, ChangeType } from "../changelog";
 
 /* ============================================================
@@ -107,6 +108,9 @@ export function WhatsNewModal({ onClose }: { onClose: () => void }) {
             <span>{CHANGELOG.length} bulletin{CHANGELOG.length > 1 ? "s" : ""} au registre</span>
             <a href={INSTAGRAM.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 normal-case tracking-normal hover:text-offwhite">
               <InstagramMark size={13} /> Les nouveautés en avant-première sur Instagram
+            </a>
+            <a href={DISCORD.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 normal-case tracking-normal text-offwhite hover:text-cobalt">
+              <DiscordMark size={13} /> Rejoindre le Discord
             </a>
           </span>
           <button

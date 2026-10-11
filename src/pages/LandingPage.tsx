@@ -2,7 +2,8 @@ import { RELEASE_171 } from "../release";
 import { useEffect, useRef, useState } from "react";
 import { LogoMark, LogoPaths } from "../components/Logo";
 import { InstagramMark } from "../components/InstagramMark";
-import { INSTAGRAM } from "../social";
+import { INSTAGRAM, DISCORD } from "../social";
+import { DiscordMark } from "../components/DiscordMark";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api/client";
 import "./landing.css";
@@ -303,6 +304,9 @@ export default function LandingPage() {
           <a className="lp-social" href={INSTAGRAM.url} target="_blank" rel="noopener noreferrer" aria-label={`Réseau sur Instagram (@${INSTAGRAM.handle})`}>
             <InstagramMark size={18} />
           </a>
+          <a className="lp-social" href={DISCORD.url} target="_blank" rel="noopener noreferrer" aria-label="Le serveur Discord de Réseau">
+            <DiscordMark size={18} />
+          </a>
           <button className="lp-btn sm" onClick={register}>
             Fonder ma compagnie
           </button>
@@ -550,6 +554,9 @@ export default function LandingPage() {
               </span>
               <a className="lp-credit-link" href={INSTAGRAM.url} target="_blank" rel="noopener noreferrer">
                 <InstagramMark size={14} /> @{INSTAGRAM.handle}
+              </a>
+              <a className="lp-credit-link" href={DISCORD.url} target="_blank" rel="noopener noreferrer">
+                <DiscordMark size={14} /> Discord
               </a>
               <span>React, Node et PostgreSQL, codé à la main</span>
             </div>
