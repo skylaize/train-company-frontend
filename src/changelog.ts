@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.0.0";
+export const CURRENT_VERSION = "2.0.1";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.0.1",
+    date: "Octobre 2026",
+    changes: [
+      { type: "ameliore", text: "Fret : un contrat qui fait avancer un de vos ordres de donneur d'ordre l'affiche, avec le numéro de l'ordre, le client et l'avancement. Plus besoin de passer d'une page à l'autre pour savoir quel contrat prendre (merci JackOneill)" },
+      { type: "corrige", text: "L'objectif de saison « Ouvrir une nouvelle ligne » (et « Réviser 3 rames ») pouvait rester à 0 alors que c'était fait : il est désormais recompté depuis vos lignes et vos révisions de la semaine, et les points manquants sont versés" },
+      { type: "corrige", text: "Deux ordres identiques d'un même client ne s'affichent plus côte à côte : le second porte sur une autre marchandise, et un ordre qui attend son tour le dit" },
+    ],
+  },
   {
     version: "2.0.0",
     date: "Octobre 2026",

@@ -227,6 +227,20 @@ interface Contract {
   status: "DISPONIBLE" | "EN_COURS" | "LIVREE";
   expiresAt?: string | null;
   train?: { id: string; name: string; progress: number } | null;
+  // 2.0 : l'ordre de donneur d'ordre que cette livraison fera avancer
+  forOrder?: { ref: string; client: string; progress: number; target: number; more: number } | null;
+}
+
+function OrderTag({ o }: { o: NonNullable<Contract["forOrder"]> }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-[12px] font-body text-cobalt border border-cobalt/40 px-2 py-0.5 mt-1"
+      title={o.more ? `Puis ${o.more} autre${o.more > 1 ? "s" : ""} ordre${o.more > 1 ? "s" : ""} de la même marchandise` : undefined}
+    >
+      Compte pour l'ordre nº {o.ref} · {o.client} · {o.progress}/{o.target}
+      {o.more > 0 && <span className="text-slate2">+{o.more}</span>}
+    </span>
+  );
 }
 
 interface ReferralInfo {
@@ -777,8 +791,7 @@ export default function Dashboard() {
     /* Le bulletin est mémorisé sur le compte, pas dans le navigateur : sinon il
        réapparaît dès que le joueur change d'appareil, et il reste invisible sur
        le second appareil de celui qui l'a déjà lu. */
-    // « 2.1.0 » a été en ligne quelques minutes par erreur : ceux qui l'ont vue ne revoient pas le bulletin 2.0
-    if (company.tutorialSeen && company.lastSeenVersion !== CURRENT_VERSION && company.lastSeenVersion !== "2.1.0") {
+    if (company.tutorialSeen && company.lastSeenVersion !== CURRENT_VERSION) {
       setShowWhatsNew(true);
     }
   }, [company]);
@@ -3441,6 +3454,7 @@ function FreightSection({
                     {c.originStation} → {c.destinationStation}, {c.durationMinutes} min
                     {c.risky && <span className="text-[#fca5a5]">, fragile</span>}
                   </div>
+                  {c.forOrder && <OrderTag o={c.forOrder} />}
                 </div>
                 <div className={`font-mono2 text-[17px] tabular-nums ${c.risky ? "text-rail-red" : "text-amber"}`}>+{c.reward} pi.</div>
                 <div className="text-[12.5px] text-slate2 font-body">
@@ -3495,6 +3509,11 @@ function FreightSection({
                     <span className="block md:inline md:ml-1.5 font-mono2 text-slate2 text-xs">{c.originStation} → {c.destinationStation}</span>
                     {c.insured && (
                       <span className="ml-1.5 text-[10px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-1.5 py-0.5">Assuré</span>
+                    )}
+                    {c.forOrder && (
+                      <span className="block">
+                        <OrderTag o={c.forOrder} />
+                      </span>
                     )}
                   </span>
                   <span className="text-xs text-slate2 font-body shrink-0">{c.train?.name}</span>
