@@ -22,9 +22,11 @@ export interface HintProps {
   /* « Nouveau dans cette version » annonce un changement aux joueurs installés ;
      « Bon à savoir » explique une rubrique à celui qui la découvre (1.6). */
   tag?: string;
+  /* un lien mis en avant à côté de « Compris » (ex. rejoindre le Discord) */
+  action?: { label: string; href: string };
 }
 
-export function FirstVisitHint({ id, title, body, points, seen, onSeen, tag = "Nouveau dans cette version" }: HintProps) {
+export function FirstVisitHint({ id, title, body, points, seen, onSeen, tag = "Nouveau dans cette version", action }: HintProps) {
   const alreadySeen = (seen || "").split(",").includes(id);
   const [closed, setClosed] = useState(false);
 
@@ -64,12 +66,24 @@ export function FirstVisitHint({ id, title, body, points, seen, onSeen, tag = "N
           )}
         </div>
 
-        <button
-          onClick={dismiss}
-          className="shrink-0 text-[11px] font-mono2 uppercase tracking-[0.14em] text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors"
-        >
-          Compris
-        </button>
+        <div className="shrink-0 flex items-center gap-2">
+          {action && (
+            <a
+              href={action.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[11px] font-mono2 uppercase tracking-[0.14em] bg-cobalt text-onaccent px-3 py-1.5 hover:bg-cobalt/90 transition-colors"
+            >
+              {action.label}
+            </a>
+          )}
+          <button
+            onClick={dismiss}
+            className="text-[11px] font-mono2 uppercase tracking-[0.14em] text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors"
+          >
+            {action ? "Fermer" : "Compris"}
+          </button>
+        </div>
       </div>
     </div>
   );

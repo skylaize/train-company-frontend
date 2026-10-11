@@ -777,7 +777,8 @@ export default function Dashboard() {
     /* Le bulletin est mémorisé sur le compte, pas dans le navigateur : sinon il
        réapparaît dès que le joueur change d'appareil, et il reste invisible sur
        le second appareil de celui qui l'a déjà lu. */
-    if (company.tutorialSeen && company.lastSeenVersion !== CURRENT_VERSION) {
+    // « 2.1.0 » a été en ligne quelques minutes par erreur : ceux qui l'ont vue ne revoient pas le bulletin 2.0
+    if (company.tutorialSeen && company.lastSeenVersion !== CURRENT_VERSION && company.lastSeenVersion !== "2.1.0") {
       setShowWhatsNew(true);
     }
   }, [company]);
@@ -1262,6 +1263,21 @@ export default function Dashboard() {
               <SubTabs value={view} onChange={setView} tabs={[{ id: "carriere", label: "Grades" }, { id: "succes", label: "Succès", count: achievements.filter((a) => a.unlocked).length }]} />
             )}
             {view === "trains" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
+            {view === "trains" && !onboarding && (
+              <FirstVisitHint
+                id="discord"
+                tag="Annonce"
+                seen={company.hintsSeen ?? ""}
+                onSeen={loadAll}
+                title="Réseau a son serveur Discord"
+                body="Retrouvez les autres compagnies, recrutez pour votre alliance et suivez la saison et le Grand Chantier en direct."
+                points={[
+                  "Liez votre compte dans Paramètres → « Lier mon Discord » pour recevoir vos rôles : Joueur, Premium, Chef d'alliance, Champion de saison.",
+                  "Le bot du réseau : /profil, /classement et /alliance.",
+                ]}
+                action={{ label: "Rejoindre", href: DISCORD.url }}
+              />
+            )}
             {/* 2.0 : le tableau de bord montre la partie au lieu d'empiler des cases */}
             {view === "trains" && !onboarding && (
               <HomeBoard
