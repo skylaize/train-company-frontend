@@ -11,10 +11,10 @@ import { STATION_COORDS } from "../geo";
    et l'alliance a son classement : la somme des points de saison.
    ============================================================ */
 
-interface Rules { max: number; cost: number; allyStep: number; allyMaxAllies: number; messageMax: number; colors: string[] }
+interface Rules { max: number; cost: number; allyStep: number; allyMaxAllies: number; messageMax: number; colors: string[]; applyMax?: number; applyMessageMax?: number; pitchMax?: number }
 interface RankRow { id: string; name: string; color: string; members: number; points: number; rank: number }
 export interface AllianceData {
-  alliance: null | { id: string; name: string; color: string; discordUrl: string | null; founder: boolean; rank: number | null; total: number; points: number };
+  alliance: null | { id: string; name: string; color: string; discordUrl: string | null; recruiting?: boolean; pitch?: string | null; founder: boolean; rank: number | null; total: number; points: number };
   rules: Rules;
   invites?: { id: string; alliance: string; color: string; at: string }[];
   members?: { companyId: string; name: string; liveryColor: string; founder: boolean; isMe: boolean; points: number; joinedAt: string }[];
@@ -22,6 +22,10 @@ export interface AllianceData {
   shared?: { station: string; members: number; bonus: number }[];
   messages?: { id: string; name: string; color: string; text: string; at: string; mine: boolean }[];
   invited?: string[];
+  // 2.0.2 : candidatures
+  directory?: { id: string; name: string; color: string; pitch: string | null; founder: string; members: number; room: number; points: number; rank: number | null; applied: boolean }[];
+  myApplications?: { id: string; allianceId: string; alliance: string; color: string; message: string; at: string }[];
+  applications?: { id: string; companyId: string; name: string; liveryColor: string; points: number; lines: number; message: string; at: string }[];
   ranking: RankRow[];
 }
 
@@ -37,8 +41,16 @@ const ago = (iso: string) => {
 
 export function allianceLead(data: AllianceData | null) {
   if (!data) return null;
-  if (!data.alliance) return data.invites?.length ? `${data.invites.length > 1 ? `${data.invites.length} alliances vous invitent` : `${data.invites[0].alliance} vous invite`} à la rejoindre.` : "Associez-vous à quatre compagnies : vos gares communes rapportent plus.";
+  if (!data.alliance) {
+    if (data.invites?.length) return `${data.invites.length > 1 ? `${data.invites.length} alliances vous invitent` : `${data.invites[0].alliance} vous invite`} à la rejoindre.`;
+    const n = data.myApplications?.length ?? 0;
+    if (n) return n > 1 ? `${n} candidatures en attente de réponse.` : `Votre candidature à ${data.myApplications![0].alliance} attend sa réponse.`;
+    const open = data.directory?.length ?? 0;
+    return open ? `${open} alliance${open > 1 ? "s recrutent" : " recrute"} : postulez, ou fondez la vôtre.` : "Associez-vous à quatre compagnies : vos gares communes rapportent plus.";
+  }
   const a = data.alliance;
+  const waiting = data.applications?.length ?? 0;
+  if (a.founder && waiting) return `${waiting} candidature${waiting > 1 ? "s attendent" : " attend"} votre réponse.`;
   const best = Math.max(0, ...(data.shared ?? []).map((s) => s.bonus));
   return `${a.name} est ${a.rank ?? "–"}${a.rank === 1 ? "re" : "e"} des alliances${best ? `, et vos gares communes rapportent jusqu'à ${best} % de plus` : ""}.`;
 }
@@ -52,6 +64,9 @@ export function AllianceSection({ data, onReload, onChange }: { data: AllianceDa
   const [text, setText] = useState("");
   const [discord, setDiscord] = useState<string | null>(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [applyTo, setApplyTo] = useState<string | null>(null);
+  const [applyText, setApplyText] = useState("");
+  const [pitch, setPitch] = useState<string | null>(null);
 
   useEffect(() => {
     onReload();
@@ -102,6 +117,92 @@ export function AllianceSection({ data, onReload, onChange }: { data: AllianceDa
             </section>
           )}
 
+          {(data.myApplications ?? []).length > 0 && (
+            <section>
+              <h2 className="font-display text-[20px] mb-2">Vos candidatures</h2>
+              {data.myApplications!.map((c) => (
+                <div key={c.id} className="flex flex-wrap items-center gap-3 py-2.5 border-b border-line">
+                  <span className="w-3 h-3 rotate-45" style={{ background: c.color }} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[15px] font-semibold font-body">{c.alliance}</div>
+                    <div className="text-[12.5px] text-slate2 font-body">Envoyée {ago(c.at)}, en attente du fondateur</div>
+                  </div>
+                  <button disabled={busy} onClick={() => run(() => api.delete(`/alliance/applications/${c.id}`), "Candidature retirée")} className="text-[13px] text-slate2 hover:text-rail-red font-body">
+                    Retirer
+                  </button>
+                </div>
+              ))}
+            </section>
+          )}
+
+          <section>
+            <div className="flex justify-between items-baseline mb-1">
+              <h2 className="font-display text-[20px]">Les alliances qui recrutent</h2>
+              {rules.applyMax ? <span className="text-[12.5px] text-slate2 font-body">{data.myApplications?.length ?? 0} candidature{(data.myApplications?.length ?? 0) > 1 ? "s" : ""} sur {rules.applyMax}</span> : null}
+            </div>
+            {(data.directory ?? []).length === 0 ? (
+              <p className="text-[13.5px] text-slate2 font-body py-2">Aucune alliance ne cherche de membre en ce moment. Fondez la vôtre ci-dessous.</p>
+            ) : (
+              data.directory!.map((d) => {
+                const open = applyTo === d.id;
+                const full = !d.applied && (data.myApplications?.length ?? 0) >= (rules.applyMax ?? 3);
+                return (
+                  <div key={d.id} className="py-3 border-b border-line">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="w-3 h-3 rotate-45" style={{ background: d.color }} />
+                      <span className="text-[15px] font-semibold font-body">{d.name}</span>
+                      <span className="text-[12.5px] text-slate2 font-body">
+                        {d.rank ? `${d.rank}${d.rank === 1 ? "re" : "e"}, ` : ""}
+                        {d.members} sur {rules.max}, {fmt(d.points)} pts
+                      </span>
+                      <span className="ml-auto">
+                        {d.applied ? (
+                          <span className="text-[13px] text-rail-green font-body">Candidature envoyée</span>
+                        ) : (
+                          <button
+                            disabled={busy || full}
+                            title={full ? `${rules.applyMax} candidatures en attente au plus` : undefined}
+                            onClick={() => { setApplyTo(open ? null : d.id); setApplyText(""); }}
+                            className={`px-3 py-1.5 text-[13px] font-semibold font-body disabled:opacity-40 ${open ? "border border-line text-slate2" : "bg-cobalt text-onaccent"}`}
+                          >
+                            {open ? "Annuler" : "Postuler"}
+                          </button>
+                        )}
+                      </span>
+                    </div>
+                    {d.pitch && <p className="text-[13.5px] font-body mt-1.5 leading-snug max-w-prose">{d.pitch}</p>}
+                    <div className="text-[12px] text-slate2/80 font-body mt-1">Fondée par {d.founder}, encore {d.room} place{d.room > 1 ? "s" : ""}</div>
+                    {open && (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          run(async () => { await api.post(`/alliances/${d.id}/apply`, { message: applyText }); setApplyTo(null); setApplyText(""); }, `Candidature envoyée à ${d.name}`);
+                        }}
+                        className="mt-2.5 flex flex-col gap-2"
+                      >
+                        <textarea
+                          value={applyText}
+                          maxLength={rules.applyMessageMax ?? 200}
+                          rows={2}
+                          autoFocus
+                          onChange={(e) => setApplyText(e.target.value)}
+                          placeholder="Un mot pour le fondateur : vos lignes, vos gares, ce que vous apportez…"
+                          className="w-full bg-transparent border border-line px-3 py-2 text-[13.5px] font-body focus:outline-none focus:border-cobalt resize-none"
+                        />
+                        <div className="flex items-center gap-3">
+                          <button disabled={busy} className="bg-cobalt text-onaccent px-3 py-1.5 text-[13px] font-semibold font-body disabled:opacity-40">
+                            Envoyer la candidature
+                          </button>
+                          <span className="text-[12px] text-slate2/70 font-body">{applyText.length}/{rules.applyMessageMax ?? 200}</span>
+                        </div>
+                      </form>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </section>
+
           <section className="border border-line p-5">
             <h2 className="font-display text-[20px]">Fonder une alliance</h2>
             <p className="text-[13.5px] text-slate2 font-body mt-1.5 max-w-prose">
@@ -130,7 +231,7 @@ export function AllianceSection({ data, onReload, onChange }: { data: AllianceDa
                 <button key={c} onClick={() => setColor(c)} aria-label={`Couleur ${c}`} className={`w-6 h-6 rotate-45 border-2 ${(color ?? rules.colors[0]) === c ? "border-offwhite" : "border-transparent"}`} style={{ background: c }} />
               ))}
             </div>
-            <p className="text-[12.5px] text-slate2 font-body mt-4">Pour rejoindre une alliance existante, demandez à son fondateur de vous inviter : l'invitation apparaîtra ici.</p>
+            <p className="text-[12.5px] text-slate2 font-body mt-4">Un fondateur peut aussi vous inviter directement : l'invitation apparaîtra en haut de cette page.</p>
           </section>
         </div>
         <Ranking rows={data.ranking} />
@@ -196,6 +297,36 @@ export function AllianceSection({ data, onReload, onChange }: { data: AllianceDa
               <span className={`font-mono2 text-[14px] tabular-nums ${m.isMe ? "text-amber" : ""}`}>{fmt(m.points)}</span>
             </div>
           ))}
+          {a.founder && (data.applications ?? []).length > 0 && (
+            <div className="mt-5">
+              <div className="flex justify-between items-baseline">
+                <h3 className="font-display text-[17px]">Candidatures</h3>
+                <span className="text-[12.5px] text-slate2 font-body">{room > 0 ? `${room} place${room > 1 ? "s" : ""} libre${room > 1 ? "s" : ""}` : "alliance complète"}</span>
+              </div>
+              {data.applications!.map((c) => (
+                <div key={c.id} className="py-2.5 border-b border-line">
+                  <div className="grid grid-cols-[12px_minmax(0,1fr)_auto] gap-3 items-center">
+                    <span className="w-3 h-3" style={{ background: c.liveryColor }} />
+                    <div className="min-w-0">
+                      <div className="text-[14.5px] font-body font-semibold truncate">{c.name}</div>
+                      <div className="text-[12.5px] text-slate2 font-body">
+                        {c.lines} ligne{c.lines > 1 ? "s" : ""}, {fmt(c.points)} pts de saison, {ago(c.at)}
+                      </div>
+                    </div>
+                    <span className="flex gap-2">
+                      <button disabled={busy || room <= 0} onClick={() => run(() => api.post(`/alliance/applications/${c.id}`, { accept: true }), `${c.name} rejoint l'alliance`)} className="bg-cobalt text-onaccent px-2.5 py-1 text-[12.5px] font-semibold font-body disabled:opacity-40">
+                        Accepter
+                      </button>
+                      <button disabled={busy} onClick={() => run(() => api.post(`/alliance/applications/${c.id}`, { accept: false }))} className="text-[12.5px] text-slate2 hover:text-rail-red font-body">
+                        Refuser
+                      </button>
+                    </span>
+                  </div>
+                  {c.message && <p className="text-[13.5px] font-body mt-1.5 ml-[24px] leading-snug break-words border-l-2 border-line pl-2.5">{c.message}</p>}
+                </div>
+              ))}
+            </div>
+          )}
           {(data.invited ?? []).map((n) => (
             <div key={n} className="py-2 border-b border-line text-[13px] text-slate2 font-body">
               {n}, invitation envoyée
@@ -305,6 +436,35 @@ export function AllianceSection({ data, onReload, onChange }: { data: AllianceDa
                   Enregistrer
                 </button>
               </div>
+            </div>
+          )}
+          {a.founder && (
+            <div className="mt-5">
+              <label className="flex items-center gap-2.5 text-[13.5px] font-body cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={a.recruiting ?? true}
+                  disabled={busy}
+                  onChange={(e) => run(() => api.patch("/alliance", { recruiting: e.target.checked }), e.target.checked ? "L'alliance recrute" : "Recrutement fermé")}
+                  className="accent-[rgb(var(--c-cobalt))] w-4 h-4"
+                />
+                Recevoir des candidatures
+              </label>
+              <p className="text-[12px] text-slate2/70 font-body mt-1">
+                {a.recruiting ?? true ? "Votre alliance figure dans la liste de celles qui recrutent, tant qu'il reste de la place." : "Votre alliance n'apparaît plus dans la liste. Les invitations restent possibles."}
+              </p>
+              <div className="text-[13px] text-slate2 font-body mt-3 mb-1.5">Présentation, lue par les candidats</div>
+              <textarea
+                value={pitch ?? a.pitch ?? ""}
+                maxLength={rules.pitchMax ?? 200}
+                rows={2}
+                onChange={(e) => setPitch(e.target.value)}
+                placeholder="Par exemple : réseau du Sud-Ouest, on cherche des lignes vers Toulouse et Bordeaux."
+                className="w-full bg-transparent border border-line px-3 py-1.5 text-[13px] font-body focus:outline-none focus:border-cobalt resize-none"
+              />
+              <button disabled={busy || pitch === null} onClick={() => run(async () => { await api.patch("/alliance", { pitch }); setPitch(null); }, "Présentation enregistrée")} className="mt-1.5 border border-line px-3 py-1.5 text-[13px] font-body disabled:opacity-40">
+                Enregistrer
+              </button>
             </div>
           )}
         </section>

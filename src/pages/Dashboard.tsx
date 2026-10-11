@@ -976,7 +976,7 @@ export default function Dashboard() {
             label: "Compétition",
             items: [
               { id: "saison", label: "Saison", icon: <SeasonMark size={16} />, count: season?.me?.points ? season.me.rank : undefined, active: view === "saison", onClick: () => setView("saison") },
-              { id: "alliance", label: "Alliance", icon: <AllianceMark size={16} />, alert: !alliance?.alliance && (alliance?.invites?.length ?? 0) > 0, count: alliance?.alliance ? alliance.members?.length : undefined, active: view === "alliance", onClick: () => setView("alliance") },
+              { id: "alliance", label: "Alliance", icon: <AllianceMark size={16} />, alert: (!alliance?.alliance && (alliance?.invites?.length ?? 0) > 0) || (!!alliance?.alliance?.founder && (alliance?.applications?.length ?? 0) > 0), count: alliance?.alliance ? alliance.members?.length : undefined, active: view === "alliance", onClick: () => setView("alliance") },
               { id: "classement", label: "Classement", icon: <TrophyMark size={16} />, count: leaderTotal, active: view === "classement", onClick: () => setView("classement"), dataTutorial: "nav-classement" },
             ],
           },

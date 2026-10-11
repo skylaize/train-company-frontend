@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.0.1";
+export const CURRENT_VERSION = "2.0.2";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,15 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.0.2",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Candidatures d'alliance : sans alliance, vous voyez la liste de celles qui recrutent (rang, membres, places libres, présentation) et vous pouvez postuler avec un mot pour le fondateur, à trois alliances au plus en même temps. Le fondateur reçoit une notification, voit vos lignes et vos points de saison, et accepte ou refuse. Accepté, vous entrez dans l'alliance et vos autres candidatures sont retirées" },
+      { type: "nouveau", text: "Fondateurs : une présentation de l'alliance, lue par les candidats, et un interrupteur pour ouvrir ou fermer le recrutement. Les invitations restent possibles dans tous les cas" },
+      { type: "nouveau", text: "Deux succès : Candidature retenue et Recruteur" },
+    ],
+  },
   {
     version: "2.0.1",
     date: "Octobre 2026",
