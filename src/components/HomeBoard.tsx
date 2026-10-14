@@ -29,7 +29,7 @@ export interface HBTrain {
   cars?: string[];
   lastPassengers?: number | null;
   lastSeats?: number | null;
-  line?: { id?: string; departureStation: string; arrivalStation: string; durationMinutes?: number; stops?: string[]; electrified?: boolean } | null;
+  line?: { id?: string; departureStation: string; arrivalStation: string; durationMinutes?: number; stops?: string[]; electrified?: boolean; doubleTrack?: boolean } | null;
   // 2.0 : l'atelier
   brokenPart?: string | null;
   partsEta?: string | null;
@@ -74,7 +74,7 @@ const fmt = (n: number) => Math.abs(Math.round(n)).toLocaleString("fr-FR");
 
 function tripMs(t: HBTrain) {
   const base = (t.line?.durationMinutes ?? 10) * 60_000;
-  return base * modelSpeed(t.model) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1);
+  return base * modelSpeed(t.model) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1) * (t.line?.doubleTrack ? 0.93 : 1);
 }
 
 // où en est la rame de son trajet, de 0 à 1, calculé à la seconde près

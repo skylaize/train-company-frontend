@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.0.3";
+export const CURRENT_VERSION = "2.1.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,20 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.1.0",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Le fret a son matériel : quatre locomotives de fret (Locotracteur, Fret lourd, Fret rapide, Fret électrique) qui tirent de 2 à 5 wagons. Les rames voyageurs ne prennent plus de fret ; celles qui avaient une livraison en cours la terminent" },
+      { type: "nouveau", text: "Sept wagons, chacun pour sa marchandise : trémie (céréales), plat (acier, bois), porte-conteneurs, porte-autos, citerne (produits chimiques), capitonné (verre soufflé, œuvres d'art) et frigorifique (produits pharmaceutiques). Deux wagons du même type portent plus et la livraison paie plus (×1,6, ×2,1…) ; un wagon d'un autre type ouvre une deuxième cargaison" },
+      { type: "nouveau", text: "Les tournées : une locomotive part avec plusieurs contrats d'un coup, un par type de wagon attelé. Cochez les contrats, la barre du bas annonce la durée de la tournée et ce qu'elle rapporte" },
+      { type: "nouveau", text: "Double voie : dans Infrastructures, posez une deuxième voie sur une ligne. Plus d'attente aux croisements : trajets 7 % plus rapides, 40 % de retards en moins, et le cadencement attire du monde (+5 % de voyageurs par rame en plus sur la ligne, jusqu'à +15 %)" },
+      { type: "nouveau", text: "En vue cabine, sur une ligne à double voie, vous voyez passer vos rames qui roulent en sens inverse, à leur vraie position" },
+      { type: "nouveau", text: "Gares de triage (trois au plus) : le fret qui part de l'une d'elles ou y arrive rapporte 12 % de plus et sa part de la tournée est 15 % plus courte. En vue cabine, le faisceau de voies et ses wagons garés apparaissent derrière la gare" },
+      { type: "nouveau", text: "Trois succès : Voie double, Cadencement et Bosse de triage" },
+      { type: "corrige", text: "Gares : les deux derniers grades demandaient 6 puis 10 gares alors qu'on ne pouvait en posséder que 4. Le plafond passe à 6 au grade de Maître des caténaires, puis à 10 au grade de Magnat européen (merci à ceux qui l'ont signalé)" },
+    ],
+  },
   {
     version: "2.0.3",
     date: "Octobre 2026",

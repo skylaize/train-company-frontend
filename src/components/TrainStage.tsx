@@ -4,6 +4,7 @@ import { modelLabel } from "../models";
 import { SplitFlap } from "./SplitFlap";
 import { playCouple, playChime } from "../sfx";
 import { drawConsist, drawTrack } from "./trainArt";
+import { WAGON_TYPES, isFreightLoco } from "../freight";
 
 /* ============================================================
    Le quai (2.0) : la rame de profil, en gare, comme dans le reel.
@@ -19,7 +20,7 @@ import { drawConsist, drawTrack } from "./trainArt";
    ============================================================ */
 
 export type CarKind = "SECONDE" | "PREMIERE" | "BAR";
-type Model = "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "VAPEUR" | "LUXE" | "CREMAILLERE";
+type Model = "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE";
 
 const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220 };
 const CAR_SEATS: Record<string, number> = { SECONDE: 100, PREMIERE: 60, BAR: 0 };
@@ -28,6 +29,8 @@ export const CAR_TAG: Record<string, string> = {
   PREMIERE: "+60 places · 1re classe",
   BAR: "+8 % de recette · voiture-bar",
 };
+// 2.1 : l'étiquette d'un wagon de fret qui vient s'atteler
+for (const w of WAGON_TYPES) CAR_TAG[w.id] = `${w.label} · ${w.cargos.join(", ").toLowerCase()}`;
 const TAG_COLOR: Record<string, string> = { SECONDE: "#e2e8f0", PREMIERE: "#f5c869", BAR: "#6ee7b7" };
 
 const COUPLE_MS = 950; // durée de l'approche, jusqu'au choc d'attelage
@@ -141,6 +144,7 @@ function useCanvas(draw: (ctx: CanvasRenderingContext2D, W: number, H: number) =
 export function TrainStage({
   model,
   cars,
+  maxCars,
   livery,
   station,
 }: {
@@ -150,6 +154,7 @@ export function TrainStage({
   livery: string;
   station: string;
 }) {
+  const freight = isFreightLoco(model);
   const prev = useRef(cars);
   const [shown, setShown] = useState(cars); // ce que disent le compteur et l'étiquette « Prête »
   const [forming, setForming] = useState(false);
@@ -241,23 +246,36 @@ export function TrainStage({
         ref={ref}
         className="block w-full h-[190px]"
         role="img"
-        aria-label={`Composition : ${cars.length} voiture${cars.length > 1 ? "s" : ""} ajoutée${cars.length > 1 ? "s" : ""}, ${seatsTotal(model, cars)} places`}
+        aria-label={freight ? `Composition : ${cars.length} wagon${cars.length > 1 ? "s" : ""} sur ${maxCars ?? cars.length}` : `Composition : ${cars.length} voiture${cars.length > 1 ? "s" : ""} ajoutée${cars.length > 1 ? "s" : ""}, ${seatsTotal(model, cars)} places`}
       />
 
       {/* le tableau à palettes, sous le quai */}
       <div className="flex items-end justify-between gap-4 px-4 py-3 border-t border-line">
         <div>
           <div className="text-[12px] text-slate2 font-body mb-1.5">{station} · composition</div>
-          <SplitFlap value={String(seats).padStart(3, " ")} size="md-compact" />
-          <div className="text-[12px] text-slate2 font-body mt-1">places</div>
+          {freight ? (
+            <>
+              <SplitFlap value={`${shown.length}/${maxCars ?? shown.length}`} size="md-compact" />
+              <div className="text-[12px] text-slate2 font-body mt-1">wagons attelés</div>
+            </>
+          ) : (
+            <>
+              <SplitFlap value={String(seats).padStart(3, " ")} size="md-compact" />
+              <div className="text-[12px] text-slate2 font-body mt-1">places</div>
+            </>
+          )}
         </div>
         <div className="text-right">
           <div className={`text-[12px] font-body mb-1.5 flex items-center justify-end gap-1.5 ${forming ? "text-cobalt" : "text-rail-green"}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${forming ? "bg-cobalt animate-pulse" : "bg-rail-green"}`} />
             {forming ? "En formation" : "Prête"}
           </div>
-          <SplitFlap value={String(shown.length)} size="md-compact" />
-          <div className="text-[12px] text-slate2 font-body mt-1">voiture{shown.length > 1 ? "s" : ""} ajoutée{shown.length > 1 ? "s" : ""}</div>
+          {!freight && (
+            <>
+              <SplitFlap value={String(shown.length)} size="md-compact" />
+              <div className="text-[12px] text-slate2 font-body mt-1">voiture{shown.length > 1 ? "s" : ""} ajoutée{shown.length > 1 ? "s" : ""}</div>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -346,15 +364,15 @@ export function TrainArrival({
             </div>
             <div className="font-display text-[22px] leading-tight mt-1 truncate">{name}</div>
             <div className="text-[13px] text-slate2 font-body">
-              {subtitle ?? (model === "FRET_LOURD" ? "Rame de fret" : `${modelName}, ${MODEL_SEATS[model] ?? 400} places`)}
+              {subtitle ?? (isFreightLoco(model) ? `Locomotive de fret, ${modelName.toLowerCase()}` : `${modelName}, ${MODEL_SEATS[model] ?? 400} places`)}
             </div>
           </div>
-          {model !== "FRET_LOURD" && <SplitFlap value={String(MODEL_SEATS[model] ?? 400)} size="md-compact" />}
+          {!isFreightLoco(model) && <SplitFlap value={String(MODEL_SEATS[model] ?? 400)} size="md-compact" />}
         </div>
         <div className="flex gap-2 px-5 pb-5">
-          {onCompose && model !== "FRET_LOURD" && (
+          {onCompose && (
             <button onClick={onCompose} className="flex-1 border border-cobalt/50 text-cobalt px-3 py-2 text-[14px] font-body hover:bg-cobalt/10">
-              Ajouter des voitures
+              {isFreightLoco(model) ? "Atteler des wagons" : "Ajouter des voitures"}
             </button>
           )}
           <button onClick={onClose} className="flex-1 bg-amber text-onaccent px-3 py-2 text-[14px] font-body font-semibold hover:brightness-110">

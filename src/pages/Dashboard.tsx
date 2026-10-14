@@ -18,6 +18,8 @@ import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { JournalBell } from "../components/Journal";
+import { WAGON_TYPES, FREIGHT_CATALOG, isFreightLoco, wagonForCargo, freightModel, loadFor, tourMinutes, fmtLoad } from "../freight";
+import { FreightComposition } from "../components/FreightComposition";
 import { MarketSection, ConstructionPanel } from "../components/MarketSection";
 import { NotificationsPanel } from "../components/NotificationsPanel";
 import { ShopSection } from "../components/ShopSection";
@@ -45,7 +47,7 @@ import { TrainStage, TrainArrival } from "../components/TrainStage";
 import { TrainSheet, PartsStore } from "../components/TrainSheet";
 import { GazetteData, loadGazette } from "../components/Gazette";
 import { modelLabel, hhmm, minutesLeft, PART_LABEL, PART_NEED, modelSpeed } from "../models";
-import { playChime, playAlert, vibrate, soundsOn, setSoundsOn } from "../sfx";
+import { playChime, playAlert, vibrate, soundsOn, setSoundsOn, setSoundPack } from "../sfx";
 import { AllianceSection, AllianceData, loadAlliance, allianceLead } from "../components/AllianceSection";
 import { WorldData } from "../components/WorldCard";
 import { WeeklyReportSection, BankSection, StockMarketSection } from "../components/FinanceSection";
@@ -77,15 +79,16 @@ import { WreckYard, loadWrecks, RARITY_COLOR, type Wreck as WreckInfo } from "..
 interface Train {
   id: string;
   name: string;
-  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "VAPEUR" | "LUXE" | "CREMAILLERE";
+  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE";
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
   departedAt?: string | null;
-  line?: { id: string; name: string; departureStation: string; arrivalStation: string; durationMinutes?: number; stops?: string[]; electrified?: boolean } | null;
+  line?: { id: string; name: string; departureStation: string; arrivalStation: string; durationMinutes?: number; stops?: string[]; electrified?: boolean; doubleTrack?: boolean } | null;
   // 1.7
   direction?: number;
   cars?: string[];
+  plateStyle?: string | null; // 2.1 : plaque nominative
   lastPassengers?: number | null;
   lastSeats?: number | null;
   // 2.0 : l'atelier
@@ -188,6 +191,7 @@ interface Line {
   priceRatio?: number;
   electrified?: boolean;
   autoPrice?: boolean;
+  doubleTrack?: boolean; // 2.1
 }
 
 interface Company {
@@ -206,7 +210,15 @@ interface Company {
   emblem?: string | null;
   title?: string | null;
   cabSkin?: string | null;
-  unlocked?: { themes: string[]; emblems: string[]; titles: string[]; liveries: string[] };
+  // 2.1 : sons de gare, habillage des gares, tenues du personnel
+  soundPack?: string | null;
+  stationSkin?: string | null;
+  yards?: string[]; // 2.1 : gares de triage
+  uniform?: string | null;
+  unlocked?: {
+    themes: string[]; emblems: string[]; titles: string[]; liveries: string[];
+    trainPlates?: string[]; sounds?: string[]; stationSkins?: string[]; uniforms?: string[]; posters?: string[]; museum?: boolean;
+  };
   construction?: { id: string; label: string; endsAt: string } | null;
   queuedConstruction?: { id: string; label: string; endsAt: string } | null;
   canQueue?: boolean;
@@ -314,6 +326,8 @@ export default function Dashboard() {
   const reloadAlliance = () => loadAlliance().then((d) => d && setAlliance(d));
   /* 2.0.3 : le journal de bord se tient par compagnie, et ses liens ouvrent la bonne rubrique */
   useEffect(() => setJournalOwner(company?.id ?? null), [company?.id, setJournalOwner]);
+  // 2.1 : le son de gare choisi en boutique remplace le carillon
+  useEffect(() => setSoundPack(company?.soundPack ?? null), [company?.soundPack]);
   useEffect(() => {
     setNavigator((link) => {
       setView(link.view as DashboardView);
@@ -1420,7 +1434,7 @@ export default function Dashboard() {
                 ]}
               />
             )}
-            {view === "trains" && <TrainsSection trains={trains} lines={lines} incidents={incidents} company={company} staff={staff} weatherType={weather?.type} onChange={loadAll} onOpenCatalog={() => setShowCatalog(true)} composeId={composeId} onComposeHandled={clearCompose} sheetRequest={sheetRequest} onSheetHandled={clearSheet} onGoStaff={() => setView("personnel")} onGoPremium={() => setView("boutique")} />}
+            {view === "trains" && <TrainsSection trains={trains} lines={lines} incidents={incidents} company={company} staff={staff} weatherType={weather?.type} onChange={loadAll} onOpenCatalog={() => setShowCatalog(true)} composeId={composeId} onComposeHandled={clearCompose} sheetRequest={sheetRequest} onSheetHandled={clearSheet} onGoStaff={() => setView("personnel")} onGoPremium={() => setView("boutique")} onGoFreight={() => setView("fret")} />}
             {view === "trains" && !onboarding && (
               <div id="epaves">
                 <WreckYard
@@ -1524,7 +1538,7 @@ export default function Dashboard() {
                 seen={company.hintsSeen ?? ""}
                 onSeen={loadAll}
                 title="Le fret, pour une rame qui n'a pas de ligne"
-                body="Chaque contrat dit quoi transporter, d'où, où et en combien de temps. Une rame libre l'accepte, part, et la paie tombe à la livraison. C'est plus rentable qu'une ligne, mais il faut revenir en choisir d'autres."
+                body="Chaque contrat dit quoi transporter, d'où, où et en combien de temps. Une locomotive de fret le charge si elle a le bon wagon, part, et la paie tombe à la livraison. Plusieurs wagons du même type portent plus ; des types différents prennent plusieurs contrats en une tournée."
                 points={[
                   "Les offres expirent au bout de quelques minutes : ce qui est là maintenant ne le sera plus tout à l'heure.",
                   "Une cargaison fragile peut arriver abîmée ; une prime « risquée » paie plus pour ce risque.",
@@ -1538,6 +1552,8 @@ export default function Dashboard() {
                 myContracts={myContracts}
                 trains={trains}
                 onChange={loadAll}
+                company={company}
+                onOpenCatalog={() => setShowCatalog(true)}
               />
             )}
             {view === "missions" && (
@@ -2678,6 +2694,7 @@ function LinesSection({
                     <div className="text-[12.5px] text-slate2 font-body mt-0.5">
                       <span>{l.durationMinutes} min, {nTrains} rame{nTrains > 1 ? "s" : ""}</span>
                       {l.electrified && <span className="text-amber">, électrifiée</span>}
+                      {l.doubleTrack && <span className="text-offwhite">, double voie</span>}
                       {m?.demand !== undefined && <span>, demande <DemandCell demand={m.demand} /></span>}
                       {m?.hub && m.hub > 1.0001 && <span>, correspondance <HubCell hub={m.hub} /></span>}
                     </div>
@@ -2742,12 +2759,17 @@ function RouteCell({ line }: { line: Line }) {
         <span className="text-slate2 text-xs">⇄</span>
         {line.arrivalStation}
       </div>
-      {(stops.length > 0 || line.electrified) && (
+      {(stops.length > 0 || line.electrified || line.doubleTrack) && (
         <div className="text-[11px] text-slate2 mt-0.5 flex items-center gap-1.5 flex-wrap">
           {stops.length > 0 && <span>via {stops.join(", ")}</span>}
           {line.electrified && (
             <span className="font-mono2 text-[10px] uppercase text-amber" title="Ligne électrifiée : trajets 10 % plus rapides, usure réduite">
               ϟ électrifiée
+            </span>
+          )}
+          {line.doubleTrack && (
+            <span className="font-mono2 text-[10px] uppercase text-offwhite" title="Double voie : trajets 7 % plus rapides, moins de retards, cadencement">
+              ‖ double voie
             </span>
           )}
         </div>
@@ -3071,9 +3093,11 @@ function TrainsSection({
   onComposeHandled,
   onGoStaff,
   onGoPremium,
+  onGoFreight,
   sheetRequest,
   onSheetHandled,
 }: {
+  onGoFreight?: () => void;
   sheetRequest?: string | null;
   onSheetHandled?: () => void;
   onGoStaff?: () => void;
@@ -3204,6 +3228,9 @@ function TrainsSection({
           weatherType={weatherType}
           livery={company.liveryColor}
           skin={company.cabSkin ?? null}
+          stationSkin={company.stationSkin ?? null}
+          others={trains}
+          yards={company.yards ?? []}
           company={company}
           onClose={() => setCabId(null)}
         />
@@ -3222,7 +3249,12 @@ function TrainsSection({
           onGoPremium={() => { setSheetId(null); onGoPremium?.(); }}
         />
       )}
-      {compoTrain && <CompositionModal train={compoTrain} balance={company.balance} livery={company.isPremium ? company.liveryColor : null} onClose={() => setCompoId(null)} onChange={onChange} />}
+      {compoTrain &&
+        (isFreightLoco(compoTrain.model) ? (
+          <FreightComposition train={compoTrain} balance={company.balance} livery={company.liveryColor} onClose={() => setCompoId(null)} onChange={onChange} />
+        ) : (
+          <CompositionModal train={compoTrain} balance={company.balance} livery={company.isPremium ? company.liveryColor : null} onClose={() => setCompoId(null)} onChange={onChange} />
+        ))}
       {/* 1.6 : la vue cabine s'installe en tête de la flotte (Premium) */}
       <LiveCab
         trains={trains as unknown as CabTrain[]}
@@ -3329,11 +3361,13 @@ function TrainsSection({
                     </span>
                   )}
                   {/* 1.7 : composition de la rame */}
-                  <button onClick={() => setCompoId(t.id)} className="flex items-center gap-1.5 whitespace-nowrap hover:text-cobalt transition-colors" title="Composition : ajouter ou retirer des voitures">
+                  <button onClick={() => setCompoId(t.id)} className="flex items-center gap-1.5 whitespace-nowrap hover:text-cobalt transition-colors" title={isFreightLoco(t.model) ? "Composition : atteler ou dételer des wagons" : "Composition : ajouter ou retirer des voitures"}>
                     <span className="inline-block w-[92px]">
                       <TrainPicture model={t.model} skin={t.heritage?.skin} livery={t.heritage?.livery ?? company.liveryColor} cars={t.cars ?? []} firstLivery={company.isPremium && !t.heritage} height={30} track={false} fit={false} align="right" label={`Composition de ${t.name}`} />
                     </span>
-                    {seatsOf(t.model, t.cars ?? []).total} places
+                    {isFreightLoco(t.model)
+                      ? `${(t.cars ?? []).filter((c) => c.startsWith("W_")).length}/${freightModel(t.model)?.maxWagons ?? 0} wagons`
+                      : `${seatsOf(t.model, t.cars ?? []).total} places`}
                   </button>
                   {(t.crew?.length ?? 0) > 0 && (
                     <button onClick={() => setSheetId(t.id)} className="whitespace-nowrap hover:text-cobalt" title={t.crew!.map((c) => `${c.role === "CONTROLEUR" ? "Contrôleur" : "Conducteur"} : ${c.name}`).join(", ")}>
@@ -3384,10 +3418,13 @@ function TrainsSection({
                 ) : t.status === "IDLE" ? (
                   <div className="text-[14px] text-slate2 flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate2" />
-                    Au dépôt, sans ligne
+                    {isFreightLoco(t.model) ? ((t.cars ?? []).some((c) => c.startsWith("W_")) ? "Au dépôt, prête pour le fret" : "Au dépôt, sans wagon") : "Au dépôt, sans ligne"}
                   </div>
                 ) : (
-                  <div className="text-[14px] text-slate2">Occupée par un contrat de fret</div>
+                  <div className="text-[14px] text-amber flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse" />
+                    En tournée de fret, {Math.round(t.progress ?? 0)} %
+                  </div>
                 )}
               </div>
 
@@ -3439,6 +3476,18 @@ function TrainsSection({
                       Retirer
                     </button>
                   </>
+                ) : t.status === "IDLE" && isFreightLoco(t.model) ? (
+                  /* 2.1 : une locomotive de fret ne va pas sur une ligne voyageurs */
+                  <span className="flex items-center gap-2">
+                    <button onClick={() => setCompoId(t.id)} className="text-[13px] font-body text-amber border border-amber/40 px-3 py-1.5 hover:bg-amber/10">
+                      Wagons
+                    </button>
+                    {onGoFreight && (
+                      <button onClick={onGoFreight} className="text-[13px] font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10">
+                        Livrer du fret
+                      </button>
+                    )}
+                  </span>
                 ) : t.status === "IDLE" ? (
                   <span data-tutorial="btn-assign" className="inline-block">
                   <AssignDropdown
@@ -3484,45 +3533,164 @@ function TrainsSection({
   );
 }
 
+/* 2.1 : le fret se livre avec une locomotive et ses wagons.
+   On choisit la locomotive, puis on compose sa tournée : un contrat par
+   type de wagon attelé. Chaque ligne du marché dit si la locomotive
+   choisie peut le prendre, avec quelle charge, et ce qu'il rapportera. */
 function FreightSection({
   market,
   myContracts,
   trains,
   onChange,
+  company,
+  onOpenCatalog,
 }: {
   market: Contract[];
   myContracts: Contract[];
   trains: Train[];
   onChange: () => void;
+  company: Company;
+  onOpenCatalog: () => void;
 }) {
   const { showToast } = useToast();
   const [insuredSelections, setInsuredSelections] = useState<Record<string, boolean>>({});
+  const locos = trains.filter((t) => isFreightLoco(t.model));
+  const ready = locos.filter((t) => t.status === "IDLE" && t.wear < 100 && (t.cars ?? []).some((c) => c.startsWith("W_")));
+  const [locoId, setLocoId] = useState<string | null>(null);
+  const loco = locos.find((t) => t.id === locoId) ?? ready[0] ?? null;
+  const [picked, setPicked] = useState<string[]>([]);
+  const [compoId, setCompoId] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  useEffect(() => setPicked([]), [loco?.id]);
+  // un contrat parti du marché (pris ailleurs, expiré) sort de la tournée en préparation
+  useEffect(() => setPicked((p) => p.filter((id) => market.some((c) => c.id === id))), [market]);
 
-  const freeTrains = trains.filter((t) => t.status === "IDLE" && !t.line && t.wear < 100 && t.model !== "COUCHETTES"); // 1.6 : la couchettes ne fait pas de fret
   const activeContracts = myContracts.filter((c) => c.status === "EN_COURS");
   const deliveredContracts = myContracts.filter((c) => c.status === "LIVREE").slice(0, 5);
+  const locoCars = (loco?.cars ?? []).filter((c) => c.startsWith("W_"));
+  const locoIdle = !!loco && loco.status === "IDLE" && loco.wear < 100;
+  const fm = loco ? freightModel(loco.model) : null;
+  const pickedContracts = picked.map((id) => market.find((c) => c.id === id)).filter(Boolean) as Contract[];
+  const usedWagons = new Set(pickedContracts.map((c) => wagonForCargo(c.cargoType)?.id));
+  const estimate = (c: Contract) => Math.round(c.reward * (loadFor(locoCars, c.cargoType) || 1) * (fm?.bonus ?? 1));
+  // 2.1 : une gare de triage au départ ou à l'arrivée raccourcit la part du contrat (×0,85, comme le serveur)
+  const yardSet = new Set(company.yards ?? []);
+  const viaYard = (c: { originStation: string; destinationStation: string }) => yardSet.has(c.originStation) || yardSet.has(c.destinationStation);
+  const tour = loco && pickedContracts.length ? tourMinutes(loco.model, pickedContracts.map((c) => Math.round(c.durationMinutes * (viaYard(c) ? 0.85 : 1))), locoCars.length) : 0;
 
-  async function accept(contractId: string, trainId: string) {
+  function status(c: Contract): { ok: boolean; text: string } {
+    const w = wagonForCargo(c.cargoType);
+    if (!loco) return { ok: false, text: "Il faut une locomotive de fret" };
+    if (!locoIdle) return { ok: false, text: `${loco.name} est en tournée` };
+    if (!w || !locoCars.includes(w.id)) return { ok: false, text: `Il faut un ${w ? w.label.toLowerCase() : "wagon adapté"}` };
+    if (!picked.includes(c.id) && usedWagons.has(w.id)) return { ok: false, text: `Le ${w.short.toLowerCase()} est déjà chargé` };
+    return { ok: true, text: "" };
+  }
+
+  async function send() {
+    if (!loco || !pickedContracts.length || sending) return;
+    setSending(true);
     try {
-      await api.post("/contracts/accept", { contractId, trainId, insured: !!insuredSelections[contractId] });
-      showToast(
-        insuredSelections[contractId] ? "Contrat accepté et assuré, la livraison est en route" : "Contrat accepté, la livraison est en route"
-      );
+      await api.post("/contracts/accept", { trainId: loco.id, contractIds: picked, insuredIds: picked.filter((id) => insuredSelections[id]) });
+      showToast(picked.length > 1 ? `${loco.name} part en tournée avec ${picked.length} cargaisons` : `${loco.name} part livrer ${pickedContracts[0].cargoType.toLowerCase()}`);
+      setPicked([]);
       onChange();
     } catch (err: any) {
-      showToast(err?.response?.data?.error || "Erreur lors de l'acceptation du contrat", "error");
+      showToast(err?.response?.data?.error || "Erreur lors du départ de la tournée", "error");
+    } finally {
+      setSending(false);
     }
   }
 
+  // les livraisons en cours, par locomotive
+  const tours = new Map<string, Contract[]>();
+  for (const c of activeContracts) {
+    const k = c.train?.id ?? c.id;
+    tours.set(k, [...(tours.get(k) ?? []), c]);
+  }
+  const compoTrain = trains.find((t) => t.id === compoId) ?? null;
+
   return (
     <div className="space-y-8" data-tutorial="freight-market">
+      {/* le parc de fret */}
       <div>
-        {/* 2.0 : un contrat se lit comme une annonce : quoi, d'où vers où, ce que ça paie */}
-        <div className="flex items-center justify-between gap-3 mb-3">
+        <div className="flex items-baseline justify-between gap-3 mb-3">
+          <h2 className="font-display text-[20px]">Vos locomotives</h2>
+          {locos.length > 0 && (
+            <button onClick={onOpenCatalog} className="text-[13px] font-body text-cobalt hover:underline underline-offset-[3px]">
+              Commander une locomotive
+            </button>
+          )}
+        </div>
+        {locos.length === 0 ? (
+          <div className="border border-amber/40 bg-amber/[0.05] p-4 flex flex-wrap items-center gap-4">
+            <div className="w-[200px] shrink-0">
+              <TrainPicture model="LOCOTRACTEUR" cars={["W_TREMIE", "W_PLAT"]} livery={company.liveryColor} height={44} label="Un locotracteur et deux wagons" />
+            </div>
+            <div className="flex-1 min-w-[220px]">
+              <div className="font-display text-[17px]">Le fret se livre avec une locomotive de fret</div>
+              <p className="text-[13.5px] text-slate2 font-body mt-1">
+                Les rames voyageurs ne livrent plus de marchandises. Le Locotracteur coûte 300 pi. et tire deux wagons : de quoi prendre vos premiers contrats.
+              </p>
+            </div>
+            <button onClick={onOpenCatalog} className="bg-cobalt text-onaccent px-4 py-2 text-[14px] font-semibold font-body">
+              Voir les locomotives
+            </button>
+          </div>
+        ) : (
+          <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3" role="radiogroup" aria-label="Locomotive à charger">
+            {locos.map((t) => {
+              const tc = (t.cars ?? []).filter((c) => c.startsWith("W_"));
+              const busy = t.status !== "IDLE";
+              const sel = loco?.id === t.id;
+              const groups = WAGON_TYPES.map((w) => ({ w, n: tc.filter((c) => c === w.id).length })).filter((g) => g.n);
+              return (
+                <div
+                  key={t.id}
+                  role="radio"
+                  aria-checked={sel}
+                  tabIndex={0}
+                  onClick={() => setLocoId(t.id)}
+                  onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setLocoId(t.id)}
+                  className={`text-left border p-3 cursor-pointer transition-colors ${sel ? "border-cobalt bg-cobalt/[0.06]" : "border-line hover:border-slate2"}`}
+                >
+                  <div className="h-[34px] -mx-1">
+                    <TrainPicture model={t.model} cars={t.cars ?? []} livery={company.liveryColor} height={34} track={false} fit label={t.name} />
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2 mt-2">
+                    <span className="text-[14.5px] font-semibold font-body truncate">{t.name}</span>
+                    <span className={`text-[12px] font-body shrink-0 ${busy ? "text-amber" : tc.length ? "text-rail-green" : "text-slate2"}`}>
+                      {busy ? `en tournée, ${Math.round(t.progress ?? 0)} %` : tc.length ? "au dépôt" : "sans wagon"}
+                    </span>
+                  </div>
+                  <div className="text-[12.5px] text-slate2 font-body mt-0.5 min-h-[18px]">
+                    {groups.length ? groups.map((g) => `${g.w.short}${g.n > 1 ? ` ×${g.n}` : ""}`).join(", ") : `${modelLabel(t.model)}, jusqu'à ${freightModel(t.model)?.maxWagons ?? 0} wagons`}
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCompoId(t.id);
+                    }}
+                    className="mt-2 text-[12.5px] font-body text-amber hover:underline underline-offset-[3px]"
+                  >
+                    {tc.length ? "Changer les wagons" : "Atteler des wagons"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div>
+        <div className="flex items-baseline justify-between gap-3 mb-3">
           <h2 className="font-display text-[20px]">Contrats proposés</h2>
-          <span className={`text-[13px] font-body ${freeTrains.length === 0 ? "text-amber" : "text-slate2"}`}>
-            {freeTrains.length === 0 ? "Aucune rame libre pour les prendre" : `${freeTrains.length} rame${freeTrains.length > 1 ? "s" : ""} libre${freeTrains.length > 1 ? "s" : ""} pour les prendre`}
-          </span>
+          {loco && (
+            <span className="text-[13px] font-body text-slate2">
+              Pour <span className="text-offwhite">{loco.name}</span>
+              {locoIdle ? `, ${locoCars.length} wagon${locoCars.length > 1 ? "s" : ""}` : ", en tournée"}
+            </span>
+          )}
         </div>
         {market.length === 0 ? (
           <div className="flex flex-col items-center gap-2 text-slate2 py-8 border-y border-line">
@@ -3531,89 +3699,150 @@ function FreightSection({
           </div>
         ) : (
           <ul className="border-t border-line">
-            {market.map((c) => (
-              <li key={c.id} className="py-3.5 border-b border-line grid gap-x-6 gap-y-2 sm:grid-cols-[minmax(0,1fr)_110px_100px_auto] items-center">
-                <div className="min-w-0">
-                  <div className="text-[15.5px] font-semibold font-body flex items-center gap-1.5">
-                    {c.risky && <FragileMark size={13} className="text-rail-red shrink-0" />}
-                    {c.cargoType}
-                  </div>
-                  <div className="text-[12.5px] text-slate2 font-body mt-0.5">
-                    {c.originStation} → {c.destinationStation}, {c.durationMinutes} min
-                    {c.risky && <span className="text-[#fca5a5]">, fragile</span>}
-                  </div>
-                  {c.forOrder && <OrderTag o={c.forOrder} />}
-                </div>
-                <div className={`font-mono2 text-[17px] tabular-nums ${c.risky ? "text-rail-red" : "text-amber"}`}>+{c.reward} pi.</div>
-                <div className="text-[12.5px] text-slate2 font-body">
-                  expire dans <span className="font-mono2 text-offwhite"><ExpiryCountdown expiresAt={c.expiresAt} /></span>
-                </div>
-                <div className="sm:justify-self-end">
-                  {freeTrains.length === 0 ? (
-                    <span className="text-[12.5px] font-body text-slate2">Pas de rame libre</span>
-                  ) : (
-                    <div className="flex flex-col gap-1.5 items-start sm:items-end">
-                      {c.risky && (
-                        <label className="flex items-center gap-1.5 text-[12px] font-body text-slate2 cursor-pointer select-none">
-                          <input
-                            type="checkbox"
-                            checked={!!insuredSelections[c.id]}
-                            onChange={(e) => setInsuredSelections((prev) => ({ ...prev, [c.id]: e.target.checked }))}
-                            className="accent-cobalt"
-                          />
-                          Assurer (+{Math.round(c.reward * 0.15)} pi.)
-                        </label>
-                      )}
-                      <AssignDropdown
-                        placeholder="Accepter"
-                        triggerClassName="text-cobalt border-cobalt/40 hover:bg-cobalt/10"
-                        options={freeTrains.map((t) => ({ id: t.id, label: t.name }))}
-                        onSelect={(trainId) => accept(c.id, trainId)}
-                      />
+            {market.map((c) => {
+              const w = wagonForCargo(c.cargoType);
+              const st = status(c);
+              const on = picked.includes(c.id);
+              const load = loadFor(locoCars, c.cargoType);
+              return (
+                <li key={c.id} className={`py-3.5 border-b border-line grid gap-x-6 gap-y-2 sm:grid-cols-[minmax(0,1fr)_150px_100px_180px] items-center ${on ? "bg-cobalt/[0.05]" : ""}`}>
+                  <div className="min-w-0">
+                    <div className="text-[15.5px] font-semibold font-body flex items-center gap-1.5">
+                      {c.risky && <FragileMark size={13} className="text-rail-red shrink-0" />}
+                      {c.cargoType}
                     </div>
-                  )}
-                </div>
-              </li>
-            ))}
+                    <div className="text-[12.5px] text-slate2 font-body mt-0.5">
+                      {c.originStation} → {c.destinationStation}, {c.durationMinutes} min
+                      {c.risky && <span className="text-[#fca5a5]">, fragile</span>}
+                      {viaYard(c) && <span className="text-rail-green">, par votre gare de triage (+12 %, plus court)</span>}
+                    </div>
+                    {w && (
+                      <span className={`inline-block mt-1 text-[11.5px] font-body px-1.5 py-0.5 border ${locoCars.includes(w.id) ? "border-amber/50 text-amber" : "border-line text-slate2"}`}>
+                        {w.label}
+                      </span>
+                    )}
+                    {c.forOrder && <OrderTag o={c.forOrder} />}
+                  </div>
+                  <div>
+                    <div className={`font-mono2 text-[17px] tabular-nums ${c.risky ? "text-rail-red" : "text-amber"}`}>+{st.ok ? estimate(c) : c.reward} pi.</div>
+                    {st.ok && (load > 1 || (fm?.bonus ?? 1) > 1) && (
+                      <div className="text-[11.5px] text-slate2 font-body">
+                        {c.reward} pi.{load > 1 ? `, charge ${fmtLoad(load)}` : ""}
+                        {(fm?.bonus ?? 1) > 1 ? `, +${Math.round(((fm?.bonus ?? 1) - 1) * 100)} %` : ""}
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-[12.5px] text-slate2 font-body">
+                    expire dans <span className="font-mono2 text-offwhite"><ExpiryCountdown expiresAt={c.expiresAt} /></span>
+                  </div>
+                  <div className="sm:justify-self-end flex flex-col gap-1.5 items-start sm:items-end">
+                    {st.ok ? (
+                      <>
+                        {c.risky && (
+                          <label className="flex items-center gap-1.5 text-[12px] font-body text-slate2 cursor-pointer select-none">
+                            <input
+                              type="checkbox"
+                              checked={!!insuredSelections[c.id]}
+                              onChange={(e) => setInsuredSelections((prev) => ({ ...prev, [c.id]: e.target.checked }))}
+                              className="accent-cobalt"
+                            />
+                            Assurer (+{Math.round(c.reward * 0.15)} pi.)
+                          </label>
+                        )}
+                        <button
+                          onClick={() => setPicked((p) => (on ? p.filter((x) => x !== c.id) : [...p, c.id]))}
+                          aria-pressed={on}
+                          className={`text-[13px] font-body px-3 py-1.5 border ${on ? "bg-cobalt text-onaccent border-cobalt" : "text-cobalt border-cobalt/40 hover:bg-cobalt/10"}`}
+                        >
+                          {on ? "Dans la tournée" : "Charger"}
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-[12.5px] font-body text-slate2 text-right max-w-[180px]">{st.text}</span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
-
-      <p className="text-[11px] text-slate2 font-body mt-2 flex items-center gap-1.5">
-        <FragileMark size={11} className="text-rail-red" /> Marchandise fragile : récompense plus élevée mais risque de dommage à la livraison (usure accrue, gain réduit).
-      </p>
+        <p className="text-[11px] text-slate2 font-body mt-2 flex items-center gap-1.5">
+          <FragileMark size={11} className="text-rail-red" /> Marchandise fragile : récompense plus élevée mais risque de dommage à la livraison (usure accrue, gain réduit).
+        </p>
       </div>
+
+      {/* la tournée en préparation */}
+      {loco && pickedContracts.length > 0 && (
+        <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom,0px))] md:bottom-4 z-20 border border-cobalt bg-navy-900/95 backdrop-blur p-4 flex flex-wrap items-center gap-4 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)]">
+          <div className="w-[180px] shrink-0 hidden sm:block">
+            <TrainPicture model={loco.model} cars={loco.cars ?? []} livery={company.liveryColor} height={36} track={false} label={loco.name} />
+          </div>
+          <div className="flex-1 min-w-[200px]">
+            <div className="font-display text-[17px]">
+              {pickedContracts.length > 1 ? `Tournée de ${loco.name}` : `${loco.name} part livrer`}
+            </div>
+            <div className="text-[13px] text-slate2 font-body">
+              {pickedContracts.map((c) => c.cargoType).join(", ")}, environ {tour} min
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="font-mono2 text-amber text-[19px] tabular-nums">≈ +{pickedContracts.reduce((n, c) => n + estimate(c), 0).toLocaleString("fr-FR")} pi.</div>
+            <div className="text-[11.5px] text-slate2 font-body">avant cours du jour et fidélité</div>
+          </div>
+          <div className="flex gap-2">
+            <button onClick={() => setPicked([])} className="text-[13px] font-body text-slate2 hover:text-offwhite px-2">
+              Vider
+            </button>
+            <button onClick={send} disabled={sending} className="bg-cobalt text-onaccent px-4 py-2 text-[14px] font-semibold font-body disabled:opacity-50">
+              {sending ? "Départ…" : "Faire partir"}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div>
         <h2 className="font-display text-[20px] mb-3">Livraisons en cours</h2>
-        {activeContracts.length === 0 ? (
+        {tours.size === 0 ? (
           <p className="py-6 text-center text-slate2 font-body text-sm border border-line">Aucune livraison en cours.</p>
         ) : (
           <div className="space-y-2">
-            {activeContracts.map((c) => (
-              <div key={c.id} className="border border-line p-3.5">
-                <div className="flex items-start justify-between gap-3 mb-2.5 flex-wrap">
-                  <span className="font-body text-sm">
-                    {c.cargoType}
-                    <span className="block md:inline md:ml-1.5 font-mono2 text-slate2 text-xs">{c.originStation} → {c.destinationStation}</span>
-                    {c.insured && (
-                      <span className="ml-1.5 text-[10px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-1.5 py-0.5">Assuré</span>
+            {[...tours.values()].map((list) => {
+              const c0 = list[0];
+              const t = trains.find((x) => x.id === c0.train?.id);
+              const progress = c0.train?.progress ?? 0;
+              return (
+                <div key={c0.id} className="border border-line p-3.5">
+                  <div className="flex items-start justify-between gap-3 mb-2.5 flex-wrap">
+                    <div className="min-w-0">
+                      <div className="text-[14px] font-semibold font-body">
+                        {c0.train?.name}
+                        {list.length > 1 && <span className="ml-2 text-[12px] font-normal text-cobalt">tournée de {list.length} cargaisons</span>}
+                      </div>
+                      <ul className="mt-1 space-y-0.5">
+                        {list.map((c) => (
+                          <li key={c.id} className="text-[13px] font-body text-slate2">
+                            <span className="text-offwhite">{c.cargoType}</span> <span className="font-mono2 text-xs">{c.originStation} → {c.destinationStation}</span>
+                            {c.insured && <span className="ml-1.5 text-[11px] text-cobalt border border-cobalt/40 px-1.5 py-0.5">assuré</span>}
+                            {c.forOrder && <OrderTag o={c.forOrder} />}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    {t && (
+                      <div className="w-[150px] h-[28px] shrink-0">
+                        <TrainPicture model={t.model} cars={t.cars ?? []} livery={company.liveryColor} height={28} track={false} label={t.name} />
+                      </div>
                     )}
-                    {c.forOrder && (
-                      <span className="block">
-                        <OrderTag o={c.forOrder} />
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-xs text-slate2 font-body shrink-0">{c.train?.name}</span>
-                </div>
-                <div className="relative h-3 flex items-center">
-                  <div className="w-full h-1 bg-navy-900 border border-line">
-                    <div className="h-full bg-rail-green transition-all duration-700 ease-out" style={{ width: `${c.train?.progress ?? 0}%` }} />
                   </div>
-                  <CargoMark size={11} className="absolute -translate-x-1/2 text-rail-green transition-all duration-700 ease-out" style={{ left: `${c.train?.progress ?? 0}%` }} />
+                  <div className="relative h-3 flex items-center">
+                    <div className="w-full h-1 bg-navy-900 border border-line">
+                      <div className="h-full bg-rail-green transition-all duration-700 ease-out" style={{ width: `${progress}%` }} />
+                    </div>
+                    <CargoMark size={11} className="absolute -translate-x-1/2 text-rail-green transition-all duration-700 ease-out" style={{ left: `${progress}%` }} />
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -3631,6 +3860,8 @@ function FreightSection({
           </div>
         </div>
       )}
+
+      {compoTrain && <FreightComposition train={compoTrain} balance={company.balance} livery={company.liveryColor} onClose={() => setCompoId(null)} onChange={onChange} />}
     </div>
   );
 }
@@ -4486,7 +4717,7 @@ const CATALOG = [
   {
     id: "STANDARD",
     name: "Rame Standard",
-    spec: "Matériel polyvalent, service voyageurs ou fret",
+    spec: "Matériel polyvalent pour vos lignes voyageurs",
     speedLevel: 2,
     capacityLevel: 2,
     price: 200,
@@ -4500,15 +4731,6 @@ const CATALOG = [
     capacityLevel: 1,
     price: 450,
     minGradeId: 1,
-  },
-  {
-    id: "FRET_LOURD",
-    name: "Rame Fret Lourd",
-    spec: "+25% de récompense sur chaque livraison de fret",
-    speedLevel: 1,
-    capacityLevel: 3,
-    price: 450,
-    minGradeId: 2,
   },
   {
     id: "COUCHETTES",
@@ -4586,7 +4808,11 @@ function TrainCatalogModal({
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-line">
+        <div className="px-6 pt-5 pb-1">
+          <h3 className="font-display text-xl">Voyageurs</h3>
+          <p className="text-sm text-slate2 font-body mt-0.5">Pour vos lignes. Les voitures s'ajoutent ensuite, rame par rame.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-line">
           {CATALOG.map((model) => {
             const locked = (model.minGradeId ?? 0) > gradeId;
             return (
@@ -4637,6 +4863,56 @@ function TrainCatalogModal({
               </div>
             );
           })}
+        </div>
+
+        {/* 2.1 : le fret a son matériel */}
+        <div className="border-t border-line">
+          <div className="px-6 pt-5 pb-1">
+            <h3 className="font-display text-xl">Fret</h3>
+            <p className="text-sm text-slate2 font-body mt-0.5 max-w-[70ch]">
+              Une locomotive et ses wagons. Plusieurs wagons du même type portent plus et le contrat paie plus ; des wagons de types différents prennent plusieurs contrats en une tournée.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-line">
+            {FREIGHT_CATALOG.map((m) => {
+              const locked = m.minGradeId > gradeId;
+              return (
+                <div key={m.id} className={`relative p-5 flex flex-col ${locked ? "opacity-45" : ""}`}>
+                  {locked && (
+                    <span className="absolute top-4 right-4 text-[10px] font-mono2 uppercase text-slate2 border border-line px-1.5 py-0.5">{GRADE_NAMES[m.minGradeId]}</span>
+                  )}
+                  <div className={`-mx-2 mb-3 ${locked ? "opacity-60 grayscale" : ""}`}>
+                    <TrainPicture model={m.id} livery={liveryForCatalog} cars={m.sample} height={50} label={m.name} />
+                  </div>
+                  <div className="font-display text-lg leading-snug mb-1 pr-16">{m.name}</div>
+                  <p className="text-xs text-slate2 font-body mb-4 flex-1">{m.spec}</p>
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate2 font-mono2 uppercase tracking-wide">Vitesse</span>
+                      <StatBars level={m.speedLevel} active={!locked} />
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-slate2 font-mono2 uppercase tracking-wide">Wagons</span>
+                      <StatBars level={m.maxWagons} max={5} active={!locked} />
+                    </div>
+                  </div>
+                  {!locked ? (
+                    <>
+                      <div className="inline-flex self-start items-center gap-1 bg-amber/15 border border-amber/40 text-amber text-xs font-mono2 px-2 py-1 mb-3">{m.price} pi.</div>
+                      <button onClick={() => onBuy(m.id)} disabled={buying} className="w-full bg-cobalt text-onaccent text-xs font-semibold uppercase tracking-wide py-2.5 hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-60">
+                        {buying ? "Achat…" : "Commander"}
+                      </button>
+                    </>
+                  ) : (
+                    <button disabled className="w-full border border-line text-slate2 text-xs font-mono2 uppercase py-2.5 cursor-not-allowed">Grade insuffisant</button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="px-6 pb-4 pt-1 text-[12.5px] text-slate2 font-body">
+            Les wagons s'achètent ensuite, depuis la fiche de la locomotive : {WAGON_TYPES.map((w) => w.short.toLowerCase()).join(", ")}.
+          </p>
         </div>
 
         {dlcs.some((d) => d.models.length > 0) && (
@@ -5049,8 +5325,8 @@ function FirstLineIdeas({ network, onPick }: { network: NetworkData | null; onPi
 
 /* 1.7 : durée réelle d'un trajet, comme la simulation la calcule : Express
    plus rapide, chaque voiture ajoutée ralentit, l'électrification fait gagner 10 %. */
-function tripDurationMs(t: { model: string; cars?: string[]; line?: { durationMinutes?: number; electrified?: boolean } | null }) {
-  return (t.line?.durationMinutes ?? 0) * 60_000 * modelSpeed(t.model) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1);
+function tripDurationMs(t: { model: string; cars?: string[]; line?: { durationMinutes?: number; electrified?: boolean; doubleTrack?: boolean } | null }) {
+  return (t.line?.durationMinutes ?? 0) * 60_000 * modelSpeed(t.model) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1) * (t.line?.doubleTrack ? 0.93 : 1);
 }
 
 /* Recette horaire théorique d'une rame sur la ligne, réputation parfaite.

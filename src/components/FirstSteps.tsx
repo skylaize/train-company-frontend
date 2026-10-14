@@ -30,7 +30,7 @@ const STEPS: StepDef[] = [
   { id: "ligne", title: "Tracer une première ligne", why: "Deux gares, et la durée du trajet se calcule toute seule. Une grande ville attire plus de voyageurs.", action: "Tracer", go: "lignes" },
   { id: "rame", title: "Acheter une rame", why: "La Standard, à 200 pi., suffit largement pour démarrer.", action: "Catalogue", go: "catalogue" },
   { id: "service", title: "La mettre en service", why: "Affectée à une ligne, elle fait l'aller-retour et rapporte, même jeu fermé.", action: "Affecter", go: "trains" },
-  { id: "fret", title: "Livrer un contrat de fret", why: "Une rame sans ligne peut livrer des marchandises. Ça paie bien, mais les offres expirent vite.", action: "Voir le fret", go: "fret" },
+  { id: "fret", title: "Livrer un contrat de fret", why: "Le fret se livre avec une locomotive de fret et ses wagons : le Locotracteur, à 300 pi., suffit pour commencer. Ça paie bien, mais les offres expirent vite.", action: "Voir le fret", go: "fret" },
   { id: "correspondance", title: "Ouvrir une correspondance", why: "Deux lignes qui partent de la même gare : chaque trajet qui y passe rapporte plus.", action: "Tracer", go: "lignes" },
 ];
 

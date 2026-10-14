@@ -38,6 +38,11 @@ export const EMBLEM_LABELS: Record<string, string> = {
   "etoile-polaire": "Étoile polaire",
   papillon: "Papillon",
   vague: "Vague",
+  // 2.1 : le musée et les éditions de boutique
+  musee: "Fronton du musée",
+  chataigne: "Châtaigne de la Toussaint",
+  artifice: "Feu d'artifice",
+  coeur: "Cœur",
 };
 
 export function Emblem({ id, size = 14, className = "" }: { id: string; size?: number; className?: string }) {
@@ -262,6 +267,34 @@ export function Emblem({ id, size = 14, className = "" }: { id: string; size?: n
           <path d="M1 14l5-8 2.5 3.5L11 5l4 9z" />
           <path d="M9.6 7.2l1.4-2.2 1.4 2.2" />
           <path d="M3 14l11-6" strokeDasharray="1.4 1.4" />
+        </svg>
+      );
+    case "musee":
+      return (
+        <svg {...common}>
+          <path d="M1.8 6 8 2l6.2 4H1.8Z" />
+          <path d="M3.2 6.6v5.6M6.4 6.6v5.6M9.6 6.6v5.6M12.8 6.6v5.6" />
+          <path d="M1.6 12.6h12.8M1 14.4h14" />
+        </svg>
+      );
+    case "chataigne":
+      return (
+        <svg {...common}>
+          <path d="M8 3.2c3.6 0 5.6 3 5.6 6.2 0 2.6-2.4 4.4-5.6 4.4s-5.6-1.8-5.6-4.4C2.4 6.2 4.4 3.2 8 3.2Z" />
+          <path d="M8 1.4v1.8M4.4 11.2c1.2.9 2.3 1.2 3.6 1.2s2.4-.3 3.6-1.2" />
+        </svg>
+      );
+    case "artifice":
+      return (
+        <svg {...common}>
+          <path d="M8 8V15" />
+          <path d="M8 7 8 1.6M8 7l3.8-3.8M8 7l5.2 0M8 7 4.2 3.2M8 7H2.8M8 7l3.4 3.4M8 7l-3.4 3.4" />
+        </svg>
+      );
+    case "coeur":
+      return (
+        <svg {...common}>
+          <path d="M8 13.8S2 10.2 2 6.2A3 3 0 0 1 8 4.8a3 3 0 0 1 6 1.4c0 4-6 7.6-6 7.6Z" />
         </svg>
       );
     default:

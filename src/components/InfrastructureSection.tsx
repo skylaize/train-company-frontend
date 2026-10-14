@@ -13,6 +13,7 @@ import { Emblem } from "./Emblem";
 
 interface Rules {
   maxStations: number;
+  nextStationCap?: { rank: string; max: number } | null; // 2.1
   stationPrices: Record<string, number>;
   maxLevel: number;
   platformFee: number;
@@ -29,6 +30,15 @@ interface Rules {
   workshopWear: number;
   electricSpeed: number;
   electricWear: number;
+  // 2.1
+  doubleSpeed?: number;
+  doubleDelay?: number;
+  cadenceStep?: number;
+  cadenceCap?: number;
+  yardCost?: number;
+  maxYards?: number;
+  yardPay?: number;
+  yardTime?: number;
 }
 
 interface OwnedStation {
@@ -63,7 +73,8 @@ interface InfraData {
   stations: OwnedStation[];
   market: MarketStation[];
   workshops: { id: string; station: string; createdAt: string; lines: number }[];
-  lines: { id: string; route: string[]; km: number; electrified: boolean; cost: number }[];
+  lines: { id: string; route: string[]; km: number; electrified: boolean; cost: number; doubleTrack?: boolean; doubleCost?: number; trains?: number }[];
+  yards?: { id: string; station: string; createdAt: string; served: boolean }[];
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
@@ -97,6 +108,7 @@ export function InfrastructureSection({
   const [busy, setBusy] = useState<string | null>(null);
   const [other, setOther] = useState("");
   const [shopStation, setShopStation] = useState("");
+  const [yardStation, setYardStation] = useState("");
   const { showToast, showComposter } = useToast();
 
   const load = () =>
@@ -150,6 +162,12 @@ export function InfrastructureSection({
           {pct(rules.platformFee)} de la recette des autres compagnies. Vos propres trajets qui la desservent rapportent +{pct(rules.homeBonusStep)} (jusqu'à +
           {pct(rules.homeBonusCap)}). Un concurrent peut vous la racheter {String(rules.buyoutCost).replace(".", ",")} fois son prix après{" "}
           {rules.protectionHours} h : vous touchez alors {String(rules.buyoutPayout).replace(".", ",")} fois ce qu'elle vous a coûté.
+          {rules.nextStationCap && (
+            <>
+              {" "}
+              Vous pouvez posséder {rules.maxStations} gares ; au grade {rules.nextStationCap.rank}, ce sera {rules.nextStationCap.max}.
+            </>
+          )}
         </p>
 
         {data.stations.length > 0 && (
@@ -362,6 +380,127 @@ export function InfrastructureSection({
           ))}
         </div>
       </section>
+
+      {/* ---------------- 2.1 : double voie ---------------- */}
+      {rules.doubleSpeed !== undefined && (
+        <section>
+          <SectionTitle n="04" title="Double voie" aside={`${data.lines.filter((l) => l.doubleTrack).length}/${data.lines.length} lignes`} />
+          <p className="text-[13px] text-slate2 font-body max-w-3xl mb-4">
+            Sur une voie unique, les trains se croisent en gare et s'attendent. Avec une deuxième voie, plus d'attente : trajets {pct(1 - rules.doubleSpeed)} plus rapides et{" "}
+            {pct(1 - (rules.doubleDelay ?? 1))} de retards en moins. Et le cadencement attire du monde : chaque rame de plus sur la ligne ramène {pct(rules.cadenceStep ?? 0)} de
+            voyageurs en plus, jusqu'à {pct(rules.cadenceCap ?? 0)}. En vue cabine, vous voyez passer vos rames qui roulent en sens inverse.
+          </p>
+          <div className="border border-line divide-y divide-line">
+            {data.lines.length === 0 && <p className="px-4 py-4 text-[13px] text-slate2 font-body">Aucune ligne pour l'instant.</p>}
+            {data.lines.map((l) => {
+              const n = l.trains ?? 0;
+              const cadence = Math.min(rules.cadenceCap ?? 0, (rules.cadenceStep ?? 0) * Math.max(0, n - 1));
+              return (
+                <div key={l.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
+                  <div className="flex items-center gap-1.5 flex-1 min-w-[220px]">
+                    {l.route.map((st, i) => (
+                      <span key={st + i} className="flex items-center gap-1.5">
+                        <span className={`text-[13px] font-body ${i === 0 || i === l.route.length - 1 ? "text-offwhite" : "text-slate2"}`}>{st}</span>
+                        {i < l.route.length - 1 && (
+                          // deux traits pleins : double voie ; un plein et un pointillé : voie unique
+                          <span className="w-7 flex flex-col gap-[3px]" aria-hidden="true">
+                            <span className="border-t-2 border-offwhite/80" />
+                            <span className={`border-t-2 ${l.doubleTrack ? "border-offwhite/80" : "border-dashed border-line"}`} />
+                          </span>
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                  <span className="font-body text-[12.5px] text-slate2 w-44 text-right">
+                    {n} rame{n > 1 ? "s" : ""}
+                    {cadence > 0 && <span className={l.doubleTrack ? "text-rail-green" : ""}> · cadencement +{pct(cadence)}</span>}
+                  </span>
+                  {l.doubleTrack ? (
+                    <span className="font-mono2 text-[11px] uppercase text-offwhite w-40 text-right">‖ double voie</span>
+                  ) : (
+                    <button
+                      onClick={() => act("dv" + l.id, "/infrastructure/double", { lineId: l.id }, `${l.route[0]} – ${l.route[l.route.length - 1]} à double voie`)}
+                      disabled={!!busy || balance < (l.doubleCost ?? Infinity)}
+                      className="w-40 text-[11px] font-mono2 uppercase text-offwhite border border-offwhite/40 px-2 py-1 hover:bg-offwhite/10 disabled:opacity-40"
+                    >
+                      Doubler · {fmt(l.doubleCost ?? 0)}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* ---------------- 2.1 : gares de triage ---------------- */}
+      {data.yards && rules.yardCost !== undefined && (
+        <section>
+          <SectionTitle n="05" title="Gares de triage" aside={`${data.yards.length}/${rules.maxYards} gares`} />
+          <p className="text-[13px] text-slate2 font-body max-w-3xl mb-4">
+            Le fret qui part d'une de vos gares de triage ou y arrive est trié sur place : sa part de la tournée est {pct(1 - (rules.yardTime ?? 1))} plus courte et la livraison
+            rapporte {pct((rules.yardPay ?? 1) - 1)} de plus. {fmt(rules.yardCost)} pi. la gare de triage.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            {data.yards.map((y) => (
+              <div key={y.id} className="border border-line px-4 py-3 min-w-[220px]">
+                <YardGlyph />
+                <div className="font-display text-lg leading-tight mt-1">{y.station}</div>
+                <button
+                  onClick={() => act("yc" + y.id, "/infrastructure/yards/close", { yardId: y.id }, `Gare de triage de ${y.station} fermée`)}
+                  disabled={!!busy}
+                  className="mt-2 text-[10.5px] font-mono2 uppercase text-slate2 hover:text-rail-red"
+                >
+                  Fermer · +{fmt((rules.yardCost ?? 0) * rules.sellBack)}
+                </button>
+              </div>
+            ))}
+            {data.yards.length < (rules.maxYards ?? 0) && (
+              <div className="border border-dashed border-line px-4 py-3 min-w-[260px] flex flex-col gap-2">
+                <div className="font-mono2 text-[10px] uppercase tracking-[0.16em] text-slate2">Ouvrir une gare de triage</div>
+                <select value={yardStation} onChange={(e) => setYardStation(e.target.value)} className="bg-navy-950 border border-line text-sm px-2 py-1 font-body">
+                  <option value="">choisir une gare…</option>
+                  <optgroup label="Votre réseau">
+                    {myStations.filter((s) => !data.yards!.some((y) => y.station === s)).map((s) => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Autres gares">
+                    {Object.keys(stationSizes)
+                      .filter((s) => !myStations.includes(s) && !data.yards!.some((y) => y.station === s))
+                      .sort((a, b) => a.localeCompare(b, "fr"))
+                      .map((s) => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                  </optgroup>
+                </select>
+                <button
+                  onClick={() => act("yard", "/infrastructure/yards", { station: yardStation }, `Gare de triage ouverte à ${yardStation}`).then(() => setYardStation(""))}
+                  disabled={!yardStation || !!busy || balance < (rules.yardCost ?? 0)}
+                  className="text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 disabled:opacity-40"
+                >
+                  Construire · {fmt(rules.yardCost ?? 0)} pi.
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
     </div>
+  );
+}
+
+/* le faisceau de voies d'une gare de triage, en petit */
+function YardGlyph() {
+  return (
+    <svg width="120" height="30" viewBox="0 0 120 30" aria-hidden="true" className="block">
+      <path d="M2 26h30" stroke="rgb(var(--c-slate2))" strokeWidth="1.6" />
+      {[4, 11, 18, 25].map((y, i) => (
+        <path key={y} d={`M32 26 C44 26 46 ${y} 58 ${y} H118`} stroke="rgb(var(--c-slate2))" strokeWidth="1.6" fill="none" opacity={0.6 + i * 0.1} />
+      ))}
+      {[[64, 4, "#8a5a32"], [84, 11, "#2a6f8f"], [70, 18, "#b98a2c"], [94, 25, "#6b7280"]].map(([x, y, c], i) => (
+        <rect key={i} x={x as number} y={(y as number) - 3.2} width="18" height="5" fill={c as string} />
+      ))}
+    </svg>
   );
 }

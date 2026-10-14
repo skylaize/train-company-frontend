@@ -52,6 +52,7 @@ export interface ConsistOptions {
   maxWidth?: number; // largeur disponible : la rame est réduite pour y tenir
   smoke?: { x: number; y: number; r: number; a: number }[]; // bouffées de vapeur, gardées par l'appelant
   tailShift?: number; // décalage de la dernière voiture ajoutée, pendant qu'elle vient s'atteler
+  plate?: { style: string; text: string } | null; // 2.1 : plaque nominative sur la motrice (laiton, émail, bois)
 }
 
 export interface ConsistBox {
@@ -857,6 +858,660 @@ function duplexHead(c: Ctx, x: number, w: number) {
   return { x: x + w * 0.55, y: bottom - 20 * u, r: 9 * u, lamp: { x: x + w + 3 * u, y: bottom - 8 * u } };
 }
 
+/* ============================================================
+   2.1 : le fret. Quatre locomotives et sept wagons, dessinés à la main
+   comme le reste du matériel. Chaque wagon montre sa marchandise : on
+   reconnaît une rame de céréales d'une rame d'automobiles au premier coup
+   d'œil, sur la carte comme en vue cabine.
+   ============================================================ */
+
+/* châssis, tampons et bogies communs aux wagons */
+function wagonFrame(c: Ctx, x: number, w: number, deckH = 6) {
+  const { ctx, u, base } = c;
+  const bottom = base - LIFT * u;
+  // longeron
+  ctx.fillStyle = "#232a33";
+  ctx.fillRect(x + 2 * u, bottom - deckH * u, w - 4 * u, deckH * u);
+  ctx.fillStyle = "#323a46";
+  ctx.fillRect(x + 2 * u, bottom - deckH * u, w - 4 * u, 1.4 * u);
+  // tampons aux deux bouts
+  ctx.fillStyle = "#1a2028";
+  ctx.fillRect(x - 2 * u, bottom - 5 * u, 4 * u, 3 * u);
+  ctx.fillRect(x + w - 2 * u, bottom - 5 * u, 4 * u, 3 * u);
+  ctx.fillStyle = "#6b7480";
+  ctx.fillRect(x - 3 * u, bottom - 5.5 * u, 1.4 * u, 4 * u);
+  ctx.fillRect(x + w + 1.6 * u, bottom - 5.5 * u, 1.4 * u, 4 * u);
+  bogie(ctx, x + w * 0.17, base, u, c.spin);
+  bogie(ctx, x + w * 0.83, base, u, c.spin + 0.7);
+  return bottom - deckH * u; // haut du plancher
+}
+
+/* petite plaque d'identification, un détail qui fait « vrai » */
+function plate(ctx, x: number, y: number, u: number, text: string, bg = "#f2efe6", fg = "#1c1b17") {
+  ctx.font = `600 ${5.2 * u}px "Space Mono", monospace`;
+  const tw = ctx.measureText(text).width + 4 * u;
+  ctx.fillStyle = bg;
+  rr(ctx, x - tw / 2, y - 4 * u, tw, 7 * u, 1 * u);
+  ctx.fill();
+  ctx.fillStyle = fg;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, x, y - 0.4 * u);
+  ctx.textAlign = "start";
+  ctx.textBaseline = "alphabetic";
+}
+
+/* wagon-trémie à céréales : flancs nervurés, trémies en V sous la caisse, trappes sur le toit */
+function hopperWagon(c: Ctx, x: number, w: number) {
+  const { ctx, u } = c;
+  const deck = wagonFrame(c, x, w, 4);
+  const paint = c.night ? "#6f6a60" : "#a39a88";
+  const top = deck - 40 * u;
+  const sideBottom = deck - 12 * u;
+  // trémies
+  ctx.fillStyle = dark(paint, 0.28);
+  for (const [a, b] of [[0.24, 0.46], [0.54, 0.76]]) {
+    ctx.beginPath();
+    ctx.moveTo(x + w * a - 6 * u, sideBottom);
+    ctx.lineTo(x + w * b + 6 * u, sideBottom);
+    ctx.lineTo(x + w * (b - 0.05), deck + 2 * u);
+    ctx.lineTo(x + w * (a + 0.05), deck + 2 * u);
+    ctx.closePath();
+    ctx.fill();
+  }
+  // caisse, toit légèrement bombé
+  ctx.beginPath();
+  ctx.moveTo(x + 3 * u, sideBottom);
+  ctx.lineTo(x + 3 * u, top + 4 * u);
+  ctx.quadraticCurveTo(x + w / 2, top - 4 * u, x + w - 3 * u, top + 4 * u);
+  ctx.lineTo(x + w - 3 * u, sideBottom);
+  ctx.closePath();
+  ctx.fillStyle = bodyGradient(ctx, top, sideBottom, paint);
+  ctx.fill();
+  // nervures verticales
+  ctx.strokeStyle = dark(paint, 0.22);
+  ctx.lineWidth = 1.1 * u;
+  for (let gx = x + 9 * u; gx < x + w - 6 * u; gx += 9 * u) {
+    ctx.beginPath();
+    ctx.moveTo(gx, top + 4 * u);
+    ctx.lineTo(gx, sideBottom - 1 * u);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = light(paint, 0.3);
+  ctx.lineWidth = 0.6 * u;
+  for (let gx = x + 10 * u; gx < x + w - 6 * u; gx += 9 * u) {
+    ctx.beginPath();
+    ctx.moveTo(gx, top + 5 * u);
+    ctx.lineTo(gx, sideBottom - 1 * u);
+    ctx.stroke();
+  }
+  // trappes de chargement sur le toit
+  ctx.fillStyle = dark(paint, 0.35);
+  for (let k = 0; k < 4; k++) rr(ctx, x + w * (0.14 + k * 0.21), top - 1.5 * u, w * 0.1, 3 * u, 1 * u), ctx.fill();
+  // un peu de grain qui dépasse d'une trappe
+  ctx.fillStyle = "#e3c06a";
+  ctx.beginPath();
+  ctx.ellipse(x + w * 0.4, top - 1.5 * u, w * 0.04, 1.6 * u, 0, Math.PI, 0);
+  ctx.fill();
+  plate(ctx, x + w * 0.5, sideBottom - 7 * u, u, "CÉRÉALES");
+}
+
+/* wagon plat : bobines d'acier sur berceaux, ou grumes sanglées entre les ranchers */
+function plateWagon(c: Ctx, x: number, w: number, seed: number) {
+  const { ctx, u } = c;
+  const deck = wagonFrame(c, x, w, 6);
+  if (seed % 2 === 0) {
+    // bobines d'acier, vues de profil : leur œil fait face
+    const n = 3;
+    const r = Math.min(13 * u, (w - 20 * u) / (n * 2.3));
+    for (let k = 0; k < n; k++) {
+      const cx = x + w * (0.2 + k * 0.3), cy = deck - r - 2 * u;
+      ctx.fillStyle = "#2b323c";
+      ctx.fillRect(cx - r * 0.9, deck - 3 * u, r * 1.8, 3 * u); // berceau
+      const g = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
+      g.addColorStop(0, c.night ? "#b9c0c8" : "#e7ecf1");
+      g.addColorStop(0.55, c.night ? "#7f8892" : "#a9b3bd");
+      g.addColorStop(1, c.night ? "#4c545e" : "#6c7682");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      // spires
+      ctx.strokeStyle = "rgba(40,48,58,0.35)";
+      ctx.lineWidth = 0.6 * u;
+      for (let rr2 = r * 0.5; rr2 < r; rr2 += 2.2 * u) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, rr2, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#1b222c";
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * 0.38, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    // grumes empilées, tranches claires, sangles orange
+    const top = deck - 30 * u;
+    ctx.fillStyle = "#3b4049";
+    for (const f of [0.04, 0.33, 0.66, 0.95]) ctx.fillRect(x + w * f - 1.2 * u, top - 4 * u, 2.4 * u, 34 * u); // ranchers
+    const rows = 3, logR = 5 * u;
+    for (let row = 0; row < rows; row++) {
+      const y = deck - logR - row * logR * 1.75;
+      const g = ctx.createLinearGradient(0, y - logR, 0, y + logR);
+      g.addColorStop(0, "#9b6a3f");
+      g.addColorStop(0.5, "#7a4f2c");
+      g.addColorStop(1, "#5a3a20");
+      ctx.fillStyle = g;
+      rr(ctx, x + 5 * u + (row % 2) * 3 * u, y - logR, w - 12 * u - (row % 2) * 4 * u, logR * 2, logR);
+      ctx.fill();
+      // tranches visibles au bout
+      ctx.fillStyle = "#d9b48a";
+      ctx.beginPath();
+      ctx.ellipse(x + w - 7 * u - (row % 2) * 1 * u, y, logR * 0.45, logR * 0.92, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#a07850";
+      ctx.lineWidth = 0.5 * u;
+      ctx.beginPath();
+      ctx.ellipse(x + w - 7 * u - (row % 2) * 1 * u, y, logR * 0.25, logR * 0.5, 0, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#e07a2c";
+    for (const f of [0.25, 0.75]) ctx.fillRect(x + w * f - 1 * u, deck - logR * 2 - 2 * logR * 1.75, 2 * u, logR * 2 + 2 * logR * 1.75);
+  }
+}
+
+/* porte-conteneurs : deux conteneurs de 20 pieds, ondulés */
+function containerWagon(c: Ctx, x: number, w: number, seed: number) {
+  const { ctx, u } = c;
+  const deck = wagonFrame(c, x, w, 5);
+  const n = 2, gap = 3 * u, bw = (w - 8 * u - gap) / n, bh = 34 * u;
+  for (let k = 0; k < n; k++) {
+    const col = BOX_COLORS[(seed * 3 + k * 5) % BOX_COLORS.length];
+    const paint = c.night ? dark(col, 0.25) : col;
+    const bx = x + 4 * u + k * (bw + gap), by = deck - bh;
+    ctx.fillStyle = bodyGradient(ctx, by, by + bh, paint);
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = dark(paint, 0.28);
+    ctx.lineWidth = 0.8 * u;
+    for (let gx = bx + 3 * u; gx < bx + bw - 1 * u; gx += 3 * u) {
+      ctx.beginPath();
+      ctx.moveTo(gx, by + 3 * u);
+      ctx.lineTo(gx, by + bh - 3 * u);
+      ctx.stroke();
+    }
+    // cadre et coins de levage
+    ctx.strokeStyle = dark(paint, 0.45);
+    ctx.lineWidth = 1.2 * u;
+    ctx.strokeRect(bx + 0.6 * u, by + 0.6 * u, bw - 1.2 * u, bh - 1.2 * u);
+    ctx.fillStyle = "#1c2128";
+    for (const [cx, cy] of [[bx, by], [bx + bw - 3 * u, by], [bx, by + bh - 3 * u], [bx + bw - 3 * u, by + bh - 3 * u]]) ctx.fillRect(cx, cy, 3 * u, 3 * u);
+    // marquage
+    ctx.fillStyle = "rgba(255,255,255,0.75)";
+    ctx.font = `700 ${5 * u}px "Work Sans", sans-serif`;
+    ctx.fillText(["RÉSEAU", "MISTRAL", "CARGO", "NORD"][(seed + k) % 4], bx + 5 * u, by + 9 * u);
+  }
+}
+
+/* porte-autos à deux étages : châssis ajouré, voitures de toutes les couleurs */
+const AUTO_COLORS = ["#c0392b", "#ecf0f1", "#2c3e50", "#2980b9", "#f1c40f", "#7f8c8d", "#27ae60", "#8e44ad"];
+function car(ctx, x: number, y: number, len: number, u: number, col: string) {
+  const h = len * 0.32;
+  ctx.fillStyle = col;
+  rr(ctx, x, y - h * 0.62, len, h * 0.62, h * 0.25);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(x + len * 0.22, y - h * 0.6);
+  ctx.lineTo(x + len * 0.34, y - h);
+  ctx.lineTo(x + len * 0.7, y - h);
+  ctx.lineTo(x + len * 0.84, y - h * 0.6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "rgba(30,44,60,0.85)";
+  ctx.beginPath();
+  ctx.moveTo(x + len * 0.28, y - h * 0.62);
+  ctx.lineTo(x + len * 0.37, y - h * 0.92);
+  ctx.lineTo(x + len * 0.68, y - h * 0.92);
+  ctx.lineTo(x + len * 0.78, y - h * 0.62);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#111";
+  for (const f of [0.22, 0.78]) {
+    ctx.beginPath();
+    ctx.arc(x + len * f, y - 0.6 * u, h * 0.2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+function autoWagon(c: Ctx, x: number, w: number, seed: number) {
+  const { ctx, u } = c;
+  const deck = wagonFrame(c, x, w, 4);
+  const frame = c.night ? "#4a525c" : "#7b8591";
+  const top = deck - 44 * u, mid = deck - 22 * u;
+  // voitures, en bas puis en haut
+  const len = (w - 16 * u) / 3;
+  for (let lvl = 0; lvl < 2; lvl++) {
+    const y = lvl === 0 ? deck - 1 * u : mid - 1 * u;
+    for (let k = 0; k < 3; k++) car(ctx, x + 6 * u + k * (len + 2 * u), y, len, u, AUTO_COLORS[(seed * 5 + lvl * 3 + k) % AUTO_COLORS.length]);
+  }
+  // plateaux et montants
+  ctx.fillStyle = frame;
+  ctx.fillRect(x + 2 * u, mid, w - 4 * u, 2.4 * u);
+  ctx.fillRect(x + 2 * u, top, w - 4 * u, 2.6 * u);
+  for (let k = 0; k <= 8; k++) ctx.fillRect(x + 2 * u + k * ((w - 6 * u) / 8), top, 2 * u, deck - top);
+  // grillage latéral, très léger
+  ctx.strokeStyle = "rgba(160,170,182,0.28)";
+  ctx.lineWidth = 0.5 * u;
+  for (let gx = x + 4 * u; gx < x + w - 4 * u; gx += 4 * u) {
+    ctx.beginPath();
+    ctx.moveTo(gx, top + 3 * u);
+    ctx.lineTo(gx + 4 * u, mid);
+    ctx.moveTo(gx, mid + 3 * u);
+    ctx.lineTo(gx + 4 * u, deck);
+    ctx.stroke();
+  }
+}
+
+/* wagon-citerne : réservoir blanc, passerelle, dôme, plaque orange de danger */
+function tankWagon(c: Ctx, x: number, w: number) {
+  const { ctx, u } = c;
+  const deck = wagonFrame(c, x, w, 4);
+  const r = 17 * u, cy = deck - r - 4 * u;
+  // berceaux
+  ctx.fillStyle = "#2b323c";
+  for (const f of [0.2, 0.8]) ctx.fillRect(x + w * f - 6 * u, cy + r * 0.4, 12 * u, deck - cy - r * 0.4);
+  // réservoir
+  const g = ctx.createLinearGradient(0, cy - r, 0, cy + r);
+  const tank = c.night ? "#a7adb4" : "#e9ecef";
+  g.addColorStop(0, light(tank, 0.4));
+  g.addColorStop(0.3, tank);
+  g.addColorStop(0.8, dark(tank, 0.18));
+  g.addColorStop(1, dark(tank, 0.35));
+  ctx.fillStyle = g;
+  rr(ctx, x + 4 * u, cy - r, w - 8 * u, r * 2, r);
+  ctx.fill();
+  // cerclages
+  ctx.strokeStyle = "rgba(60,68,78,0.35)";
+  ctx.lineWidth = 0.8 * u;
+  for (const f of [0.25, 0.5, 0.75]) {
+    ctx.beginPath();
+    ctx.moveTo(x + w * f, cy - r + 1 * u);
+    ctx.lineTo(x + w * f, cy + r - 1 * u);
+    ctx.stroke();
+  }
+  // bande de sécurité
+  ctx.fillStyle = "#d35400";
+  ctx.fillRect(x + 6 * u, cy + 1 * u, w - 12 * u, 2.2 * u);
+  // dôme et passerelle
+  ctx.fillStyle = dark(tank, 0.2);
+  rr(ctx, x + w / 2 - 7 * u, cy - r - 4 * u, 14 * u, 6 * u, 2 * u);
+  ctx.fill();
+  ctx.strokeStyle = "#59616c";
+  ctx.lineWidth = 0.9 * u;
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.3, cy - r - 1 * u);
+  ctx.lineTo(x + w * 0.7, cy - r - 1 * u);
+  ctx.moveTo(x + w * 0.3, cy - r - 6 * u);
+  ctx.lineTo(x + w * 0.7, cy - r - 6 * u);
+  for (let k = 0; k <= 4; k++) {
+    ctx.moveTo(x + w * (0.3 + k * 0.1), cy - r - 6 * u);
+    ctx.lineTo(x + w * (0.3 + k * 0.1), cy - r - 1 * u);
+  }
+  ctx.stroke();
+  // échelle
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.5 - 2 * u, cy - r);
+  ctx.lineTo(x + w * 0.5 - 2 * u, deck);
+  ctx.moveTo(x + w * 0.5 + 2 * u, cy - r);
+  ctx.lineTo(x + w * 0.5 + 2 * u, deck);
+  for (let yy = cy - r + 3 * u; yy < deck; yy += 3.5 * u) {
+    ctx.moveTo(x + w * 0.5 - 2 * u, yy);
+    ctx.lineTo(x + w * 0.5 + 2 * u, yy);
+  }
+  ctx.stroke();
+  // plaque orange de danger
+  ctx.fillStyle = "#f39c12";
+  rr(ctx, x + w * 0.72, cy - 8 * u, 14 * u, 10 * u, 1 * u);
+  ctx.fill();
+  ctx.strokeStyle = "#1c1b17";
+  ctx.lineWidth = 0.6 * u;
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.72, cy - 3 * u);
+  ctx.lineTo(x + w * 0.72 + 14 * u, cy - 3 * u);
+  ctx.stroke();
+  ctx.fillStyle = "#1c1b17";
+  ctx.font = `700 ${3.6 * u}px "Space Mono", monospace`;
+  ctx.textAlign = "center";
+  ctx.fillText("33", x + w * 0.72 + 7 * u, cy - 4 * u);
+  ctx.fillText("1203", x + w * 0.72 + 7 * u, cy + 1 * u);
+  ctx.textAlign = "start";
+}
+
+/* wagon couvert capitonné : planches rouge-brun, porte coulissante, toit cintré */
+function boxcarWagon(c: Ctx, x: number, w: number) {
+  const { ctx, u } = c;
+  const deck = wagonFrame(c, x, w, 4);
+  const paint = c.night ? "#4e2a22" : "#7d3a2b";
+  const top = deck - 42 * u;
+  ctx.fillStyle = bodyGradient(ctx, top, deck, paint);
+  ctx.fillRect(x + 3 * u, top + 4 * u, w - 6 * u, deck - top - 4 * u);
+  // toit cintré
+  ctx.fillStyle = c.night ? "#5b636d" : "#8c949e";
+  ctx.beginPath();
+  ctx.moveTo(x + 1 * u, top + 5 * u);
+  ctx.quadraticCurveTo(x + w / 2, top - 4 * u, x + w - 1 * u, top + 5 * u);
+  ctx.closePath();
+  ctx.fill();
+  // planches
+  ctx.strokeStyle = dark(paint, 0.3);
+  ctx.lineWidth = 0.6 * u;
+  for (let gx = x + 7 * u; gx < x + w - 4 * u; gx += 4.5 * u) {
+    ctx.beginPath();
+    ctx.moveTo(gx, top + 5 * u);
+    ctx.lineTo(gx, deck);
+    ctx.stroke();
+  }
+  // ferrures en croix aux extrémités
+  ctx.strokeStyle = dark(paint, 0.45);
+  ctx.lineWidth = 0.8 * u;
+  for (const [a, b] of [[x + 4 * u, x + w * 0.3], [x + w * 0.7, x + w - 4 * u]]) {
+    ctx.beginPath();
+    ctx.moveTo(a, top + 6 * u);
+    ctx.lineTo(b, deck - 1 * u);
+    ctx.moveTo(b, top + 6 * u);
+    ctx.lineTo(a, deck - 1 * u);
+    ctx.stroke();
+  }
+  // porte coulissante et son rail
+  const dw = w * 0.26, dx = x + w / 2 - dw / 2;
+  ctx.fillStyle = dark(paint, 0.12);
+  ctx.fillRect(dx, top + 7 * u, dw, deck - top - 8 * u);
+  ctx.strokeStyle = "#1c1210";
+  ctx.lineWidth = 1 * u;
+  ctx.strokeRect(dx, top + 7 * u, dw, deck - top - 8 * u);
+  ctx.fillStyle = "#2a2f36";
+  ctx.fillRect(dx - 6 * u, top + 6 * u, dw + 12 * u, 1.6 * u);
+  ctx.fillRect(dx + dw - 4 * u, (top + deck) / 2, 2 * u, 6 * u); // poignée
+  plate(ctx, dx + dw / 2, top + 15 * u, u, "FRAGILE", "#f4d06f");
+}
+
+/* wagon frigorifique : caisse blanche isolée, bande bleue, groupe froid au bout */
+function reeferWagon(c: Ctx, x: number, w: number) {
+  const { ctx, u } = c;
+  const deck = wagonFrame(c, x, w, 4);
+  const paint = c.night ? "#b9c0c8" : "#f1f4f7";
+  const top = deck - 42 * u;
+  rr(ctx, x + 3 * u, top, w - 6 * u, deck - top, 3 * u);
+  ctx.fillStyle = bodyGradient(ctx, top, deck, paint);
+  ctx.fill();
+  // nervures horizontales de la caisse isolée
+  ctx.strokeStyle = "rgba(90,104,120,0.18)";
+  ctx.lineWidth = 0.6 * u;
+  for (let yy = top + 6 * u; yy < deck - 2 * u; yy += 5 * u) {
+    ctx.beginPath();
+    ctx.moveTo(x + 5 * u, yy);
+    ctx.lineTo(x + w - 5 * u, yy);
+    ctx.stroke();
+  }
+  ctx.fillStyle = "#2f6f9e";
+  ctx.fillRect(x + 3 * u, deck - 15 * u, w - 6 * u, 5 * u);
+  ctx.fillStyle = "#7fb3d9";
+  ctx.fillRect(x + 3 * u, deck - 10 * u, w - 6 * u, 1.2 * u);
+  // groupe froid, grille et ventilateur
+  const gx = x + w - 30 * u, gy = top + 6 * u;
+  ctx.fillStyle = "#3a4452";
+  rr(ctx, gx, gy, 22 * u, 20 * u, 2 * u);
+  ctx.fill();
+  ctx.strokeStyle = "#596474";
+  ctx.lineWidth = 0.6 * u;
+  for (let yy = gy + 3 * u; yy < gy + 18 * u; yy += 2.2 * u) {
+    ctx.beginPath();
+    ctx.moveTo(gx + 2 * u, yy);
+    ctx.lineTo(gx + 20 * u, yy);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "#8fa0b3";
+  ctx.lineWidth = 0.9 * u;
+  ctx.beginPath();
+  ctx.arc(gx + 11 * u, gy + 10 * u, 6 * u, 0, Math.PI * 2);
+  ctx.stroke();
+  const a = c.t * 9;
+  ctx.beginPath();
+  for (let k = 0; k < 3; k++) {
+    ctx.moveTo(gx + 11 * u, gy + 10 * u);
+    ctx.lineTo(gx + 11 * u + Math.cos(a + k * 2.1) * 5 * u, gy + 10 * u + Math.sin(a + k * 2.1) * 5 * u);
+  }
+  ctx.stroke();
+  // flocon
+  ctx.strokeStyle = "#2f6f9e";
+  ctx.lineWidth = 1 * u;
+  const fx = x + 18 * u, fy = top + 16 * u;
+  ctx.beginPath();
+  for (let k = 0; k < 3; k++) {
+    const an = (k * Math.PI) / 3;
+    ctx.moveTo(fx - Math.cos(an) * 5 * u, fy - Math.sin(an) * 5 * u);
+    ctx.lineTo(fx + Math.cos(an) * 5 * u, fy + Math.sin(an) * 5 * u);
+  }
+  ctx.stroke();
+  ctx.fillStyle = "#2f6f9e";
+  ctx.font = `700 ${5.5 * u}px "Work Sans", sans-serif`;
+  ctx.fillText("FROID", x + 26 * u, top + 18 * u);
+}
+
+/* locotracteur : petite machine de manœuvre, cabine à un bout, capot bas, chevrons jaune et noir */
+function shunter(c: Ctx, x: number, w: number, paint: string) {
+  const { ctx, u, base, lit } = c;
+  const bottom = base - 12 * u;
+  // châssis bas et chevrons de sécurité
+  ctx.fillStyle = "#1e252e";
+  ctx.fillRect(x, bottom - 5 * u, w, 7 * u);
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x - 1 * u, bottom - 5 * u, 10 * u, 7 * u);
+  ctx.rect(x + w - 9 * u, bottom - 5 * u, 10 * u, 7 * u);
+  ctx.clip();
+  ctx.fillStyle = "#f1c40f";
+  ctx.fillRect(x - 2 * u, bottom - 6 * u, w + 4 * u, 9 * u);
+  ctx.fillStyle = "#1c1b17";
+  for (let k = -20; k < w + 20; k += 5 * u) {
+    ctx.beginPath();
+    ctx.moveTo(x + k, bottom + 3 * u);
+    ctx.lineTo(x + k + 2.5 * u, bottom + 3 * u);
+    ctx.lineTo(x + k + 9.5 * u, bottom - 6 * u);
+    ctx.lineTo(x + k + 7 * u, bottom - 6 * u);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.restore();
+  // capot moteur
+  const hoodTop = bottom - 26 * u;
+  rr(ctx, x + 6 * u, hoodTop, w * 0.6, 21 * u, 3 * u);
+  ctx.fillStyle = bodyGradient(ctx, hoodTop, bottom, paint);
+  ctx.fill();
+  ctx.strokeStyle = dark(paint, 0.3);
+  ctx.lineWidth = 0.6 * u;
+  for (let gx = x + 12 * u; gx < x + 6 * u + w * 0.6 - 6 * u; gx += 7 * u) {
+    ctx.beginPath();
+    ctx.moveTo(gx, hoodTop + 4 * u);
+    ctx.lineTo(gx, bottom - 8 * u);
+    ctx.stroke();
+  }
+  // pot d'échappement
+  ctx.fillStyle = "#2a2f36";
+  ctx.fillRect(x + 16 * u, hoodTop - 5 * u, 3.5 * u, 5 * u);
+  // cabine
+  const cx = x + 6 * u + w * 0.6 - 2 * u, cw = w - (cx - x) - 3 * u, cTop = bottom - 42 * u;
+  rr(ctx, cx, cTop, cw, 37 * u, 2.5 * u);
+  ctx.fillStyle = bodyGradient(ctx, cTop, bottom, paint);
+  ctx.fill();
+  ctx.fillStyle = dark(paint, 0.35);
+  ctx.fillRect(cx - 1 * u, cTop - 2 * u, cw + 2 * u, 3 * u);
+  glass(ctx, cx + 3 * u, cTop + 5 * u, cw - 6 * u, 13 * u, 1.5 * u, lit, u * 0.5);
+  // deux essieux, sans bogie
+  wheel(ctx, x + w * 0.25, base - 8 * u, 8 * u, c.spin);
+  wheel(ctx, x + w * 0.72, base - 8 * u, 8 * u, c.spin + 1);
+  ctx.strokeStyle = "#59616c";
+  ctx.lineWidth = 1.6 * u;
+  ctx.beginPath();
+  ctx.moveTo(x + w * 0.25, base - 8 * u);
+  ctx.lineTo(x + w * 0.72, base - 8 * u);
+  ctx.stroke();
+  const lampX = x + w + 1 * u, lampY = bottom - 10 * u;
+  ctx.fillStyle = lit ? "#fff6d8" : "#f4f1e4";
+  ctx.beginPath();
+  ctx.arc(lampX - 2 * u, lampY, 2 * u, 0, Math.PI * 2);
+  ctx.fill();
+  return { x: x + 6 * u + w * 0.3, y: hoodTop + 10 * u, r: 7 * u, lamp: { x: lampX, y: lampY } };
+}
+
+/* locomotive moderne à cabines inclinées : la Messagerie (une) et l'Électrique longue distance (deux pantographes) */
+function modernLoco(c: Ctx, x: number, w: number, paint: string, stripe: string, twin: boolean) {
+  const { ctx, u, base, lit } = c;
+  const h = (CAR_H + 4) * u;
+  const bottom = base - LIFT * u;
+  const top = bottom - h;
+  underframe(ctx, x, w, bottom - 1 * u, u);
+  const nose = 22 * u;
+  const shape = () => {
+    ctx.beginPath();
+    ctx.moveTo(x + nose * 0.55, top);
+    ctx.lineTo(x + w - nose * 0.55, top);
+    ctx.lineTo(x + w + 1 * u, top + h * 0.42);
+    ctx.lineTo(x + w + 2 * u, bottom);
+    ctx.lineTo(x - 2 * u, bottom);
+    ctx.lineTo(x - 1 * u, top + h * 0.42);
+    ctx.closePath();
+  };
+  shape();
+  ctx.fillStyle = bodyGradient(ctx, top, bottom, paint);
+  ctx.fill();
+  ctx.save();
+  shape();
+  ctx.clip();
+  // bas de caisse sombre et bande de couleur en biais
+  ctx.fillStyle = dark(paint, 0.55);
+  ctx.fillRect(x - 4 * u, bottom - 11 * u, w + 8 * u, 11 * u);
+  ctx.fillStyle = stripe;
+  ctx.beginPath();
+  ctx.moveTo(x - 4 * u, bottom - 14 * u);
+  ctx.lineTo(x + w * 0.62, bottom - 14 * u);
+  ctx.lineTo(x + w * 0.7, bottom - 24 * u);
+  ctx.lineTo(x + w + 4 * u, bottom - 24 * u);
+  ctx.lineTo(x + w + 4 * u, bottom - 20 * u);
+  ctx.lineTo(x + w * 0.72, bottom - 20 * u);
+  ctx.lineTo(x + w * 0.64, bottom - 11 * u);
+  ctx.lineTo(x - 4 * u, bottom - 11 * u);
+  ctx.closePath();
+  ctx.fill();
+  // toit
+  ctx.fillStyle = dark(paint, 0.25);
+  ctx.fillRect(x - 4 * u, top, w + 8 * u, 3.5 * u);
+  ctx.restore();
+  shape();
+  ctx.strokeStyle = "rgba(0,0,0,0.38)";
+  ctx.lineWidth = 0.8 * u;
+  ctx.stroke();
+  // pare-brise inclinés
+  for (const end of [0, 1]) {
+    ctx.beginPath();
+    if (end) {
+      ctx.moveTo(x + w - nose * 0.5, top + 4 * u);
+      ctx.lineTo(x + w - 3 * u, top + 4 * u);
+      ctx.lineTo(x + w - 0.5 * u, top + h * 0.38);
+      ctx.lineTo(x + w - nose * 0.75, top + h * 0.38);
+    } else {
+      ctx.moveTo(x + nose * 0.5, top + 4 * u);
+      ctx.lineTo(x + 3 * u, top + 4 * u);
+      ctx.lineTo(x + 0.5 * u, top + h * 0.38);
+      ctx.lineTo(x + nose * 0.75, top + h * 0.38);
+    }
+    ctx.closePath();
+    const g = ctx.createLinearGradient(0, top, 0, top + h * 0.4);
+    g.addColorStop(0, lit ? "#ffe8b0" : "#3a4a5e");
+    g.addColorStop(1, lit ? "#f0b45a" : "#121a25");
+    ctx.fillStyle = g;
+    ctx.fill();
+  }
+  // grilles d'aération en bandeau
+  ctx.fillStyle = dark(paint, 0.4);
+  const gx0 = x + nose + 6 * u, gw = w - 2 * nose - 12 * u;
+  rr(ctx, gx0, top + 8 * u, gw, 11 * u, 1.5 * u);
+  ctx.fill();
+  ctx.strokeStyle = dark(paint, 0.15);
+  ctx.lineWidth = 0.6 * u;
+  for (let gx = gx0 + 2 * u; gx < gx0 + gw - 1 * u; gx += 2.4 * u) {
+    ctx.beginPath();
+    ctx.moveTo(gx, top + 9 * u);
+    ctx.lineTo(gx, top + 18 * u);
+    ctx.stroke();
+  }
+  // porte de service
+  ctx.strokeStyle = "rgba(0,0,0,0.3)";
+  ctx.strokeRect(x + w * 0.5 - 4 * u, top + 22 * u, 8 * u, bottom - top - 26 * u);
+  const lampX = x + w + 1 * u, lampY = bottom - 8 * u;
+  ctx.fillStyle = lit ? "#fff6d8" : "#f4f1e4";
+  ctx.beginPath();
+  ctx.ellipse(lampX - 3 * u, lampY, 2.6 * u, 1.6 * u, 0, 0, Math.PI * 2);
+  ctx.fill();
+  pantograph(ctx, x + w * 0.3, top, u, true);
+  if (twin) pantograph(ctx, x + w * 0.7, top, u, false);
+  bogie(ctx, x + w * 0.2, base, u, c.spin);
+  bogie(ctx, x + w * 0.8, base, u, c.spin);
+  return { x: x + w * 0.5, y: top + 30 * u, r: 9 * u, lamp: { x: lampX, y: lampY } };
+}
+
+/* le dessin d'un wagon, par son identifiant (W_TREMIE…) */
+const WAGON_KIND: Record<string, string> = {
+  W_TREMIE: "hopper",
+  W_PLAT: "plate",
+  W_CONTENEUR: "container",
+  W_PORTE_AUTOS: "autos",
+  W_CITERNE: "tank",
+  W_CAPITONNE: "boxcar",
+  W_FRIGO: "reefer",
+};
+export const FREIGHT_LOCOS = ["LOCOTRACTEUR", "FRET_LOURD", "FRET_RAPIDE", "FRET_ELECTRIQUE"];
+
+/* 2.1 : plaque nominative gravée — laiton poli, émail bleu ou bois verni */
+export function drawNameplate(ctx: CanvasRenderingContext2D, cx: number, cy: number, u: number, style: string, text: string) {
+  const label = text.toUpperCase().slice(0, 22);
+  const fs = 5.6 * u;
+  ctx.save();
+  ctx.font = `700 ${fs}px ${style === "email" ? "'Work Sans', sans-serif" : "'Bitter', serif"}`;
+  const w = ctx.measureText(label).width + 10 * u, h = 9 * u;
+  const x = cx - w / 2, y = cy - h / 2;
+  const pal =
+    style === "email"
+      ? { a: "#2a5aa8", b: "#173a78", edge: "#f2f4f8", ink: "#f2f4f8" }
+      : style === "bois"
+      ? { a: "#8a5a32", b: "#5e3b1f", edge: "#c9a36b", ink: "#f3e3c3" }
+      : { a: "#f3d98a", b: "#b98a2c", edge: "#7a5a1a", ink: "#3a2a0a" };
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0, pal.a);
+  g.addColorStop(1, pal.b);
+  rr(ctx, x, y, w, h, 1.8 * u);
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.lineWidth = 0.8 * u;
+  ctx.strokeStyle = pal.edge;
+  ctx.stroke();
+  // rivets
+  ctx.fillStyle = pal.edge;
+  for (const rx of [x + 2.2 * u, x + w - 2.2 * u]) {
+    ctx.beginPath();
+    ctx.arc(rx, cy, 0.8 * u, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (style === "laiton") {
+    // reflet du métal poli
+    ctx.fillStyle = "rgba(255,255,255,0.35)";
+    ctx.fillRect(x + 2 * u, y + 1 * u, w - 4 * u, 1.2 * u);
+  }
+  ctx.fillStyle = pal.ink;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, cx, cy + 0.3 * u);
+  ctx.restore();
+}
+
 /* ---------- la rame entière ---------- */
 
 type Piece = { w: number; draw: (x: number) => any };
@@ -864,6 +1519,8 @@ type Piece = { w: number; draw: (x: number) => any };
 export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): ConsistBox {
   const kind = o.skin || o.model || "STANDARD";
   const extra = [...(o.cars ?? [])].reverse();
+  // 2.1 : les wagons de fret, de la queue à la tête ; chacun garde sa graine pour varier les chargements
+  const wagons = extra.filter((k) => WAGON_KIND[k]).map((k, i) => ({ w: k === "W_PORTE_AUTOS" ? 190 : 165, kind: WAGON_KIND[k], arg: i + 1 }));
   const L = 200; // longueur d'une voiture à l'échelle 1
 
   // la composition, de la queue à la tête, en unités d'échelle
@@ -888,8 +1545,18 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
         return [...extra.map((k) => ({ w: L, kind: "coach", arg: k })), { w: L, kind: "coach" }, { w: L, kind: "coach" }, { w: 230, kind: "express" }];
       case "COUCHETTES":
         return [...extra.map((k) => ({ w: L, kind: "coach", arg: k })), { w: L, kind: "sleeper" }, { w: L, kind: "sleeper" }, { w: 150, kind: "box", arg: [o.livery, "#e8edf5"] }];
+      // 2.1 : des wagons seuls (vignettes du catalogue et de la boutique)
+      case "WAGONS":
+        return wagons;
+      // 2.1 : les locomotives de fret tirent leurs wagons ; sans wagon, la machine seule
+      case "LOCOTRACTEUR":
+        return [...wagons, { w: 120, kind: "shunter", arg: o.livery }];
       case "FRET_LOURD":
-        return [{ w: 160, kind: "flat", arg: 1 }, { w: 160, kind: "flat", arg: 2 }, { w: 160, kind: "flat", arg: 3 }, { w: 160, kind: "box", arg: [o.livery, "#f4d06f"] }];
+        return [...(wagons.length ? wagons : (o.cars ?? []).length ? [] : [{ w: 160, kind: "flat", arg: 1 }, { w: 160, kind: "flat", arg: 2 }]), { w: 160, kind: "box", arg: [o.livery, "#f4d06f"] }];
+      case "FRET_RAPIDE":
+        return [...wagons, { w: 175, kind: "modern", arg: [o.livery, "#e8edf5", false] }];
+      case "FRET_ELECTRIQUE":
+        return [...wagons, { w: 215, kind: "modern", arg: [o.livery, "#f4b13e", true] }];
       case "CREMAILLERE":
         return [...extra.map((k) => ({ w: 150, kind: "coach", arg: k })), { w: 150, kind: "rack", arg: false }, { w: 150, kind: "rack", arg: true }];
       default:
@@ -929,7 +1596,10 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
     const x0 = x;
     if (i === 0 && shiftFirst) x += shiftFirst;
     pieces.push({ x, w, kind: p.kind });
-    if (i > 0 && !["tender", "steam"].includes(p.kind) && !["flat"].includes(plan[i - 1].kind)) gangway(ctx, x - gapU * u, o.base - LIFT * u - CAR_H * u, o.base - LIFT * u, u);
+    // pas de soufflet d'intercirculation entre des wagons de fret, ni vers une locomotive de fret
+    const WAGON_PIECES = ["flat", "hopper", "plate", "container", "autos", "tank", "boxcar", "reefer"];
+    const freightJoin = WAGON_PIECES.includes(p.kind) || (i > 0 && WAGON_PIECES.includes(plan[i - 1].kind)) || ["shunter", "modern"].includes(p.kind);
+    if (i > 0 && !["tender", "steam"].includes(p.kind) && !freightJoin) gangway(ctx, x - gapU * u, o.base - LIFT * u - CAR_H * u, o.base - LIFT * u, u);
     switch (p.kind) {
       case "coach": {
         const k = p.arg ?? "SECONDE";
@@ -957,6 +1627,33 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
       case "flat":
         flatWagon(c, x, w, p.arg);
         break;
+      case "hopper":
+        hopperWagon(c, x, w);
+        break;
+      case "plate":
+        plateWagon(c, x, w, p.arg);
+        break;
+      case "container":
+        containerWagon(c, x, w, p.arg);
+        break;
+      case "autos":
+        autoWagon(c, x, w, p.arg);
+        break;
+      case "tank":
+        tankWagon(c, x, w);
+        break;
+      case "boxcar":
+        boxcarWagon(c, x, w);
+        break;
+      case "reefer":
+        reeferWagon(c, x, w);
+        break;
+      case "shunter":
+        head = shunter(c, x, w, p.arg);
+        break;
+      case "modern":
+        head = modernLoco(c, x, w, p.arg[0], p.arg[1], p.arg[2]);
+        break;
       case "pullman":
         pullman(c, x, w, p.arg[0], p.arg[1]);
         break;
@@ -981,6 +1678,8 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
     }
     x = x0 + w + gapU * u;
   });
+  // 2.1 : la plaque nominative, sous l'emblème de la motrice
+  if (o.plate && head) drawNameplate(ctx, head.x, head.y + head.r + 6 * u, u, o.plate.style, o.plate.text);
   ctx.restore();
   const h = head ?? { x: o.cx, y: o.base - 30 * u, r: 8 * u, lamp: { x: o.cx + total / 2, y: o.base - 25 * u } };
   return {

@@ -25,22 +25,23 @@ import { routeStations, routeTimeline } from "../geo";
 export interface CabTrain {
   id: string;
   name: string;
-  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "VAPEUR" | "LUXE" | "CREMAILLERE";
+  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE";
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
   departedAt?: string | null;
-  line?: { departureStation: string; arrivalStation: string; durationMinutes?: number; stops?: string[]; electrified?: boolean } | null;
+  line?: { departureStation: string; arrivalStation: string; durationMinutes?: number; stops?: string[]; electrified?: boolean; doubleTrack?: boolean; id?: string } | null;
   // 1.7
   direction?: number;
   cars?: string[];
+  plateStyle?: string | null; // 2.1
 }
 
 /* 1.7 : l'itinéraire dans le sens de marche, découpé en tronçons et arrêts,
    à l'échelle de la durée réelle du trajet (modèle, voitures, électrification). */
 function tripPlan(t: CabTrain) {
   const duration =
-    (t.line?.durationMinutes ?? 10) * 60 * modelSpeed(t.model) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1);
+    (t.line?.durationMinutes ?? 10) * 60 * modelSpeed(t.model) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1) * (t.line?.doubleTrack ? 0.93 : 1);
   const base = t.line ? routeStations(t.line) : [];
   const route = t.direction === 1 ? [...base].reverse() : base;
   const { phases, total } = routeTimeline(route, 0);
@@ -52,8 +53,11 @@ function tripPlan(t: CabTrain) {
   };
 }
 
-const CRUISE: Record<string, number> = { STANDARD: 430, EXPRESS: 560, FRET_LOURD: 380, COUCHETTES: 400, VAPEUR: 330, LUXE: 400, CREMAILLERE: 300 }; // px/s à l'écran
-const KMH: Record<string, number> = { STANDARD: 220, EXPRESS: 300, FRET_LOURD: 160, COUCHETTES: 200, VAPEUR: 110, LUXE: 180, CREMAILLERE: 60 };
+const CRUISE: Record<string, number> = { STANDARD: 430, EXPRESS: 560, FRET_LOURD: 380, COUCHETTES: 400, VAPEUR: 330, LUXE: 400, CREMAILLERE: 300, LOCOTRACTEUR: 300, FRET_RAPIDE: 470, FRET_ELECTRIQUE: 420 }; // px/s à l'écran
+const KMH: Record<string, number> = { STANDARD: 220, EXPRESS: 300, FRET_LOURD: 160, COUCHETTES: 200, VAPEUR: 110, LUXE: 180, CREMAILLERE: 60, LOCOTRACTEUR: 80, FRET_RAPIDE: 200, FRET_ELECTRIQUE: 160 };
+/* 2.1 : à l'échelle réelle, deux rames qui se croisent passent en une seconde ;
+   on ralentit le croisement à l'écran (le moment où les têtes se croisent ne bouge pas) */
+const CROSS_SLOW = 0.4;
 const RAMP_S = 5; // secondes d'accélération au départ et de freinage à l'arrivée
 const FREE_PREVIEW_S = 12;
 
@@ -109,10 +113,16 @@ export function CabView({
   weatherType,
   livery,
   skin = null,
+  stationSkin = null,
+  others = [],
+  yards = [],
   company,
   onClose,
   preview = false,
 }: {
+  stationSkin?: string | null;
+  others?: CabTrain[]; // 2.1 : les autres rames de la compagnie, pour les croisements sur double voie
+  yards?: string[]; // 2.1 : gares de triage
   train: CabTrain;
   weatherType?: string;
   livery: string;
@@ -124,7 +134,7 @@ export function CabView({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [locked, setLocked] = useState(false);
   const opened = useRef(Date.now());
-  const hud = useCabScene(canvasRef, train, { weatherType, livery, skin, premium: company.isPremium }, () => {
+  const hud = useCabScene(canvasRef, train, { weatherType, livery, skin, premium: company.isPremium, stationSkin, others, yards }, () => {
     if (!company.isPremium && Date.now() - opened.current > FREE_PREVIEW_S * 1000) setLocked(true);
   });
 
@@ -250,11 +260,23 @@ export function CabView({
 export function useCabScene(
   canvasRef: React.RefObject<HTMLCanvasElement>,
   train: CabTrain,
-  { weatherType, livery, skin, premium = false }: { weatherType?: string; livery: string; skin?: string | null; premium?: boolean },
+  {
+    weatherType,
+    livery,
+    skin,
+    premium = false,
+    stationSkin = null,
+    others = [],
+    yards = [],
+  }: { weatherType?: string; livery: string; skin?: string | null; premium?: boolean; stationSkin?: string | null; others?: CabTrain[]; yards?: string[] },
   onTick?: () => void
 ) {
   const trainRef = useRef(train);
   trainRef.current = train;
+  const othersRef = useRef(others);
+  othersRef.current = others;
+  const yardsRef = useRef(yards);
+  yardsRef.current = yards;
   const onTickRef = useRef(onTick);
   onTickRef.current = onTick;
   const [hud, setHud] = useState({ kmh: 0, left: "—", phase: "En route", pct: 0, next: "", marks: [] as { name: string; pct: number }[], wx: null as null | { place: string; kind: string; temp: number | null } });
@@ -317,6 +339,27 @@ export function useCabScene(
       sc.model = t.model;
       sc.cars = t.cars ?? [];
       sc.firstLivery = premium;
+      // 2.1 : habillage des gares et plaque nominative (boutique)
+      sc.stationSkin = stationSkin;
+      const ps = (t as { plateStyle?: string | null }).plateStyle;
+      sc.plate = ps ? { style: ps, text: t.name } : null;
+      /* 2.1 : double voie — les autres rames de la ligne, en sens inverse, à
+         leur vraie position : on calcule l'écart entre les deux têtes, à
+         l'échelle de la scène, et on les voit passer sur la voie du fond */
+      sc.doubleTrack = !!t.line?.doubleTrack;
+      sc.yards = yardsRef.current;
+      const f = duration > 0 ? Math.min(1, Math.max(0, elapsed / duration)) : 0;
+      sc.oncoming = sc.doubleTrack
+        ? othersRef.current
+            .filter((o) => o.id !== t.id && o.status === "EN_ROUTE" && o.line?.id && o.line.id === t.line?.id && (o.direction ?? 0) !== (t.direction ?? 0))
+            .map((o) => {
+              const p = tripPlan(o);
+              const eo = o.departedAt ? (Date.now() - new Date(o.departedAt).getTime()) / 1000 : (o.progress / 100) * p.duration;
+              const fo = p.duration > 0 ? Math.min(1, Math.max(0, eo / p.duration)) : 0;
+              const oh = (o as { heritage?: { skin?: string; livery?: string } | null }).heritage;
+              return { id: o.id, gap: (1 - fo - f) * cruise * duration * CROSS_SLOW, model: o.model, livery: oh?.livery ?? livery, skin: oh?.skin ?? skin ?? null, cars: o.cars ?? [], v: CRUISE[o.model] ?? 430 };
+            })
+        : [];
       sc.dep = dwelling ? "" : ph.from;
       sc.arr = ph.to;
       sc.depDist = dwelling ? 1e9 : rampDistance(segElapsed, cruise);

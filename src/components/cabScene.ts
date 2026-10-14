@@ -23,7 +23,14 @@ export function createCabScene(ctx) {
     model: null as string | null, // 2.0 : le modèle de la rame (STANDARD, EXPRESS, FRET_LOURD…)
     box: null as any, // 2.0 : où la rame a été dessinée (emblème, phare)
     hour: null as number | null, // 2.0 : heure de Paris (décimale) ; nulle = plein jour, ou nuit si weather vaut « nuit »
+    stationSkin: null as string | null, // 2.1 : habillage des gares (boutique) : "belle-epoque" | "beton" | "verriere" | null
+    plate: null as { style: string; text: string } | null, // 2.1 : plaque nominative de la rame
+    doubleTrack: false, // 2.1 : la ligne est à double voie : une deuxième voie, derrière
+    // 2.1 : rames de la compagnie qui viennent en sens inverse sur l'autre voie ; gap = distance (px) entre les deux têtes
+    oncoming: [] as { id: string; gap: number; model: string; livery: string; skin?: string | null; cars?: string[]; v: number }[],
+    yards: null as string[] | null, // 2.1 : gares de triage de la compagnie
   };
+  const oncomingW = new Map(); // longueur de chaque rame croisée, mesurée à l'image précédente
   const puffs = []; // fumée de la locomotive à vapeur
   const hill = (x, seed, amp, freq) =>
     Math.sin(x * freq + seed) * amp * 0.6 + Math.sin(x * freq * 2.3 + seed * 1.7) * amp * 0.3 + Math.sin(x * freq * 5.1 + seed * 0.3) * amp * 0.1;
@@ -100,7 +107,147 @@ export function createCabScene(ctx) {
     ctx.drawImage(fxCv, 0, 0, sc.W, sc.H);
   }
 
+  /* 2.1 : le panneau du nom de gare, commun à tous les habillages */
+  function stationSign(x, y, name, bg = "#0b2a4a", fg = "#e8edf5", font = "700 13px 'Space Mono', monospace") {
+    ctx.font = font;
+    const half = Math.max(70, ctx.measureText(name.toUpperCase()).width / 2 + 16);
+    ctx.fillStyle = bg;
+    ctx.fillRect(x - half, y, half * 2, 26);
+    ctx.strokeStyle = fg; ctx.lineWidth = 1.5; ctx.strokeRect(x - half + 3, y + 3, half * 2 - 6, 20);
+    ctx.fillStyle = fg;
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText(name.toUpperCase(), x, y + 13.5);
+  }
+  function glow(x, y, r, a = 0.55, col = "255,210,140") {
+    const g = ctx.createRadialGradient(x, y, 2, x, y, r);
+    g.addColorStop(0, `rgba(${col},${a})`); g.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = g; ctx.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  function clockFace(x, y, r, roman, night) {
+    ctx.fillStyle = night ? "#f6e7c4" : "#f4f1e8";
+    ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#1c1b17"; ctx.lineWidth = 2; ctx.stroke();
+    ctx.lineWidth = 1;
+    for (let k = 0; k < 12; k++) {
+      const an = (k / 12) * Math.PI * 2;
+      ctx.beginPath(); ctx.moveTo(x + Math.cos(an) * r * 0.78, y + Math.sin(an) * r * 0.78); ctx.lineTo(x + Math.cos(an) * r * (roman ? 0.9 : 0.86), y + Math.sin(an) * r * (roman ? 0.9 : 0.86)); ctx.stroke();
+    }
+    const now = new Date();
+    const h = (now.getHours() % 12) + now.getMinutes() / 60, m = now.getMinutes();
+    ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.sin((h / 12) * Math.PI * 2) * r * 0.5, y - Math.cos((h / 12) * Math.PI * 2) * r * 0.5); ctx.stroke();
+    ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.sin((m / 60) * Math.PI * 2) * r * 0.75, y - Math.cos((m / 60) * Math.PI * 2) * r * 0.75); ctx.stroke();
+  }
+
+  /* gare Belle Époque : marquise en fer forgé sur colonnes, verrière, horloge à chiffres romains, réverbères */
+  function stationBelleEpoque(x, groundY, name, pal) {
+    const snow = sc.weather === "neige";
+    ctx.fillStyle = snow ? "#d7dee4" : "#9a8f80";
+    ctx.fillRect(x - 280, groundY - 7, 560, 9);
+    ctx.fillStyle = pal.light ? "#2a2f38" : "#c9bfae"; // bordure du quai en pierre
+    ctx.fillRect(x - 280, groundY - 9, 560, 3);
+    const roof = groundY - 112;
+    // verrière bombée
+    ctx.fillStyle = pal.light ? "rgba(255,214,150,0.18)" : "rgba(190,215,230,0.45)";
+    ctx.beginPath(); ctx.moveTo(x - 240, roof + 18); ctx.quadraticCurveTo(x, roof - 34, x + 240, roof + 18); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = pal.light ? "#5b5f68" : "#2f3a33"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x - 240, roof + 18); ctx.quadraticCurveTo(x, roof - 34, x + 240, roof + 18); ctx.stroke();
+    ctx.lineWidth = 1;
+    for (let i = -220; i <= 220; i += 22) { ctx.beginPath(); ctx.moveTo(x + i, roof + 18); ctx.lineTo(x + i * 0.92, roof + 18 - 26 * (1 - (i / 240) ** 2)); ctx.stroke(); }
+    // poutre et colonnes en fonte, chapiteaux et arcs de dentelle
+    ctx.fillStyle = pal.light ? "#3d434d" : "#2f3a33";
+    ctx.fillRect(x - 245, roof + 16, 490, 7);
+    for (let i = -210; i <= 210; i += 105) {
+      ctx.fillRect(x + i - 3, roof + 22, 6, groundY - roof - 28);
+      ctx.fillRect(x + i - 7, roof + 22, 14, 5);
+      ctx.fillRect(x + i - 6, groundY - 12, 12, 6);
+      ctx.strokeStyle = pal.light ? "#3d434d" : "#2f3a33"; ctx.lineWidth = 2;
+      if (i < 210) { ctx.beginPath(); ctx.arc(x + i + 52.5, roof + 23, 52, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke(); }
+      for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(x + i + 52.5, roof + 23, 10 + k * 9, 0.15 * Math.PI, 0.85 * Math.PI); ctx.lineWidth = 0.6; if (i < 210) ctx.stroke(); }
+    }
+    // horloge au centre, sous la poutre
+    clockFace(x, roof + 44, 15, true, pal.light);
+    stationSign(x, groundY - 70, name, "#1d3b2c", "#f1e6c8", "700 13px 'Bitter', serif");
+    // réverbères à globe
+    for (const i of [-260, 260]) {
+      ctx.fillStyle = "#2f3a33"; ctx.fillRect(x + i - 2, groundY - 86, 4, 80);
+      ctx.fillStyle = pal.light ? "#ffe6b0" : "#e8e2d2";
+      ctx.beginPath(); ctx.arc(x + i, groundY - 92, 7, 0, Math.PI * 2); ctx.fill();
+      if (pal.light) glow(x + i, groundY - 92, 70, 0.6);
+    }
+    if (pal.light) glow(x, roof + 30, 160, 0.25);
+  }
+
+  /* gare des années 70 : béton brut, auvent en porte-à-faux, horloge à palettes, panneaux orange */
+  function stationBeton(x, groundY, name, pal) {
+    const snow = sc.weather === "neige";
+    ctx.fillStyle = snow ? "#d4dade" : pal.light ? "#55585e" : "#a3a29c";
+    ctx.fillRect(x - 270, groundY - 6, 540, 8);
+    ctx.fillStyle = "#e7c43a"; ctx.fillRect(x - 270, groundY - 7, 540, 2); // bande de sécurité
+    const top = groundY - 92;
+    // pylônes en V et dalle épaisse
+    ctx.fillStyle = pal.light ? "#4b4e55" : "#8f8d86";
+    for (const i of [-150, 0, 150]) {
+      ctx.beginPath(); ctx.moveTo(x + i - 4, groundY - 6); ctx.lineTo(x + i - 26, top + 14); ctx.lineTo(x + i - 18, top + 14); ctx.lineTo(x + i, groundY - 30); ctx.lineTo(x + i + 18, top + 14); ctx.lineTo(x + i + 26, top + 14); ctx.lineTo(x + i + 4, groundY - 6); ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = pal.light ? "#5a5d64" : "#a8a69f";
+    ctx.fillRect(x - 250, top, 500, 16);
+    ctx.fillStyle = "rgba(0,0,0,0.15)";
+    for (let i = -250; i < 250; i += 25) ctx.fillRect(x + i, top, 1, 16); // joints du coffrage
+    // panneaux orange
+    ctx.fillStyle = "#e2721b"; ctx.fillRect(x - 230, top + 22, 70, 18);
+    ctx.fillStyle = "#fff"; ctx.font = "700 10px 'Work Sans', sans-serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("SORTIE →", x - 195, top + 31);
+    // horloge à palettes
+    ctx.fillStyle = "#1c1f24"; ctx.fillRect(x + 150, top + 20, 64, 24);
+    const now = new Date();
+    const hhmm = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}`;
+    ctx.font = "700 14px 'Space Mono', monospace";
+    for (let k = 0; k < 4; k++) {
+      ctx.fillStyle = "#2c3038"; ctx.fillRect(x + 153 + k * 15, top + 23, 13, 18);
+      ctx.fillStyle = "#f4f1e8"; ctx.fillText(hhmm[k], x + 159.5 + k * 15, top + 32.5);
+      ctx.fillStyle = "#111"; ctx.fillRect(x + 153 + k * 15, top + 31.5, 13, 1);
+    }
+    stationSign(x, groundY - 62, name, "#1c1f24", "#f2a33a", "700 13px 'Work Sans', sans-serif");
+    if (pal.light) for (const i of [-200, -66, 66, 200]) { ctx.fillStyle = "#fff2cc"; ctx.fillRect(x + i - 14, top + 15, 28, 2); glow(x + i, top + 20, 60, 0.45, "255,236,200"); }
+  }
+
+  /* gare de verre : grande verrière en arc, quai éclairé, écran d'affichage */
+  function stationVerriere(x, groundY, name, pal) {
+    const snow = sc.weather === "neige";
+    ctx.fillStyle = snow ? "#dde3e8" : pal.light ? "#4c5560" : "#b7bcc2";
+    ctx.fillRect(x - 300, groundY - 6, 600, 8);
+    // nez de quai lumineux
+    ctx.fillStyle = pal.light ? "#9fe3ff" : "#d9e6ee"; ctx.fillRect(x - 300, groundY - 7, 600, 1.5);
+    if (pal.light) glow(x, groundY - 6, 300, 0.12, "160,220,255");
+    const top = groundY - 150;
+    // arc de verre
+    const g = ctx.createLinearGradient(0, top, 0, groundY);
+    g.addColorStop(0, pal.light ? "rgba(140,200,255,0.28)" : "rgba(210,232,245,0.55)");
+    g.addColorStop(1, pal.light ? "rgba(140,200,255,0.05)" : "rgba(210,232,245,0.15)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(x - 290, groundY - 6); ctx.bezierCurveTo(x - 290, top - 10, x + 290, top - 10, x + 290, groundY - 6); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = pal.light ? "#8fb0c8" : "#7c8a96"; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(x - 290, groundY - 6); ctx.bezierCurveTo(x - 290, top - 10, x + 290, top - 10, x + 290, groundY - 6); ctx.stroke();
+    ctx.lineWidth = 0.8;
+    for (let k = 1; k < 12; k++) {
+      const t = k / 12;
+      const px = x - 290 + 580 * t;
+      const py = groundY - 6 - (groundY - 6 - top + 8) * 4 * t * (1 - t) * 0.98;
+      ctx.beginPath(); ctx.moveTo(px, groundY - 6); ctx.lineTo(px, py); ctx.stroke();
+    }
+    // écran d'affichage
+    ctx.fillStyle = "#0b1220"; ctx.fillRect(x - 70, groundY - 100, 140, 36);
+    ctx.fillStyle = "#ffd36b"; ctx.font = "700 11px 'Space Mono', monospace"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText("DÉPART", x - 62, groundY - 91);
+    ctx.fillStyle = "#e8edf5"; ctx.fillText(name.toUpperCase().slice(0, 14), x - 62, groundY - 75);
+    ctx.fillStyle = "#4ade80"; ctx.textAlign = "right"; ctx.fillText("À L'HEURE", x + 64, groundY - 91);
+    ctx.fillStyle = "#2b3443"; ctx.fillRect(x - 2, groundY - 64, 4, 58);
+  }
+
   function drawStation(x, groundY, name, pal) {
+    if (sc.stationSkin === "belle-epoque") return stationBelleEpoque(x, groundY, name, pal);
+    if (sc.stationSkin === "beton") return stationBeton(x, groundY, name, pal);
+    if (sc.stationSkin === "verriere") return stationVerriere(x, groundY, name, pal);
     // quai, abri et panneau — le nom est celui de la vraie gare
     ctx.fillStyle = sc.weather === "neige" ? "#cfd8df" : pal.light ? "#4a505a" : "#8a8f96";
     ctx.fillRect(x - 260, groundY - 6, 520, 8);
@@ -128,6 +275,112 @@ export function createCabScene(ctx) {
     }
   }
 
+  /* ---- 2.1 : la gare de triage, en arrière-plan : un faisceau de voies
+     qui s'ouvre derrière le quai, des wagons garés, un mât d'éclairage ---- */
+  const YARD_RAKES = [
+    ["W_TREMIE", "W_TREMIE", "W_CITERNE"],
+    ["W_CONTENEUR", "W_CONTENEUR", "W_PLAT", "W_CONTENEUR"],
+    ["W_CAPITONNE", "W_FRIGO", "W_PORTE_AUTOS"],
+    ["W_CITERNE", "W_PLAT", "W_TREMIE", "W_TREMIE"],
+  ];
+  function drawYard(x, groundY, pal) {
+    /* le faisceau est en retrait, sur un terre-plein derrière la gare : on le
+       voit au-dessus du toit de la rame, les rangées les plus lointaines plus
+       petites. Il part de la droite du panneau de gare. */
+    const k = Math.min(1, Math.max(0.6, sc.W / 1100));
+    const rows = 5;
+    const x0 = x + 110, x1 = x + 1100;
+    // le terre-plein
+    ctx.fillStyle = pal.light ? "rgba(12,16,24,0.55)" : "rgba(70,72,64,0.35)";
+    ctx.fillRect(x0 - 40, groundY - 128 * k, x1 - x0 + 40, 58 * k);
+    for (let i = 0; i < rows; i++) {
+      const depth = i / (rows - 1); // 0 = le plus proche
+      const y = groundY - (74 + i * 11) * k;
+      const u = (0.36 - depth * 0.12) * k;
+      ctx.strokeStyle = pal.light ? `rgba(150,160,175,${0.5 - depth * 0.25})` : `rgba(90,88,82,${0.8 - depth * 0.3})`;
+      ctx.lineWidth = 1.2;
+      ctx.beginPath(); ctx.moveTo(x0 - 30 - i * 14, y); ctx.lineTo(x1, y); ctx.stroke();
+      // des rames de wagons garées, à des places qui varient d'une rangée à l'autre
+      const rake = YARD_RAKES[i % YARD_RAKES.length];
+      ctx.save();
+      ctx.globalAlpha = 1 - depth * 0.35;
+      drawConsist(ctx, { cx: x0 + 140 + ((i * 211) % 420), base: y - 0.5, u, model: "WAGONS", cars: rake, livery: sc.livery, lit: false, night: !!pal.light, t: 0, s: 0, v: 0 });
+      if (i % 2 === 0) drawConsist(ctx, { cx: x0 + 620 + ((i * 97) % 200), base: y - 0.5, u, model: "WAGONS", cars: YARD_RAKES[(i + 1) % YARD_RAKES.length], livery: sc.livery, lit: false, night: !!pal.light, t: 0, s: 0, v: 0 });
+      ctx.restore();
+    }
+    // deux mâts d'éclairage : de nuit, de grandes nappes de lumière orangée
+    for (const mx of [x0 + 300, x0 + 760]) {
+      ctx.fillStyle = pal.light ? "#2a3345" : "#5a6270";
+      ctx.fillRect(mx - 1.5, groundY - 190 * k, 3, 120 * k);
+      ctx.fillRect(mx - 14, groundY - 192 * k, 28, 4);
+      if (pal.light) {
+        glow(mx, groundY - 186 * k, 150 * k, 0.32, "255,214,150");
+        ctx.fillStyle = "#ffe2a8"; ctx.fillRect(mx - 12, groundY - 189 * k, 24, 2);
+      }
+    }
+    // le poste d'aiguillage, au début du faisceau
+    const px = x0 - 10, py = groundY - 74 * k;
+    ctx.fillStyle = pal.light ? "#232a36" : "#7b6f62";
+    ctx.fillRect(px - 26, py - 30 * k, 52, 30 * k);
+    ctx.fillStyle = pal.light ? "#ffd892" : "#c9d6e2";
+    ctx.fillRect(px - 20, py - 24 * k, 40, 8 * k);
+    ctx.fillStyle = pal.light ? "#1a202b" : "#5a4e44";
+    ctx.beginPath(); ctx.moveTo(px - 30, py - 30 * k); ctx.lineTo(px, py - 41 * k); ctx.lineTo(px + 30, py - 30 * k); ctx.fill();
+  }
+
+  /* ---- 2.1 : la deuxième voie, et les rames qui y passent en sens inverse ---- */
+  function drawFarTrack(groundY, pal, land, night) {
+    const y = groundY - 24;
+    ctx.fillStyle = pal.ground; ctx.fillRect(0, y - 3, sc.W, 20);
+    ctx.fillStyle = night(land.ballast); ctx.fillRect(0, y + 1, sc.W, 7);
+    ctx.fillStyle = night("#3a2f25");
+    const sl = 12, so = (sc.s * 0.92) % sl; // un peu plus loin : défile un peu moins vite
+    for (let x = -so; x < sc.W; x += sl) ctx.fillRect(x, y + 2.5, 5.5, 3.5);
+    // le rail accroche la lumière, même de nuit
+    ctx.fillStyle = mix("#aeb7c1", "#0c1220", 0.45);
+    ctx.fillRect(0, y + 1, sc.W, 1.6);
+    return y;
+  }
+  function drawOncoming(trainFront, baseY, t, pal) {
+    const u = Math.min(1.3, Math.max(0.55, sc.W / 900)) * 0.8;
+    for (const o of sc.oncoming) {
+      const front = trainFront + o.gap;
+      const w = oncomingW.get(o.id) ?? sc.W * 0.6;
+      if (front > sc.W + 40 || front + w < -40) continue;
+      ctx.save();
+      // la rame roule vers la gauche : on la dessine en miroir, tête à gauche
+      ctx.translate(front, 0);
+      ctx.scale(-1, 1);
+      const box = drawConsist(ctx, {
+        cx: -w / 2,
+        base: baseY,
+        u,
+        maxWidth: sc.W * 0.74 * 0.8,
+        model: o.model,
+        skin: o.skin ?? null,
+        livery: o.livery,
+        cars: o.cars ?? [],
+        lit: !!(pal.lamps ?? pal.light),
+        night: !!pal.light,
+        t,
+        s: sc.s + t * o.v,
+        v: o.v,
+        smoke: [],
+      });
+      oncomingW.set(o.id, box.right - box.left);
+      // son phare, de nuit, éclaire la voie devant elle
+      if (pal.lamps ?? pal.light) {
+        const lx = box.lamp.x, ly = box.lamp.y;
+        const g = ctx.createRadialGradient(lx, ly, 1, lx, ly, 130);
+        g.addColorStop(0, "rgba(255,240,200,.55)");
+        g.addColorStop(1, "rgba(255,240,200,0)");
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + 190, ly - 30); ctx.lineTo(lx + 190, ly + 22); ctx.closePath(); ctx.fill();
+      }
+      ctx.restore();
+    }
+  }
+
   /* ---- la rame : dessinée par trainArt (2.0) ---- */
   function drawTrain(x, y, t, pal) {
     const W = sc.W;
@@ -149,6 +402,7 @@ export function createCabScene(ctx) {
       s: sc.s,
       v: sc.v,
       smoke: puffs,
+      plate: sc.plate,
     });
     sc.box = box;
     // phare : la nuit, et par brouillard ou neige
@@ -305,6 +559,13 @@ export function createCabScene(ctx) {
       }
     }
 
+    // 2.1 : la gare de triage, en retrait derrière la gare (sur la droite du panneau)
+    if (sc.yards?.length) {
+      const tx = W * 0.46, dx = tx - sc.depDist, ax = tx + sc.arrDist;
+      if (dx > -1300 && dx < W + 200 && sc.yards.includes(sc.dep)) drawYard(dx, groundY, pal);
+      if (ax > -1300 && ax < W + 200 && sc.yards.includes(sc.arr)) drawYard(ax, groundY, pal);
+    }
+
     // sol et ballast
     ctx.fillStyle = pal.ground; ctx.fillRect(0, groundY - 8, W, H - groundY + 8);
     ctx.fillStyle = night(land.ballast);
@@ -326,6 +587,9 @@ export function createCabScene(ctx) {
       ctx.globalAlpha = 1;
     }
 
+    // 2.1 : la double voie
+    const farY = sc.doubleTrack ? drawFarTrack(groundY, pal, land, night) : null;
+
     // poteaux de caténaire, au même plan que la voie
     const pk = 1, pstep = 150, po = (s * pk) % pstep;
     ctx.strokeStyle = pal.light ? "#2a3345" : "#5a6270"; ctx.lineWidth = 3;
@@ -337,6 +601,8 @@ export function createCabScene(ctx) {
     // gares de départ et d'arrivée, placées dans le monde
     const trainX = W * 0.46;
     const depX = trainX - sc.depDist, arrX = trainX + sc.arrDist;
+    // 2.1 : les rames croisées passent sur la voie du fond, derrière les quais
+    if (farY !== null && sc.oncoming.length) drawOncoming(sc.box ? sc.box.right : trainX + W * 0.3, farY + 1, t, { ...pal, lamps });
     if (depX > -400) drawStation(depX, groundY, sc.dep, pal);
     if (arrX < W + 400) drawStation(arrX, groundY, sc.arr, pal);
 

@@ -8,6 +8,10 @@ export const MODEL_LABEL: Record<string, string> = {
   VAPEUR: "Vapeur",
   LUXE: "Grand luxe",
   CREMAILLERE: "Crémaillère",
+  // 2.1 : le fret
+  LOCOTRACTEUR: "Locotracteur",
+  FRET_RAPIDE: "Messagerie rapide",
+  FRET_ELECTRIQUE: "Électrique longue distance",
 };
 export const modelLabel = (m: string) => MODEL_LABEL[m] ?? "Standard";
 export const DLC_MODEL_IDS = new Set(["VAPEUR", "LUXE", "CREMAILLERE"]);
