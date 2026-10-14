@@ -209,7 +209,7 @@ export function RushPanel({ network, premium }: { network: NetworkData; premium:
       <div className="px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
         <p className={`flex-1 min-w-[220px] font-body text-[13px] ${p.kind === "pointe" ? "text-amber" : "text-offwhite"}`}>
           {sentence}
-          {!premium && <span className="block text-[11.5px] text-slate2 mt-1">Premium : le prix automatique recale le billet à chaque changement d'heure.</span>}
+          {!premium && <span className="block text-[11.5px] text-slate2 mt-1">Premium : le prix automatique suit l'affluence en continu, sans que vous ayez à y toucher.</span>}
         </p>
         <svg width={W} height={H + 12} viewBox={`0 0 ${W} ${H + 12}`} role="img" aria-label={`Affluence heure par heure, ${p.hour} h en cours`} className="shrink-0">
           {p.curve.map((f, h) => {

@@ -134,6 +134,7 @@ export function MobileTabBar({ tabs, groups, extra, current }: { tabs: NavItem[]
           <button
             key={t.id}
             onClick={t.onClick}
+            data-tutorial={t.dataTutorial}
             aria-current={t.active ? "page" : undefined}
             className={`relative flex flex-col items-center gap-1 pt-2.5 pb-2 text-[11.5px] font-body ${t.active && !open ? "text-cobalt" : "text-slate2"}`}
           >

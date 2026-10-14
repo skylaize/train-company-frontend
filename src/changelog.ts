@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.0.2";
+export const CURRENT_VERSION = "2.0.3";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,22 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.0.3",
+    date: "Octobre 2026",
+    changes: [
+      { type: "ameliore", text: "Carte : les liaisons des autres compagnies sont masquées par défaut, pour ne plus couvrir la carte de traits gris. Le bouton « Concurrents » en bas à gauche les réaffiche, et le jeu retient votre choix" },
+      { type: "ameliore", text: "Alliance : la carte du réseau commun est refaite. La France en fond pour se repérer, les noms de gares ne se chevauchent plus, un tronçon partagé par plusieurs membres montre une ligne par compagnie, et chaque gare commune affiche son bonus. Survolez un membre dans la légende pour voir ses lignes ; sous la carte, chaque gare commune montre qui la dessert" },
+      { type: "ameliore", text: "Le tutoriel devient un stage en cinq gares : tracer une ligne, acheter une rame, la mettre en service, la regarder partir sur la carte, régler le prix du billet. Une petite ligne montre où vous en êtes, et chaque gare franchie verse une prime (350 pi. en tout pour une nouvelle compagnie)" },
+      { type: "nouveau", text: "Le journal de bord : une cloche en haut du menu garde toutes les nouvelles du réseau des sept derniers jours, classées par jour, avec un filtre par genre (rames, incidents, fret, argent, équipe, alliance, progression) et le nombre de nouvelles non lues" },
+      { type: "ameliore", text: "Les notifications sont refaites : l'heure et le pictogramme de leur genre, un lien direct vers ce qui est concerné (la fiche de la rame en panne, la candidature, le personnel), et elles se mettent en pause quand vous passez la souris dessus" },
+      { type: "ameliore", text: "Les notifications d'un même genre se regroupent : à l'heure de pointe, « 5 arrivées en gare » au lieu de cinq bulles empilées. Trois au plus à l'écran, le reste attend dans le journal" },
+      { type: "nouveau", text: "Les invitations et candidatures d'alliance arrivent aussi en notification pendant que vous jouez" },
+      { type: "corrige", text: "Prix auto : le bouton restait éteint jusqu'à une minute après le clic, et un second clic coupait le prix automatique qu'on venait d'allumer. Il bascule maintenant dès le clic" },
+      { type: "ameliore", text: "Prix auto : le billet n'est plus recalé une fois par heure mais chaque minute. Il suit la pointe, les rames que vous ajoutez ou retirez, l'arrivée d'un concurrent et les événements en gare, sans attendre l'heure suivante" },
+      { type: "ameliore", text: "Prix auto : un vrai interrupteur, lisible, et la ligne affiche « réglé tout seul » au lieu d'un prix conseillé qui contredisait le mode automatique. Toucher au prix à la main coupe le mode automatique, et le jeu vous le dit" },
+    ],
+  },
   {
     version: "2.0.2",
     date: "Octobre 2026",

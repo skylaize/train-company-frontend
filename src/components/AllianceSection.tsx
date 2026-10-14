@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { STATION_COORDS } from "../geo";
+import { COUNTRIES } from "./europeMap";
+
+// contour de la France, même tracé que la carte du réseau
+const FRANCE_D = COUNTRIES.find((c) => c.id === "France")?.d ?? "";
 
 /* ============================================================
    Alliances (2.0).
@@ -362,19 +366,28 @@ export function AllianceSection({ data, onReload, onChange }: { data: AllianceDa
               {(data.shared ?? []).length} gare{(data.shared ?? []).length > 1 ? "s" : ""} en commun
             </span>
           </div>
-          <AllianceMap lines={data.lines ?? []} shared={data.shared ?? []} />
+          <AllianceMap lines={data.lines ?? []} shared={data.shared ?? []} members={members} />
           <div className="mt-3">
             {(data.shared ?? []).length === 0 ? (
               <p className="text-[13px] text-slate2 font-body">Aucune gare desservie par deux membres pour l'instant. Tracez une ligne vers une gare d'un allié : chacun de vous y gagne.</p>
             ) : (
-              (data.shared ?? []).map((s) => (
-                <div key={s.station} className="flex justify-between text-[13.5px] font-body py-1 border-b border-line/60">
-                  <span>{s.station}</span>
-                  <span className="text-slate2">
-                    {s.members} membres, <span className="text-amber font-mono2">+{s.bonus} %</span>
-                  </span>
-                </div>
-              ))
+              [...(data.shared ?? [])]
+                .sort((x, y) => y.bonus - x.bonus || x.station.localeCompare(y.station))
+                .map((s) => {
+                  // 2.0.3 : qui dessert la gare, à la couleur de chaque compagnie
+                  const who = members.filter((m) => (data.lines ?? []).some((l) => l.companyId === m.companyId && l.route.includes(s.station)));
+                  return (
+                    <div key={s.station} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 items-center text-[13.5px] font-body py-1.5 border-b border-line/60">
+                      <span className="truncate">{s.station}</span>
+                      <span className="flex items-center gap-1" title={who.map((m) => m.name).join(", ")}>
+                        {who.map((m) => (
+                          <span key={m.companyId} className="w-2.5 h-2.5" style={{ background: m.liveryColor }} aria-label={m.name} />
+                        ))}
+                      </span>
+                      <span className="text-amber font-mono2 tabular-nums w-12 text-right">+{s.bonus} %</span>
+                    </div>
+                  );
+                })
             )}
           </div>
         </section>
@@ -495,46 +508,153 @@ function Ranking({ rows, highlight }: { rows: RankRow[]; highlight?: string }) {
   );
 }
 
-/* Les lignes des membres, chacune à la couleur de sa compagnie, et les gares
-   communes cerclées d'ambre. Cadrée sur les gares utilisées. */
-function AllianceMap({ lines, shared }: { lines: { companyId: string; color: string; route: string[] }[]; shared: { station: string; bonus: number }[] }) {
-  const pts = lines.flatMap((l) => l.route).map((s) => STATION_COORDS[s]).filter(Boolean);
-  if (pts.length === 0) {
-    return <div className="border border-line h-[220px] flex items-center justify-center text-[13px] text-slate2 font-body bg-[#0d1526]">Pas encore de ligne dans l'alliance.</div>;
+/* 2.0.3 : la carte du réseau commun, refaite.
+   - la France et ses voisins en fond, pour se repérer ;
+   - un tronçon emprunté par plusieurs membres est dessiné en lignes
+     parallèles, une par compagnie, au lieu de se recouvrir ;
+   - les noms de gares se placent là où ils ne chevauchent rien ;
+   - les gares communes sont cerclées d'ambre, avec leur bonus ;
+   - la légende des membres : survoler un nom éclaire ses lignes. */
+type MapLine = { companyId: string; color: string; route: string[] };
+type MapMember = { companyId: string; name: string; liveryColor: string; isMe: boolean };
+
+function AllianceMap({ lines, shared, members }: { lines: MapLine[]; shared: { station: string; bonus: number }[]; members: MapMember[] }) {
+  const [focus, setFocus] = useState<string | null>(null);
+  const routes = lines.map((l) => ({ ...l, route: l.route.filter((s) => STATION_COORDS[s]) })).filter((l) => l.route.length >= 2);
+  const stations = [...new Set(routes.flatMap((l) => l.route))];
+  if (stations.length === 0) {
+    return <div className="border border-line h-[240px] flex items-center justify-center text-[13px] text-slate2 font-body bg-navy-950/60">Pas encore de ligne dans l'alliance.</div>;
   }
+
+  // cadrage : les gares utilisées, avec de la marge et une taille minimale
+  const pts = stations.map((s) => STATION_COORDS[s]);
   const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
-  const pad = 30;
-  const minX = Math.min(...xs) - pad, maxX = Math.max(...xs) + pad, minY = Math.min(...ys) - pad, maxY = Math.max(...ys) + pad;
-  const w = Math.max(120, maxX - minX), h = Math.max(90, maxY - minY);
-  const sharedSet = new Set(shared.map((s) => s.station));
-  const stations = [...new Set(lines.flatMap((l) => l.route))].filter((s) => STATION_COORDS[s]);
-  const k = Math.max(w / 300, h / 210); // taille constante à l'écran
+  const pad = 42;
+  let minX = Math.min(...xs) - pad, maxX = Math.max(...xs) + pad, minY = Math.min(...ys) - pad, maxY = Math.max(...ys) + pad;
+  const minW = 200, minH = 170;
+  if (maxX - minX < minW) { const c = (minX + maxX) / 2; minX = c - minW / 2; maxX = c + minW / 2; }
+  if (maxY - minY < minH) { const c = (minY + maxY) / 2; minY = c - minH / 2; maxY = c + minH / 2; }
+  // même proportion que le cadre (environ 3:2) : pas de carte écrasée
+  const ratio = 1.45;
+  let w = maxX - minX, h = maxY - minY;
+  if (w / h < ratio) { const nw = h * ratio; minX -= (nw - w) / 2; w = nw; } else { const nh = w / ratio; minY -= (nh - h) / 2; h = nh; }
+  const k = w / 330; // une unité d'écran
+
+  const sharedMap = new Map(shared.map((s) => [s.station, s.bonus]));
+  const colorOf = (id: string) => members.find((m) => m.companyId === id)?.liveryColor ?? routes.find((l) => l.companyId === id)?.color ?? "#94a3b8";
+
+  // tronçons : qui passe entre deux gares voisines
+  const segs = new Map<string, { a: string; b: string; companies: string[] }>();
+  for (const l of routes) {
+    for (let i = 0; i < l.route.length - 1; i++) {
+      const [a, b] = [l.route[i], l.route[i + 1]].sort();
+      const key = `${a}|${b}`;
+      const seg = segs.get(key) ?? { a, b, companies: [] };
+      if (!seg.companies.includes(l.companyId)) seg.companies.push(l.companyId);
+      segs.set(key, seg);
+    }
+  }
+  const gap = 4.6 * k;
+
+  // étiquettes : on essaie à droite, à gauche, au-dessus, en dessous ; la première place libre l'emporte
+  type Box = { x1: number; y1: number; x2: number; y2: number };
+  const boxes: Box[] = stations.map((s) => ({ x1: STATION_COORDS[s].x - 6 * k, y1: STATION_COORDS[s].y - 6 * k, x2: STATION_COORDS[s].x + 6 * k, y2: STATION_COORDS[s].y + 6 * k }));
+  const hit = (b: Box) => boxes.some((o) => b.x1 < o.x2 && b.x2 > o.x1 && b.y1 < o.y2 && b.y2 > o.y1);
+  const order = [...stations].sort((x, y) => (sharedMap.has(y) ? 1 : 0) - (sharedMap.has(x) ? 1 : 0));
+  const labels = order.map((s) => {
+    const p = STATION_COORDS[s];
+    const isShared = sharedMap.has(s);
+    const fs = (isShared ? 11.5 : 10.5) * k;
+    const tw = s.length * fs * 0.56;
+    const th = fs * (isShared ? 2.2 : 1.15);
+    const off = (isShared ? 10 : 7) * k;
+    const cands: { x: number; y: number; anchor: "start" | "end" | "middle"; box: Box }[] = [
+      { x: p.x + off, y: p.y + fs * 0.35, anchor: "start", box: { x1: p.x + off, y1: p.y - fs * 0.8, x2: p.x + off + tw, y2: p.y - fs * 0.8 + th } },
+      { x: p.x - off, y: p.y + fs * 0.35, anchor: "end", box: { x1: p.x - off - tw, y1: p.y - fs * 0.8, x2: p.x - off, y2: p.y - fs * 0.8 + th } },
+      { x: p.x, y: p.y - off - (isShared ? fs * 1.1 : 0), anchor: "middle", box: { x1: p.x - tw / 2, y1: p.y - off - th, x2: p.x + tw / 2, y2: p.y - off } },
+      { x: p.x, y: p.y + off + fs, anchor: "middle", box: { x1: p.x - tw / 2, y1: p.y + off, x2: p.x + tw / 2, y2: p.y + off + th } },
+    ];
+    const pick = cands.find((c) => !hit(c.box)) ?? cands[0];
+    boxes.push(pick.box);
+    return { s, ...pick, fs, isShared };
+  });
+
+  const dim = (id: string) => (focus && focus !== id ? 0.18 : 1);
+
   return (
-    <svg viewBox={`${minX} ${minY} ${w} ${h}`} className="w-full h-[260px] border border-line bg-[#0d1526]" role="img" aria-label="Les lignes de l'alliance">
-      {lines.map((l, i) => (
-        <polyline
-          key={i}
-          points={l.route.filter((s) => STATION_COORDS[s]).map((s) => `${STATION_COORDS[s].x},${STATION_COORDS[s].y}`).join(" ")}
-          fill="none"
-          stroke={l.color}
-          strokeWidth={3 * k}
-          strokeLinejoin="round"
-          opacity="0.9"
-        />
-      ))}
-      {stations.map((s) => {
-        const p = STATION_COORDS[s];
-        const sh = sharedSet.has(s);
-        return (
-          <g key={s}>
-            <circle cx={p.x} cy={p.y} r={(sh ? 6 : 3.5) * k} fill="#0b0f19" stroke={sh ? "#f59e0b" : "#cbd5e1"} strokeWidth={(sh ? 2.5 : 1.5) * k} />
-            <text x={p.x + 8 * k} y={p.y + 4 * k} fontSize={11 * k} fill={sh ? "#f59e0b" : "#cbd5e1"} fontFamily="Work Sans, sans-serif">
-              {s}
+    <div>
+      <svg viewBox={`${minX} ${minY} ${w} ${h}`} className="w-full h-auto aspect-[1.45] border border-line bg-navy-950/70 block" role="img" aria-label="Les lignes de l'alliance sur la carte de France">
+        <g>
+          {COUNTRIES.filter((c) => c.id !== "France").map((c) => (
+            <path key={c.id} d={c.d} fill="rgb(var(--c-navy-900))" fillOpacity="0.5" stroke="rgb(var(--c-slate2))" strokeOpacity="0.25" strokeWidth={0.6 * k} strokeLinejoin="round" />
+          ))}
+          <path d={FRANCE_D} fill="rgb(var(--c-navy-900))" stroke="rgb(var(--c-slate2))" strokeOpacity="0.5" strokeWidth={0.9 * k} strokeLinejoin="round" />
+        </g>
+        {[...segs.values()].map((seg) => {
+          const A = STATION_COORDS[seg.a], B = STATION_COORDS[seg.b];
+          const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy) || 1;
+          const nx = -dy / len, ny = dx / len;
+          const n = seg.companies.length;
+          return seg.companies.map((id, i) => {
+            const o = (i - (n - 1) / 2) * gap;
+            const x1 = A.x + nx * o, y1 = A.y + ny * o, x2 = B.x + nx * o, y2 = B.y + ny * o;
+            return (
+              <g key={`${seg.a}|${seg.b}|${id}`} opacity={dim(id)} style={{ transition: "opacity 160ms" }}>
+                {/* liseré clair : une livrée sombre reste lisible sur le fond de carte */}
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgb(var(--c-offwhite))" strokeOpacity="0.35" strokeWidth={4.6 * k} strokeLinecap="round" />
+                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={colorOf(id)} strokeWidth={3 * k} strokeLinecap="round" />
+              </g>
+            );
+          });
+        })}
+        {stations.map((s) => {
+          const p = STATION_COORDS[s];
+          const sh = sharedMap.has(s);
+          return sh ? (
+            <g key={s}>
+              <circle cx={p.x} cy={p.y} r={8.5 * k} fill="rgb(var(--c-amber))" opacity="0.18" />
+              <circle cx={p.x} cy={p.y} r={5.5 * k} fill="rgb(var(--c-navy-950))" stroke="rgb(var(--c-amber))" strokeWidth={2.4 * k} />
+            </g>
+          ) : (
+            <circle key={s} cx={p.x} cy={p.y} r={3.2 * k} fill="rgb(var(--c-navy-950))" stroke="rgb(var(--c-offwhite))" strokeOpacity="0.8" strokeWidth={1.4 * k} />
+          );
+        })}
+        {labels.map((l) => (
+          <g key={l.s} fontFamily="var(--font-body), sans-serif">
+            <text x={l.x} y={l.y} textAnchor={l.anchor} fontSize={l.fs} fill={l.isShared ? "rgb(var(--c-amber))" : "rgb(var(--c-offwhite))"} fillOpacity={l.isShared ? 1 : 0.85} fontWeight={l.isShared ? 600 : 400} paintOrder="stroke" stroke="rgb(var(--c-navy-950))" strokeWidth={3 * k} strokeLinejoin="round">
+              {l.s}
             </text>
+            {l.isShared && (
+              <text x={l.x} y={l.y + l.fs * 1.05} textAnchor={l.anchor} fontSize={l.fs * 0.82} fill="rgb(var(--c-amber))" fontFamily="var(--font-mono2), monospace" paintOrder="stroke" stroke="rgb(var(--c-navy-950))" strokeWidth={3 * k}>
+                +{sharedMap.get(l.s)} %
+              </text>
+            )}
           </g>
-        );
-      })}
-    </svg>
+        ))}
+      </svg>
+      {members.length > 0 && (
+        <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-2" onMouseLeave={() => setFocus(null)}>
+          {members.map((m) => {
+            const n = routes.filter((l) => l.companyId === m.companyId).length;
+            return (
+              <button
+                key={m.companyId}
+                onMouseEnter={() => setFocus(m.companyId)}
+                onFocus={() => setFocus(m.companyId)}
+                onBlur={() => setFocus(null)}
+                onClick={() => setFocus((f) => (f === m.companyId ? null : m.companyId))}
+                aria-pressed={focus === m.companyId}
+                className={`flex items-center gap-1.5 text-[12.5px] font-body transition-opacity ${focus && focus !== m.companyId ? "opacity-45" : ""} ${m.isMe ? "text-offwhite" : "text-slate2"} hover:text-offwhite`}
+              >
+                <span className="w-3 h-[3px]" style={{ background: m.liveryColor }} />
+                {m.isMe ? "Vous" : m.name}
+                <span className="font-mono2 text-[11px] text-slate2">{n}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 

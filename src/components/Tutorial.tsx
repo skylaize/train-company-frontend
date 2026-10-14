@@ -9,9 +9,16 @@ export interface TutorialState {
   lineCount: number;
   trainCount: number;
   assignedCount: number; // rames affectées à une ligne
+  mapSeen: boolean; // 2.0.3 : la carte ouverte avec une rame en route
+  priceSet: boolean; // 2.0.3 : un prix réglé (ou déjà au prix conseillé)
 }
 
 interface Step {
+  id: string;
+  /* 2.0.3 : le nom court de la gare sur la petite ligne du guide, et la prime
+     versée quand le geste est fait (vérifiée et versée une fois par le serveur) */
+  gare?: string;
+  reward?: number;
   view: DashboardView | null;
   target: string | null; // sélecteur data-tutorial de l'élément à mettre en surbrillance
   modalOpen: boolean; // faut-il forcer l'ouverture du catalogue de trains pour cette étape
@@ -30,13 +37,17 @@ interface Step {
    la liste « Premiers pas » prend le relais à la fin du guide. */
 const STEPS: Step[] = [
   {
+    id: "accueil",
     view: null,
     target: null,
     modalOpen: false,
     title: "Bienvenue à bord",
-    body: "Vous dirigez une compagnie ferroviaire. Trois gestes suffisent pour qu'elle commence à gagner de l'argent : tracer une ligne, acheter une rame, la mettre en service. On les fait ensemble, ça prend une minute.",
+    body: "Cinq gestes pour que votre compagnie gagne de l'argent toute seule, même jeu fermé. Chaque gare franchie de ce stage vous verse une prime. Comptez trois minutes.",
   },
   {
+    id: "ligne",
+    gare: "Ligne",
+    reward: 100,
     view: "lignes",
     target: "first-line-ideas",
     modalOpen: false,
@@ -46,6 +57,8 @@ const STEPS: Step[] = [
     waitingLabel: "En attente de votre première ligne",
   },
   {
+    id: "rame",
+    gare: "Rame",
     view: "trains",
     target: "btn-commander",
     modalOpen: true,
@@ -55,8 +68,11 @@ const STEPS: Step[] = [
     waitingLabel: "En attente de votre première rame",
   },
   {
+    id: "service",
+    gare: "Service",
+    reward: 100,
     view: "trains",
-    target: "trains-table",
+    target: "btn-assign",
     modalOpen: false,
     title: "Mettez-la en service",
     body: "Une rame à quai ne rapporte rien. Affectez-la à votre ligne : elle fera l'aller-retour en continu, même quand vous aurez fermé le jeu.",
@@ -64,13 +80,43 @@ const STEPS: Step[] = [
     waitingLabel: "En attente d'une rame affectée",
   },
   {
+    id: "carte",
+    gare: "Carte",
+    reward: 50,
+    view: null,
+    target: "nav-carte",
+    modalOpen: false,
+    title: "Regardez-la partir",
+    body: "Sur la carte, chaque rame avance en direct jusqu'à sa prochaine gare. Elle encaisse les billets à chaque arrivée.",
+    awaits: (s) => s.mapSeen,
+    waitingLabel: "Ouvrez la carte",
+  },
+  {
+    id: "prix",
+    gare: "Prix",
+    reward: 100,
+    view: "lignes",
+    target: "line-price",
+    modalOpen: false,
+    title: "Réglez le prix du billet",
+    body: "Plus cher, chaque voyageur rapporte plus mais il en vient moins. Le jeu calcule le prix qui remplit juste vos rames : appliquez-le d'un clic, ou réglez le vôtre.",
+    awaits: (s) => s.priceSet,
+    waitingLabel: "Réglez le prix de votre ligne",
+  },
+  {
+    id: "brevet",
     view: "trains",
-    target: "first-steps",
+    target: null,
     modalOpen: false,
     title: "Votre compagnie roule",
-    body: "Elle gagne de l'argent à chaque trajet, même jeu fermé. La suite est dans « Premiers pas » : livrer du fret, puis ouvrir une correspondance. Chaque rubrique s'explique la première fois que vous l'ouvrez, et le bouton Aide rouvre ce guide.",
+    body: "Elle gagne de l'argent à chaque trajet, même jeu fermé. Revenez ce soir : votre rame aura fait plusieurs allers-retours. La suite est dans « Premiers pas », et le bouton Aide rouvre ce guide.",
   },
 ];
+
+/* les gares du stage, dans l'ordre, et le total des primes */
+const GARES = STEPS.filter((s) => s.gare);
+const TOTAL_REWARD = STEPS.reduce((n, s) => n + (s.reward ?? 0), 0);
+
 
 function useTargetRect(selector: string | null) {
   const [rect, setRect] = useState<DOMRect | null>(null);
@@ -81,7 +127,11 @@ function useTargetRect(selector: string | null) {
       return;
     }
     function update() {
-      const el = document.querySelector(`[data-tutorial="${selector}"]`);
+      // la même cible peut exister deux fois (menu d'ordinateur, onglets de téléphone) : on prend celle qui se voit
+      const el = Array.from(document.querySelectorAll(`[data-tutorial="${selector}"]`)).find((n) => {
+        const r = n.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      });
       setRect(el ? el.getBoundingClientRect() : null);
     }
     update();
@@ -111,17 +161,35 @@ export function Tutorial({
   onOpenCatalog,
   onCloseCatalog,
   state,
+  onReward,
 }: {
   onClose: () => void;
   setView: (view: DashboardView) => void;
   onOpenCatalog: () => void;
   onCloseCatalog: () => void;
   state: TutorialState;
+  /** 2.0.3 : une étape à prime vient d'être faite */
+  onReward?: (step: string) => void;
 }) {
   const [stepIndex, setStepIndex] = useState(0);
   const step = STEPS[stepIndex];
   const isLast = stepIndex === STEPS.length - 1;
   const rect = useTargetRect(step.target);
+  /* 2.0.3 : la cible hors de l'écran (la liste des rames, sous l'annonce du
+     jour) est amenée sous les yeux du joueur au début de l'étape */
+  useEffect(() => {
+    if (!step.target) return;
+    const t = window.setTimeout(() => {
+      const el = Array.from(document.querySelectorAll(`[data-tutorial="${step.target}"]`)).find((n) => {
+        const r = n.getBoundingClientRect();
+        return r.width > 0 && r.height > 0;
+      });
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (r.top < 0 || r.bottom > window.innerHeight - 120) el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 450);
+    return () => window.clearTimeout(t);
+  }, [stepIndex, step.target]);
 
   const satisfied = step.awaits ? step.awaits(state) : true;
 
@@ -136,11 +204,16 @@ export function Tutorial({
   }, [stepIndex]);
 
   const waiting = !!step.awaits && !satisfied && !wasDoneOnEntry;
+  // la prime part dès que le geste est fait (le serveur ne la verse qu'une fois)
+  useEffect(() => {
+    if (step.reward && satisfied) onReward?.(step.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stepIndex, satisfied]);
 
   // l'action vient d'être accomplie : on enchaîne, après un instant pour la voir
   useEffect(() => {
     if (!step.awaits || wasDoneOnEntry || !satisfied) return;
-    const t = setTimeout(() => setStepIndex((i) => Math.min(i + 1, STEPS.length - 1)), 900);
+    const t = setTimeout(() => setStepIndex((i) => Math.min(i + 1, STEPS.length - 1)), 1400);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [satisfied, stepIndex]);
@@ -193,7 +266,7 @@ export function Tutorial({
             }}
           />
         )}
-        <div className="absolute bottom-4 right-4 left-4 sm:left-auto sm:w-80 pointer-events-auto">
+        <div className="absolute bottom-4 right-4 left-4 sm:left-auto sm:w-[340px] pointer-events-auto">
           <TutorialCard
             key={stepIndex}
             step={step}
@@ -265,7 +338,7 @@ export function Tutorial({
             : {
                 top: placeBelow ? rect.bottom + padding + 10 : undefined,
                 bottom: placeAbove ? window.innerHeight - rect.top + padding + 10 : undefined,
-                left: Math.min(Math.max(rect.left, 16), window.innerWidth - 336),
+                left: Math.min(Math.max(rect.left, 16), window.innerWidth - 356),
               }
         }
       >
@@ -296,88 +369,111 @@ function TutorialCard({
   justDone: boolean;
   compact?: boolean;
 }) {
+  void total;
+  const gareNo = GARES.findIndex((g) => g.id === step.id) + 1;
+  const first = stepIndex === 0;
   return (
-    <div className={`bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter ${compact ? "w-80" : "w-full max-w-md"}`}>
-      <div className="p-6">
-        {stepIndex === 0 && <LogoMark size={44} className="mb-4" />}
-        <h2 className="font-display text-2xl mb-2">{step.title}</h2>
-        <p className="text-sm text-slate2 font-body leading-relaxed">{step.body}</p>
+    <div className={`bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter ${compact ? "w-[340px] max-w-[calc(100vw-32px)]" : "w-full max-w-md"}`}>
+      {/* 2.0.3 : la petite ligne du stage, une gare par geste */}
+      <div className="px-5 pt-4 pb-1">
+        <GareTrack stepIndex={stepIndex} doneNow={justDone} />
+      </div>
+      <div className={compact ? "px-5 pt-3 pb-4" : "px-6 pt-4 pb-5"}>
+        {first && <LogoMark size={40} className="mb-3" />}
+        <h2 className={`font-display mb-2 ${compact ? "text-xl" : "text-2xl"}`}>{justDone ? "Bien joué" : step.title}</h2>
+        <p className="text-sm text-slate2 font-body leading-relaxed">
+          {justDone ? (step.reward ? `Prime de stage versée : +${step.reward} pi. En route pour la gare suivante.` : "C'est fait. En route pour la gare suivante.") : step.body}
+        </p>
+        {first && (
+          <div className="mt-4 flex items-baseline justify-between border-t border-line pt-3">
+            <span className="text-[13px] text-slate2 font-body">Primes à gagner pendant le stage</span>
+            <span className="font-mono2 text-rail-green text-[17px] tabular-nums">+{TOTAL_REWARD} pi.</span>
+          </div>
+        )}
+        {isLast && (
+          <>
+            <div className="mt-4 grid grid-cols-5 gap-1.5" aria-label="Gares du stage, toutes compostées">
+              {GARES.map((g, i) => (
+                <span
+                  key={g.id}
+                  className="tutorial-stamp aspect-square grid place-items-center border-[1.5px] border-rail-green text-rail-green font-mono2 text-[10px]"
+                  style={{ animationDelay: `${i * 110}ms` }}
+                >
+                  {g.gare}
+                </span>
+              ))}
+            </div>
+            <div className="mt-4 flex items-baseline justify-between border-t border-line pt-3">
+              <span className="text-[13px] text-slate2 font-body">Primes de stage</span>
+              <span className="font-mono2 text-rail-green text-[17px] tabular-nums">+{TOTAL_REWARD} pi.</span>
+            </div>
+          </>
+        )}
       </div>
 
-      <div className="px-6 pt-1 pb-3">
-        <StepTrack stepIndex={stepIndex} total={total} />
-      </div>
-
-      {/* En attente, le libellé prend toute la largeur : dans une carte de 320 px
-          il ne tient pas à côté du compteur d'étape et du bouton Passer. */}
-      {waiting ? (
-        <div className="border-t border-line">
-          <div className="flex items-center gap-2 px-6 pt-3.5 text-[11px] font-mono2 uppercase tracking-wide text-cobalt">
-            <span className="w-1.5 h-1.5 rounded-full bg-cobalt blink-dot shrink-0" />
-            {step.waitingLabel ?? "À vous de jouer"}
-          </div>
-          <div className="flex items-center justify-between px-6 pb-3.5 pt-2">
-            <span className="text-[11px] font-mono2 text-slate2 uppercase tracking-wide">
-              Étape {stepIndex + 1}/{total}
-            </span>
-            <button onClick={onSkip} className="text-xs text-slate2 hover:text-offwhite font-body uppercase tracking-wide transition-colors">
-              Passer
-            </button>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center justify-between px-6 py-4 border-t border-line">
-          <span className="text-[11px] font-mono2 text-slate2 uppercase tracking-wide">
-            Étape {stepIndex + 1}/{total}
-          </span>
-          <div className="flex items-center gap-4">
-            <button onClick={onSkip} className="text-xs text-slate2 hover:text-offwhite font-body uppercase tracking-wide transition-colors">
-              Passer
-            </button>
-            {justDone ? (
-              <span className="text-xs font-semibold uppercase tracking-wide text-rail-green">C'est fait</span>
-            ) : (
-              <button
-                onClick={onNext}
-                className="bg-cobalt text-onaccent text-xs font-semibold uppercase tracking-wide px-4 py-2 hover:bg-cobalt/90 active:scale-[0.97] transition-transform"
-              >
-                {isLast ? "C'est parti" : "Suivant"}
-              </button>
-            )}
-          </div>
+      {waiting && (
+        <div className={`flex items-center gap-2 border-t border-line ${compact ? "px-5" : "px-6"} pt-3 text-[12.5px] font-body text-cobalt`}>
+          <span className="w-1.5 h-1.5 bg-cobalt blink-dot shrink-0" />
+          {step.waitingLabel ?? "À vous de jouer"}
         </div>
       )}
+      <div className={`flex items-center gap-3 ${waiting ? "" : "border-t border-line"} ${compact ? "px-5" : "px-6"} py-3`}>
+        {step.reward ? (
+          <span className={`font-mono2 text-[12px] px-1.5 py-0.5 border whitespace-nowrap tabular-nums ${justDone ? "text-rail-green border-rail-green/50" : "text-amber border-amber/50"}`}>
+            {justDone ? "✓ " : ""}+{step.reward} pi.
+          </span>
+        ) : gareNo > 0 ? (
+          <span className="font-mono2 text-[11.5px] text-slate2 whitespace-nowrap">gare {gareNo} sur {GARES.length}</span>
+        ) : null}
+        <span className="ml-auto flex items-center gap-4 shrink-0">
+          {!isLast && (
+            <button onClick={onSkip} className="text-[12.5px] text-slate2 hover:text-offwhite font-body transition-colors">
+              Passer le guide
+            </button>
+          )}
+          {!waiting && !justDone && (
+            <button
+              onClick={onNext}
+              className="bg-cobalt text-onaccent text-[13px] font-semibold font-body px-4 py-2 hover:bg-cobalt/90 active:scale-[0.97] transition-transform"
+            >
+              {first ? "C'est parti" : isLast ? "Prendre les commandes" : "Suivant"}
+            </button>
+          )}
+        </span>
+      </div>
     </div>
   );
 }
 
-function StepTrack({ stepIndex, total }: { stepIndex: number; total: number }) {
-  const percent = total > 1 ? (stepIndex / (total - 1)) * 100 : 0;
-
+/* Les gares du stage sur une ligne : franchies en vert, celle en cours cerclée,
+   la rame posée dessus. */
+function GareTrack({ stepIndex, doneNow }: { stepIndex: number; doneNow: boolean }) {
+  const n = GARES.length;
+  const at = (i: number) => (n > 1 ? (i / (n - 1)) * 100 : 0);
+  const idxOf = (g: Step) => STEPS.indexOf(g);
+  const done = (g: Step) => idxOf(g) < stepIndex || (idxOf(g) === stepIndex && doneNow);
+  const reached = GARES.filter(done).length;
+  const current = GARES.findIndex((g) => idxOf(g) >= stepIndex);
+  const trainAt = current < 0 ? 100 : at(Math.max(0, doneNow ? current : current));
   return (
-    <div className="relative h-4">
-      <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-px bg-line" />
-      <div
-        className="absolute left-0 top-1/2 -translate-y-1/2 h-px bg-cobalt transition-all duration-500 ease-out"
-        style={{ width: `${percent}%` }}
-      />
-      {Array.from({ length: total }).map((_, i) => {
-        const p = total > 1 ? (i / (total - 1)) * 100 : 0;
+    <div className="relative h-9 mx-3">
+      <div className="absolute left-0 right-0 top-[7px] h-[3px] bg-line" />
+      <div className="absolute left-0 top-[7px] h-[3px] bg-rail-green transition-all duration-500 ease-out" style={{ width: `${reached > 0 ? at(reached - 1) : 0}%` }} />
+      {GARES.map((g, i) => {
+        const d = done(g);
+        const here = i === current && !d;
         return (
-          <span
-            key={i}
-            className={`absolute top-1/2 w-1.5 h-1.5 rounded-full -translate-x-1/2 -translate-y-1/2 transition-colors duration-300 ${
-              i <= stepIndex ? "bg-cobalt" : "bg-line"
-            }`}
-            style={{ left: `${p}%` }}
-          />
+          <span key={g.id} className="absolute top-0 -translate-x-1/2 flex flex-col items-center" style={{ left: `${at(i)}%` }}>
+            <span
+              className={`block rounded-full border-2 transition-colors duration-300 ${here ? "w-[17px] h-[17px] -mt-[2px] border-cobalt bg-navy-900" : d ? "w-[13px] h-[13px] border-rail-green bg-rail-green" : "w-[13px] h-[13px] border-slate2/60 bg-navy-900"}`}
+            />
+            <span className={`mt-1 font-mono2 text-[10px] whitespace-nowrap ${here ? "text-offwhite" : "text-slate2"}`}>{g.gare}</span>
+          </span>
         );
       })}
-      <TrainMark
-        size={14}
-        className="absolute top-1/2 text-cobalt transition-all duration-500 ease-out"
-        style={{ left: `${percent}%`, transform: "translate(-50%, -50%)" }}
-      />
+      {stepIndex > 0 && current >= 0 && (
+        <TrainMark size={13} className="absolute -top-[12px] text-cobalt transition-all duration-500 ease-out" style={{ left: `${trainAt}%`, transform: "translateX(-50%)" }} />
+      )}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import { createPortal } from "react-dom";
 import { api } from "../api/client";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
+import { JournalBell } from "../components/Journal";
 import { MarketSection, ConstructionPanel } from "../components/MarketSection";
 import { NotificationsPanel } from "../components/NotificationsPanel";
 import { ShopSection } from "../components/ShopSection";
@@ -186,6 +187,7 @@ interface Line {
   stops?: string[];
   priceRatio?: number;
   electrified?: boolean;
+  autoPrice?: boolean;
 }
 
 interface Company {
@@ -294,7 +296,7 @@ interface LeaderResponse {
 
 export default function Dashboard() {
   const { logout } = useAuth();
-  const { showToast, showComposter } = useToast();
+  const { showToast, showComposter, notify, setJournalOwner, setNavigator } = useToast();
   const [company, setCompany] = useState<Company | null>(null);
   const [lines, setLines] = useState<Line[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
@@ -310,6 +312,29 @@ export default function Dashboard() {
   const [world, setWorld] = useState<WorldData | null>(null);
   const reloadSeason = () => loadSeason().then((d) => d && setSeason(d));
   const reloadAlliance = () => loadAlliance().then((d) => d && setAlliance(d));
+  /* 2.0.3 : le journal de bord se tient par compagnie, et ses liens ouvrent la bonne rubrique */
+  useEffect(() => setJournalOwner(company?.id ?? null), [company?.id, setJournalOwner]);
+  useEffect(() => {
+    setNavigator((link) => {
+      setView(link.view as DashboardView);
+      if (link.trainId) setSheetRequest(link.trainId);
+    });
+    return () => setNavigator(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  /* 2.0.3 : invitations et candidatures d'alliance arrivent au journal de bord */
+  const allianceSeen = useRef<{ invites: Set<string>; apps: Set<string> } | null>(null);
+  useEffect(() => {
+    if (!alliance) return;
+    const invites = new Set((alliance.invites ?? []).map((i) => i.id));
+    const apps = new Set((alliance.applications ?? []).map((a) => a.id));
+    const prev = allianceSeen.current;
+    allianceSeen.current = { invites, apps };
+    if (!prev) return;
+    for (const i of alliance.invites ?? []) if (!prev.invites.has(i.id)) notify("alliance", `${i.alliance} vous invite à la rejoindre`, { label: "Répondre", view: "alliance" });
+    for (const a of alliance.applications ?? []) if (!prev.apps.has(a.id)) notify("alliance", `${a.name} veut rejoindre votre alliance`, { label: "Voir la candidature", view: "alliance" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [alliance]);
   const [leaderMe, setLeaderMe] = useState<{ rank?: number; aheadName?: string | null; gap?: number } | null>(null);
   const [missionCount, setMissionCount] = useState(0);
   const [referral, setReferral] = useState<ReferralInfo | null>(null);
@@ -329,6 +354,8 @@ export default function Dashboard() {
   const lastBalance = useRef<number | null>(null);
   const [gain, setGain] = useState<{ amount: number; key: number } | null>(null);
   const [showTutorial, setShowTutorial] = useState(false);
+  // 2.0.3 : le tutoriel attend que le joueur ouvre la carte avec une rame en route
+  const [mapSeen, setMapSeen] = useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [editingCompany, setEditingCompany] = useState(false);
   const [showCatalog, setShowCatalog] = useState(false);
@@ -433,7 +460,7 @@ export default function Dashboard() {
   /* rechargée aussi quand une ligne change de gares ou gagne/perd une rame :
      les correspondances en dépendent, pas seulement le nombre de lignes */
   const linesSignature = lines
-    .map((l) => `${l.id}:${l.departureStation}>${l.arrivalStation}:${(l as { trains?: unknown[] }).trains?.length ?? 0}`)
+    .map((l) => `${l.id}:${l.departureStation}>${l.arrivalStation}:${(l as { trains?: unknown[] }).trains?.length ?? 0}:${l.priceRatio ?? 1}:${l.autoPrice ? 1 : 0}`)
     .join("|");
   useEffect(() => {
     const load = () => api.get("/network/map").then(({ data }) => { setTunnelOpen(Boolean(data?.tunnel?.open)); setMountainOwned(Boolean((data?.stations ?? []).find((st: { dlc?: { owned: boolean } | null }) => st.dlc)?.dlc?.owned)); setNetwork(data); }).catch(() => undefined);
@@ -637,13 +664,13 @@ export default function Dashboard() {
         const ref = nextReferral;
         if (ref && prev) {
           if (ref.totalReferred > prev.totalReferred) {
-            showToast(`Un filleul a rejoint le réseau (${ref.totalReferred} au total)`);
+            notify("argent", `Un filleul a rejoint le réseau (${ref.totalReferred} au total)`, { label: "Voir le parrainage", view: "parametres" });
           } else if (ref.rewardsGranted > prev.rewardsGranted) {
-            showToast("Prime de parrainage versée : +150 pi.");
+            notify("argent", "Prime de parrainage versée : +150 pi.", { label: "Voir le parrainage", view: "parametres" });
           }
           if (ref.milestoneReached > prev.milestoneReached) {
             const reached = ref.milestones.find((m) => m.count === ref.milestoneReached);
-            if (reached) showToast(`Palier de parrainage atteint — ${reached.label}`);
+            if (reached) notify("progression", `Palier de parrainage atteint : ${reached.label}`, { label: "Voir le parrainage", view: "parametres" });
           }
         }
         return ref ?? prev;
@@ -663,10 +690,10 @@ export default function Dashboard() {
         prevStaff.forEach((prevS) => {
           const now = st.find((newS: Staff) => newS.id === prevS.id);
           if (!now) {
-            showToast(`Un employé a quitté la compagnie`, "error");
+            notify("equipe", `${prevS.name || "Un employé"} a quitté la compagnie, faute de salaire`, { label: "Voir le personnel", view: "personnel" });
           } else if (now.raiseRequested && !prevS.raiseRequested) {
             // seulement au passage à « demandée », pas à chaque rafraîchissement
-            showToast(`${now.name || "Un employé"} demande une augmentation`);
+            notify("equipe", `${now.name || "Un employé"} demande une augmentation`, { label: "Répondre", view: "personnel" });
           }
         });
         return st;
@@ -676,6 +703,7 @@ export default function Dashboard() {
       if (mid) setDailyChallenge((prev) => {
         if (prev && !prev.completed && dc.completed) {
           showComposter(`Défi accompli : ${dc.label}`);
+          notify("progression", `Défi du jour accompli : ${dc.label}`, undefined, { silent: true });
         }
         return dc;
       });
@@ -686,6 +714,7 @@ export default function Dashboard() {
           const prev = prevAchievements.find((p) => p.id === newA.id);
           if (prev && !prev.unlocked && newA.unlocked) {
             showComposter(`Succès débloqué : ${newA.name}`);
+            notify("progression", `Succès débloqué : ${newA.name}`, { label: "Voir les succès", view: "succes" }, { silent: true });
           }
         });
         return ach;
@@ -696,7 +725,7 @@ export default function Dashboard() {
         const prevIds = new Set(prevIncidents.map((i) => i.id));
         inc.forEach((newInc: Incident) => {
           if (!prevIds.has(newInc.id) && prevIncidents.length > 0) {
-            showToast(newInc.message, "error");
+            notify("incident", newInc.message, { label: "Voir la flotte", view: "trains" });
           }
         });
         return inc;
@@ -708,6 +737,7 @@ export default function Dashboard() {
           const prev = prevContracts.find((p) => p.id === newC.id);
           if (prev && prev.status === "EN_COURS" && newC.status === "LIVREE") {
             showComposter(`Livraison "${newC.cargoType}" terminée — +${newC.reward} pi.`);
+            notify("fret", `Livraison « ${newC.cargoType} » terminée : +${newC.reward} pi.`, { label: "Voir le fret", view: "fret" }, { silent: true });
           }
         });
         return mine;
@@ -719,7 +749,7 @@ export default function Dashboard() {
         t.forEach((newTrain: Train) => {
           const prev = prevTrains.find((p) => p.id === newTrain.id);
           if (prev && prev.progress >= 90 && newTrain.progress < 20 && newTrain.line) {
-            showToast(`${newTrain.name} est arrivé à ${newTrain.line.arrivalStation}, repart aussitôt`);
+            notify("rames", `Arrivée de ${newTrain.name} à ${newTrain.line.arrivalStation}, repart aussitôt`, { label: "Voir la rame", view: "trains", trainId: newTrain.id });
           }
         });
         // 2.0 : une rame qui vient de casser se fait entendre (et vibrer sur téléphone)
@@ -729,7 +759,12 @@ export default function Dashboard() {
         if (prevTrains.length > 0 && brokeNow.length > 0) {
           playAlert();
           vibrate([90, 60, 90]);
-          showToast(`${brokeNow[0].name} est en panne${brokeNow[0].brokenPart ? ` : ${(brokeNow[0].organs?.find((o: { id: string }) => o.id === brokeNow[0].brokenPart)?.label ?? "un organe").toLowerCase()} hors service` : ""}`, "error");
+          for (const b of brokeNow)
+            notify(
+              "incident",
+              `${b.name} est en panne${b.brokenPart ? ` : ${(b.organs?.find((o: { id: string }) => o.id === b.brokenPart)?.label ?? "un organe").toLowerCase()} hors service` : ""}`,
+              { label: "Ouvrir la fiche", view: "trains", trainId: b.id }
+            );
         }
         return t;
       });
@@ -766,6 +801,10 @@ export default function Dashboard() {
       document.removeEventListener("visibilitychange", onVisible);
     };
   }, []);
+
+  useEffect(() => {
+    if (view === "carte" && trains.some((t) => !!t.line)) setMapSeen(true);
+  }, [view, trains]);
 
   useEffect(() => {
     if (company && !company.tutorialSeen) {
@@ -950,7 +989,7 @@ export default function Dashboard() {
       items: [
         { id: "trains", label: "Flotte", icon: <TrainMark size={16} />, count: trains.length, active: view === "trains", onClick: () => setView("trains") },
         { id: "lignes", label: "Lignes", icon: <TrackMark size={16} />, count: lines.length, active: view === "lignes", onClick: () => setView("lignes") },
-        { id: "carte", label: "Carte", icon: <MapMark size={16} />, active: view === "carte", onClick: () => setView("carte") },
+        { id: "carte", label: "Carte", icon: <MapMark size={16} />, active: view === "carte", onClick: () => setView("carte"), dataTutorial: "nav-carte" },
         ...(lines.length > 0 ? [{ id: "infrastructures", label: "Infrastructures", icon: <StationMark size={16} />, active: view === "infrastructures", onClick: () => setView("infrastructures") }] : []),
       ],
     },
@@ -993,17 +1032,20 @@ export default function Dashboard() {
           saison, les rubriques sans cadres autour des icônes. Sur téléphone,
           une barre d'onglets en bas de l'écran et le reste dans « Plus ». */}
       <aside className={`hidden md:flex border-r border-line flex-col relative bg-navy-950/40 backdrop-blur-[1px] sticky top-0 self-start h-screen ${themeTrial ? "pb-[52px]" : ""}`}>
-        <button
-          onClick={() => setEditingCompany(true)}
-          className="text-left px-5 pt-5 pb-4 hover:bg-navy-900/40 transition-colors flex items-center gap-3"
-          title="Modifier la compagnie"
-        >
-          <CompanyBadge company={company} size={38} />
-          <span className="min-w-0">
-            <span className="block font-display text-[17px] leading-tight truncate">{company.name}</span>
-            <span className="block text-[12.5px] text-amber font-body truncate">{career ? career.currentRank.name : "Console d'exploitation"}</span>
-          </span>
-        </button>
+        <div className="flex items-center pr-4">
+          <button
+            onClick={() => setEditingCompany(true)}
+            className="flex-1 min-w-0 text-left pl-5 pr-2 pt-5 pb-4 hover:bg-navy-900/40 transition-colors flex items-center gap-3"
+            title="Modifier la compagnie"
+          >
+            <CompanyBadge company={company} size={38} />
+            <span className="min-w-0">
+              <span className="block font-display text-[17px] leading-tight truncate">{company.name}</span>
+              <span className="block text-[12.5px] text-amber font-body truncate">{career ? career.currentRank.name : "Console d'exploitation"}</span>
+            </span>
+          </button>
+          <JournalBell className="mt-1" />
+        </div>
         {season?.season && season.me && navOpen.classement && (
           <button onClick={() => setView("saison")} className="mx-5 mb-2 flex items-center gap-2 text-[12.5px] font-body text-slate2 hover:text-offwhite text-left">
             <span className="w-2 h-2 rotate-45 shrink-0" style={{ background: DIVISION_COLORS[season.me.division] }} />
@@ -1098,12 +1140,13 @@ export default function Dashboard() {
         <span className="ml-auto font-mono2 text-[15px] text-amber tabular-nums whitespace-nowrap">
           {Math.max(0, company.balance).toLocaleString("fr-FR")} pi.
         </span>
+        <JournalBell />
       </header>
       <MobileTabBar
         tabs={[
           { id: "trains", label: "Flotte", icon: <TrainMark size={20} />, active: view === "trains", onClick: () => setView("trains") },
           { id: "lignes", label: "Lignes", icon: <TrackMark size={20} />, active: view === "lignes", onClick: () => setView("lignes") },
-          { id: "carte", label: "Carte", icon: <MapMark size={20} />, active: view === "carte", onClick: () => setView("carte") },
+          { id: "carte", label: "Carte", icon: <MapMark size={20} />, active: view === "carte", onClick: () => setView("carte"), dataTutorial: "nav-carte" },
           navOpen.classement
             ? { id: "saison", label: "Saison", icon: <SeasonMark size={20} />, active: view === "saison", onClick: () => setView("saison") }
             : { id: "fret", label: "Fret", icon: <CargoMark size={20} />, active: view === "fret" || view === "missions", onClick: () => setView("fret") },
@@ -1131,6 +1174,24 @@ export default function Dashboard() {
             lineCount: lines.length,
             trainCount: trains.length,
             assignedCount: trains.filter((t) => !!t.line).length,
+            mapSeen: mapSeen || (view === "carte" && trains.some((t) => !!t.line)),
+            // un prix réglé à la main, le prix auto, ou une ligne déjà au prix conseillé
+            priceSet: lines.some((l) => {
+              if ((l.priceRatio ?? 1) !== 1 || l.autoPrice) return true;
+              const r = network?.lines.find((x) => x.lineId === l.id)?.ridership;
+              return !!r && !r.estimated && Math.abs(r.idealPrice - (l.priceRatio ?? 1)) < 0.05;
+            }),
+          }}
+          onReward={async (step) => {
+            try {
+              const { data } = await api.post("/company/tutorial-reward", { step });
+              if (data?.amount > 0) {
+                notify("argent", `Prime de stage : +${data.amount} pi.`, undefined, { silent: true });
+                loadAll();
+              }
+            } catch {
+              /* étape pas encore vue par le serveur : la prime se réclame à la prochaine étape */
+            }
           }}
         />
       )}
@@ -2626,7 +2687,7 @@ function LinesSection({
                 <div>
                   <FillCell ridership={r} onDetail={() => setLoadLine(l)} premium={company.isPremium} quiet />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0" data-tutorial={i === 0 ? "line-price" : undefined}>
                   <PriceControl line={l} ridership={r} premium={company.isPremium} onChange={onChange} />
                   <div className="mt-2 text-[12px] font-body flex items-center gap-2">
                     <span className="text-slate2">Voyageurs</span>
@@ -2738,33 +2799,50 @@ function PriceControl({ line, ridership, premium, onChange }: { line: Line; ride
   const { showToast } = useToast();
   useEffect(() => setValue(saved), [saved]);
 
+  /* 1.7 — Premium : le prix se cale tout seul sur le prix conseillé.
+     2.0.3 : l'état du bouton vient de la ligne elle-même (rechargée à chaque
+     action) et bascule dès le clic. Avant, il venait de la carte du réseau,
+     relue toutes les minutes : le bouton restait éteint après le clic, et un
+     second clic éteignait le prix automatique qu'on venait d'allumer. */
+  const savedAuto = Boolean(line.autoPrice ?? ridership?.auto);
+  const [autoOn, setAutoOn] = useState(savedAuto);
+  useEffect(() => setAutoOn(savedAuto), [savedAuto]);
+  const auto = premium && autoOn;
+
   async function save(next: number) {
     const v = Math.round(Math.min(2, Math.max(0.6, next)) * 20) / 20;
+    const wasAuto = autoOn;
     setValue(v);
+    setAutoOn(false); // un prix posé à la main reprend la main
     setSaving(true);
     try {
       await api.patch("/lines", { lineId: line.id, priceRatio: v });
+      if (wasAuto && premium) showToast("Prix fixé à la main : le prix automatique est coupé sur cette ligne", "info");
       onChange();
     } catch (err: any) {
       setValue(saved);
+      setAutoOn(wasAuto);
       showToast(err?.response?.data?.error || "Erreur", "error");
     } finally {
       setSaving(false);
     }
   }
 
-  // 1.7 — Premium : le prix se cale tout seul, chaque heure, sur le prix conseillé
-  const auto = Boolean(ridership?.auto);
   async function toggleAuto() {
     if (!premium) {
       showToast("Le prix automatique est réservé aux abonnés Premium", "error");
       return;
     }
+    if (saving) return;
+    const next = !autoOn;
+    setAutoOn(next);
     setSaving(true);
     try {
-      await api.patch("/lines", { lineId: line.id, autoPrice: !auto });
+      const { data } = await api.patch("/lines", { lineId: line.id, autoPrice: next });
+      if (typeof data?.priceRatio === "number") setValue(data.priceRatio);
       onChange();
     } catch (err: any) {
+      setAutoOn(!next);
       showToast(err?.response?.data?.error || "Erreur", "error");
     } finally {
       setSaving(false);
@@ -2774,7 +2852,7 @@ function PriceControl({ line, ridership, premium, onChange }: { line: Line; ride
   const ideal = ridership?.idealPrice;
   const gap = ideal == null ? 0 : ideal - value;
   return (
-    <div className="w-36">
+    <div className="w-40">
       <div className="flex items-center gap-1">
         <button type="button" disabled={saving || value <= 0.6} onClick={() => save(value - 0.05)} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label="Baisser le prix">−</button>
         <input
@@ -2794,7 +2872,11 @@ function PriceControl({ line, ridership, premium, onChange }: { line: Line; ride
       </div>
       <div className="flex items-baseline justify-between font-mono2 text-xs mt-1">
         <span className={value > 1 ? "text-amber" : value < 1 ? "text-cobalt" : "text-offwhite"}>{fmtPrice(value)}</span>
-        {ideal != null && (
+        {auto ? (
+          <span className="text-[10.5px] text-rail-green" title="Le billet suit le prix conseillé, recalculé chaque minute : pointe, rames en ligne, concurrents, événements">
+            réglé tout seul
+          </span>
+        ) : ideal != null && (
           <button
             type="button"
             onClick={() => save(ideal)}
@@ -2814,16 +2896,20 @@ function PriceControl({ line, ridership, premium, onChange }: { line: Line; ride
       </div>
       <button
         type="button"
+        role="switch"
+        aria-checked={auto}
         onClick={toggleAuto}
-        disabled={saving}
-        title={premium ? "Chaque heure, le prix se cale sur le prix conseillé. Régler le prix à la main désactive le mode automatique." : "Premium : le prix se règle tout seul, chaque heure"}
-        className={`mt-1 flex items-center gap-1.5 text-[10.5px] font-mono2 uppercase tracking-wide ${auto ? "text-rail-green" : "text-slate2 hover:text-offwhite"}`}
+        disabled={saving && premium}
+        title={premium ? "Le billet se cale sur le prix conseillé, recalculé chaque minute. Régler le prix à la main coupe le mode automatique." : "Premium : le prix se règle tout seul, en continu"}
+        className={`group mt-2 w-full flex items-center gap-2 px-1.5 py-1 border text-[12px] font-body text-left transition-colors ${
+          auto ? "border-rail-green/50 bg-rail-green/10 text-rail-green" : "border-line text-slate2 hover:text-offwhite hover:border-slate2"
+        }`}
       >
-        <span className={`w-6 h-3 border relative ${auto ? "border-rail-green bg-rail-green/20" : "border-line"}`}>
-          <span className={`absolute top-[1px] w-2 h-2 ${auto ? "right-[1px] bg-rail-green" : "left-[1px] bg-slate2"}`} />
+        <span className={`shrink-0 w-7 h-3.5 border relative transition-colors ${auto ? "border-rail-green bg-rail-green/30" : "border-slate2/60"}`}>
+          <span className={`absolute top-[2px] w-2 h-2 transition-all duration-150 ${auto ? "left-[15px] bg-rail-green" : "left-[2px] bg-slate2"}`} />
         </span>
-        {!premium && <LockMark size={9} />}
-        Prix auto
+        <span className="flex-1">Prix auto</span>
+        {!premium ? <LockMark size={10} /> : <span className="text-[10.5px] font-mono2">{auto ? "oui" : "non"}</span>}
       </button>
     </div>
   );
@@ -3354,6 +3440,7 @@ function TrainsSection({
                     </button>
                   </>
                 ) : t.status === "IDLE" ? (
+                  <span data-tutorial="btn-assign" className="inline-block">
                   <AssignDropdown
                     placeholder="Affecter à une ligne…"
                     options={lines
@@ -3362,6 +3449,7 @@ function TrainsSection({
                       .map((l) => ({ id: l.id, label: `${l.departureStation} → ${l.arrivalStation}` }))}
                     onSelect={(lineId) => assign(t.id, lineId)}
                   />
+                  </span>
                 ) : null}
               </div>
 
@@ -4622,6 +4710,7 @@ const TYPE_LABEL: Record<string, string> = {
   GARDE: "Frais de garde",
   CHANTIER: "Chantier",
   SUBVENTION: "Appel d'offres",
+  PRIME: "Prime de stage",
   BOUTIQUE: "Boutique",
   PEAGE: "Péage de sillon",
   LICENCE: "Licence internationale",
@@ -5018,6 +5107,25 @@ function NetworkMap({
   const { showToast } = useToast();
   // 2.0 : les épaves à l'abandon, posées près de leur gare
   const [wrecks, setWrecks] = useState<WreckInfo[]>([]);
+  /* 2.0.3 : les liaisons des autres compagnies, masquées par défaut (elles
+     couvraient la carte de traits gris). Le choix est gardé sur l'appareil. */
+  const [showRivals, setShowRivals] = useState(() => {
+    try {
+      return localStorage.getItem("reseau.carte.concurrents") === "1";
+    } catch {
+      return false;
+    }
+  });
+  function toggleRivals() {
+    setShowRivals((v) => {
+      try {
+        localStorage.setItem("reseau.carte.concurrents", v ? "0" : "1");
+      } catch {
+        /* stockage refusé : le choix vaut pour la session */
+      }
+      return !v;
+    });
+  }
   useEffect(() => {
     const load = () => void loadWrecks().then((d) => setWrecks(d?.open ?? []));
     load();
@@ -5241,7 +5349,7 @@ function NetworkMap({
           {night && <rect x={-200} y={-200} width={800} height={800} fill="rgb(var(--c-navy-950))" opacity="0.28" pointerEvents="none" />}
 
           {/* liaisons exploitées par d'autres compagnies */}
-          {network?.pairs
+          {showRivals && network?.pairs
             .filter((p) => !p.mine || p.companies > 1)
             .map((p) => {
               const a = STATION_COORDS[p.a];
@@ -5548,6 +5656,15 @@ function NetworkMap({
         <div className="flex items-end gap-3">
           <button onClick={() => setLegendOpen((o) => !o)} className="bg-navy-900/90 border border-line backdrop-blur-sm px-2.5 py-1.5 font-mono2 text-[10.5px] uppercase tracking-[0.14em] text-slate2 hover:text-offwhite">
             Légende
+          </button>
+          <button
+            onClick={toggleRivals}
+            aria-pressed={showRivals}
+            title={showRivals ? "Masquer les liaisons des autres compagnies" : "Afficher les liaisons des autres compagnies"}
+            className={`bg-navy-900/90 border backdrop-blur-sm px-2.5 py-1.5 font-mono2 text-[10.5px] uppercase tracking-[0.14em] flex items-center gap-2 ${showRivals ? "border-slate2 text-offwhite" : "border-line text-slate2 hover:text-offwhite"}`}
+          >
+            <span className={`w-4 h-0.5 border-t border-dotted shrink-0 ${showRivals ? "border-offwhite" : "border-slate2"}`} />
+            Concurrents {showRivals ? "affichés" : "masqués"}
           </button>
           <div className="pointer-events-none flex flex-col items-start" aria-label={`Échelle : ${scaleBar.km} km`}>
             <span className="font-mono2 text-[10px] text-slate2 mb-0.5">{scaleBar.km} km</span>

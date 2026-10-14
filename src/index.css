@@ -27,6 +27,8 @@
   /* texte posé sur un aplat d'accent : reste clair dans les deux thèmes,
      sinon « papier » donnerait de l'encre noire sur du vert wagon */
   --c-onaccent: 248 250 252;
+  /* 2.0.3 : couleur de l'équipe dans les notifications */
+  --c-violet: 167 139 250;
 
   --font-display: "Bitter", serif;
   --font-body: "Work Sans", sans-serif;
@@ -39,6 +41,7 @@
 /* Thème papier : la direction du site vitrine, portée dans le jeu.
    L'accent cyan devient le vert encre — sur crème, un cyan pur tourne au laiteux. */
 :root[data-theme="papier"] {
+  --c-violet: 107 79 160;
   --c-navy-950: 233 228 215;
   --c-navy-900: 242 238 227;
   --c-navy-800: 226 220 203;
@@ -65,6 +68,7 @@
    tirage, trait blanc à la craie, annotations au crayon jaune. L'accent devient
    presque blanc, donc le texte posé dessus repasse en bleu profond. */
 :root[data-theme="plan"] {
+  --c-violet: 214 196 255;
   --c-navy-950: 18 45 84;
   --c-navy-900: 24 56 102;
   --c-navy-800: 33 70 122;
@@ -511,3 +515,41 @@ tbody tr:nth-child(n+6) { animation-delay: 0.16s; }
 @keyframes map-wreck-ping { 0% { transform: scale(0.6); opacity: 0.9; } 100% { transform: scale(1.8); opacity: 0; } }
 .map-wreck-ping { transform-box: fill-box; transform-origin: center; animation: map-wreck-ping 1.8s ease-out infinite; }
 @media (prefers-reduced-motion: reduce) { .map-wreck-ping { animation: none; opacity: 0.6; } }
+
+/* ============================================================
+   2.0.3 : notifications. Une annonce porte l'heure et le pictogramme
+   de son genre dans une colonne teintée ; les annonces du même genre
+   se regroupent ; le journal de bord garde tout derrière la cloche.
+   --k : la couleur du genre, posée en style sur chaque annonce.
+   ============================================================ */
+.notif-stack { position: fixed; z-index: 80; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); width: 372px; max-width: calc(100vw - 32px); display: flex; flex-direction: column-reverse; gap: 8px; pointer-events: none; }
+.notif-stack > * { pointer-events: auto; }
+@media (max-width: 767px) { .notif-stack { left: 16px; right: 16px; width: auto; max-width: none; bottom: calc(76px + env(safe-area-inset-bottom, 0px)); } }
+.notif { position: relative; display: grid; grid-template-columns: 58px minmax(0, 1fr) 28px; background: rgb(var(--c-navy-900)); border: 1px solid rgb(var(--c-line)); box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.55); overflow: hidden; animation: notif-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.notif.out { animation: notif-out 0.2s ease-in both; }
+@keyframes notif-in { from { opacity: 0; transform: translateY(10px) scale(0.98); } }
+@keyframes notif-out { to { opacity: 0; transform: translateX(24px); } }
+.notif-when { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 11px 0 10px; color: var(--k); background: color-mix(in srgb, var(--k) 13%, transparent); border-right: 1px solid color-mix(in srgb, var(--k) 30%, rgb(var(--c-line))); }
+.notif-when time { font-family: var(--font-mono2); font-size: 12px; color: rgb(var(--c-offwhite)); font-variant-numeric: tabular-nums; }
+.notif-fuse { position: absolute; left: 58px; right: 0; bottom: 0; height: 2px; background: var(--k); opacity: 0.8; transform-origin: left; animation: notif-fuse linear forwards; }
+.notif:hover .notif-fuse { animation-play-state: paused; }
+@keyframes notif-fuse { to { transform: scaleX(0); } }
+.notif.bump .notif-when { animation: notif-bump 0.35s ease-out; }
+@keyframes notif-bump { 40% { background: color-mix(in srgb, var(--k) 32%, transparent); } }
+.notif-dot { position: relative; padding-left: 10px; }
+.notif-dot::before { content: ""; position: absolute; left: 0; top: 0.55em; width: 4px; height: 4px; background: var(--k); }
+.bell-ring svg { animation: bell-ring 0.6s ease-in-out; transform-origin: 50% 15%; }
+@keyframes bell-ring { 0%, 100% { transform: rotate(0); } 20% { transform: rotate(14deg); } 45% { transform: rotate(-11deg); } 70% { transform: rotate(6deg); } }
+.journal-drawer { transform: translateX(102%); transition: transform 0.26s cubic-bezier(0.16, 1, 0.3, 1); }
+.journal-drawer.open { transform: none; }
+.journal-entry.unread::before { content: ""; position: absolute; left: 7px; top: 16px; width: 5px; height: 5px; background: rgb(var(--c-amber)); }
+@media (prefers-reduced-motion: reduce) {
+  .notif, .notif.out, .bell-ring svg, .notif.bump .notif-when { animation: none; }
+  .notif-fuse { display: none; }
+  .journal-drawer { transition: none; }
+}
+
+/* 2.0.3 : les gares du stage, compostées une à une à la fin du tutoriel */
+.tutorial-stamp { transform: rotate(-6deg); animation: tutorial-stamp 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes tutorial-stamp { from { transform: scale(1.6) rotate(-14deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .tutorial-stamp { animation: none; } }
