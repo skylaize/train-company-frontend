@@ -297,7 +297,10 @@ export function ShopSection({
   /* 2.0 : la boutique du jour. Un serveur plus ancien n'envoie pas de
      rotation : on retombe alors sur l'ancien catalogue complet. */
   const rot = data.rotation;
-  const rest = data.items.filter((i) => i.kind !== "DLC" && i.kind !== "SAISON");
+  const rest = data.items.filter((i) => i.kind !== "DLC" && i.kind !== "SAISON" && !PRESTIGE_KINDS.has(i.kind));
+  // 2.1.1 : l'atelier de prestige, toujours en vente
+  const PRESTIGE_ORDER = ["MUSEE", "AFFICHE", "GARE", "TENUES", "SONS", "PLAQUE_RAME", "ALLIANCE"];
+  const prestige = data.items.filter((i) => PRESTIGE_KINDS.has(i.kind)).sort((a, b) => PRESTIGE_ORDER.indexOf(a.kind) - PRESTIGE_ORDER.indexOf(b.kind));
   const featured = rot ? (rot.featured.map((id) => byId.get(id)).filter(Boolean) as ShopItem[]) : rest.slice(0, 2);
   const daily = rot ? (rot.daily.map((id) => byId.get(id)).filter(Boolean) as ShopItem[]) : rest.slice(2);
   const limited = data.items.filter((i) => i.kind === "SAISON" && (!i.owned || i.availableUntil));
@@ -345,6 +348,30 @@ export function ShopSection({
           </p>
         )}
       </section>
+
+      {/* 2.1.1 : l'atelier de prestige, hors rotation */}
+      {prestige.length > 0 && (
+        <section className="mb-10">
+          <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+            <div>
+              <h2 className="font-display text-[26px] leading-tight">L'atelier de prestige</h2>
+              <p className="text-[13.5px] text-slate2 font-body mt-1 max-w-[62ch]">
+                Votre affiche, vos gares, vos plaques, vos tenues, votre musée. Toujours en vente, à essayer en vitrine avant d'acheter.
+              </p>
+            </div>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-2 mb-4">
+            {prestige.slice(0, 2).map((item) => (
+              <FeaturedCard key={item.id} item={item} badge={item.isNew && !item.owned ? "Nouveau" : null} enabled={data.enabled} busy={busy !== null} onBuy={() => buy(item)} onPreview={() => setSelectedId(item.id)} />
+            ))}
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-3">
+            {prestige.slice(2).map((item) => (
+              <ShopTile key={item.id} item={item} selected={false} onSelect={() => setSelectedId(item.id)} cabPreview={(id) => <CabSkinPreview id={id} />} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* toujours en vente */}
       <section className="mb-10">
@@ -736,7 +763,7 @@ const KIND_NAME: Record<string, string> = {
   ALLIANCE: "Coffret d'alliance",
 };
 
-function FeaturedCard({ item, enabled, busy, onBuy, onPreview }: { item: ShopItem; enabled: boolean; busy: boolean; onBuy: () => void; onPreview: () => void }) {
+function FeaturedCard({ item, enabled, busy, onBuy, onPreview, badge = "À la une" }: { item: ShopItem; enabled: boolean; busy: boolean; onBuy: () => void; onPreview: () => void; badge?: string | null }) {
   const tint = item.liveries?.[0] ?? (item.kind === "THEME" ? "#2a4a7a" : item.kind === "PLAQUE" ? "#8a6a1e" : "#24324a");
   const price = euros(item.priceCents);
   const hasTrain = (item.liveries?.length ?? 0) > 0 || (item.cabSkins?.length ?? 0) > 0;
@@ -747,7 +774,7 @@ function FeaturedCard({ item, enabled, busy, onBuy, onPreview }: { item: ShopIte
         <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at 70% 110%, ${tint}99, transparent 65%), linear-gradient(180deg, #0f1726, #0b0f19)` }} />
         {/* 2.1 : l'atelier de prestige */}
         {PRESTIGE_KINDS.has(item.kind) && <PrestigeThumb item={item} big />}
-        <span className="absolute z-10 top-3 left-3 text-[12px] font-body text-amber">À la une</span>
+        {badge && <span className="absolute z-10 top-3 left-3 text-[12px] font-body text-amber">{badge}</span>}
         {item.owned && <span className="absolute z-10 top-3 right-3 text-[12px] font-body text-rail-green">Possédé</span>}
         {hasTrain && (
           <div className="absolute inset-x-0 bottom-0">
