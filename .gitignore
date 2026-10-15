@@ -1,1 +1,5 @@
 node_modules
+# le site est recompilé par Vercel à chaque déploiement
+dist
+.env
+.env.local
