@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { api } from "../api/client";
 
 /* ============================================================
@@ -162,7 +163,7 @@ export function DecisionModal({
 
   const left = remaining(decision.expiresAt, now);
 
-  return (
+  return createPortal(
     <div data-modal className="fixed inset-0 z-[55] flex items-end sm:items-center justify-center bg-navy-950/80 px-0 sm:px-4" role="dialog" aria-modal="true" aria-labelledby="decision-title" onClick={onClose}>
       <div
         className="w-full sm:max-w-xl bg-navy-900 border border-line border-t-[3px] border-t-amber tutorial-step-enter max-h-[92vh] overflow-y-auto"
@@ -238,6 +239,7 @@ export function DecisionModal({
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

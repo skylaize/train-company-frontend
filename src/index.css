@@ -319,7 +319,7 @@ body.lp-body::after {
 
 @keyframes achievement-card-enter {
   from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  to { opacity: 1; transform: none; }
 }
 .achievement-card-enter {
   animation: achievement-card-enter 0.35s ease-out both;
@@ -350,7 +350,9 @@ body.lp-body::after {
 
 @keyframes view-enter {
   from { opacity: 0; transform: translateY(6px); }
-  to { opacity: 1; transform: translateY(0); }
+  /* « none » et pas translateY(0) : une transformation, même nulle, piège les
+     fenêtres « fixed » de la rubrique dans la page (on ne les voyait plus) */
+  to { opacity: 1; transform: none; }
 }
 .view-transition {
   animation: view-enter 0.25s ease-out both;
@@ -358,7 +360,7 @@ body.lp-body::after {
 
 @keyframes row-enter {
   from { opacity: 0; transform: translateX(-4px); }
-  to { opacity: 1; transform: translateX(0); }
+  to { opacity: 1; transform: none; }
 }
 tbody tr {
   animation: row-enter 0.3s ease-out both;

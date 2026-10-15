@@ -28,6 +28,7 @@ const ALL_ENTRIES: ChangelogEntry[] = [
       { type: "nouveau", text: "Éditions limitées de saison en boutique : Toussaint, Nouvel An et Saint-Valentin, chacune avec sa livrée, son emblème et son titre" },
       { type: "nouveau", text: "Deux succès : Wagons-lits et Nuits d'Europe" },
       { type: "corrige", text: "Sur téléphone, faire défiler une fenêtre (composition d'une rame, atelier, vue cabine…) faisait bouger la page derrière. La fenêtre défile maintenant seule, dans son cadre, et la barre d'onglets s'efface tant qu'elle est ouverte" },
+      { type: "corrige", text: "Sur téléphone, « Trancher » grisait l'écran sans montrer la décision : la fenêtre s'ouvrait hors de l'écran. Elle s'affiche de nouveau en bas de l'écran" },
     ],
   },
   {
