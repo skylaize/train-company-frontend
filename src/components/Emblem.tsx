@@ -43,6 +43,8 @@ export const EMBLEM_LABELS: Record<string, string> = {
   chataigne: "Châtaigne de la Toussaint",
   artifice: "Feu d'artifice",
   coeur: "Cœur",
+  // 2.1 : exclusivité Discord, jamais vendue
+  "porte-voix": "Porte-voix",
 };
 
 export function Emblem({ id, size = 14, className = "" }: { id: string; size?: number; className?: string }) {
@@ -295,6 +297,14 @@ export function Emblem({ id, size = 14, className = "" }: { id: string; size?: n
       return (
         <svg {...common}>
           <path d="M8 13.8S2 10.2 2 6.2A3 3 0 0 1 8 4.8a3 3 0 0 1 6 1.4c0 4-6 7.6-6 7.6Z" />
+        </svg>
+      );
+    case "porte-voix":
+      return (
+        <svg {...common}>
+          <path d="M2.4 6.2H5L11 3v10L5 9.8H2.4z" />
+          <path d="M5.4 10l1 3.4h1.4l-.6-3" />
+          <path d="M12.9 6.4c.7.9.7 2.3 0 3.2M14.3 5.1c1.2 1.6 1.2 4.2 0 5.8" />
         </svg>
       );
     default:
