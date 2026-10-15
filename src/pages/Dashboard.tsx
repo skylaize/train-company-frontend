@@ -208,6 +208,8 @@ interface Company {
   maxTrains: number;
   reputation: number;
   isPremium: boolean;
+  premiumTrialUntil?: string | null; // 2.1 : Premium d'essai
+  premiumTrialEndedAt?: string | null;
   tutorialSeen: boolean;
   nextDepotCost?: number;
   nextDepotHours?: number;
@@ -1364,6 +1366,29 @@ export default function Dashboard() {
               <SubTabs value={view} onChange={setView} tabs={[{ id: "carriere", label: "Grades" }, { id: "succes", label: "Succès", count: achievements.filter((a) => a.unlocked).length }]} />
             )}
             {view === "trains" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
+            {/* 2.1 : Premium d'essai en cours, puis la proposition de le garder */}
+            {view === "trains" && company.premiumTrialUntil && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border border-amber/40 bg-amber/5 px-4 py-3 mb-6">
+                <span className="text-sm font-body text-offwhite">
+                  <span className="text-amber">💎 Premium d'essai</span> · {trialLeft(company.premiumTrialUntil)}, jusqu'au {trialEnd(company.premiumTrialUntil)}
+                </span>
+                <button onClick={() => setView("parametres")} className="text-[11px] font-mono2 uppercase tracking-[0.14em] text-amber border border-amber/50 px-3 py-1.5 hover:bg-amber/10">
+                  Garder le Premium
+                </button>
+              </div>
+            )}
+            {view === "trains" && !company.isPremium && company.premiumTrialEndedAt && Date.now() - new Date(company.premiumTrialEndedAt).getTime() < 14 * 86_400_000 && (
+              <FirstVisitHint
+                id="essai-termine"
+                tag="Premium"
+                seen={company.hintsSeen ?? ""}
+                onSeen={loadAll}
+                title="Votre essai Premium est terminé"
+                body="Il vous a plu ? Le Premium s'achète une fois, pour toujours, et ne donne aucun bonus de revenu : seulement le confort et les outils que vous venez d'essayer."
+                points={["Vue cabine en direct, veille concurrentielle, bilans de retour et rentabilité détaillée.", "Horaires par rame, alertes personnalisées, ordres de bourse et marché élargi."]}
+                action={{ label: "Garder le Premium", onClick: () => setView("parametres") }}
+              />
+            )}
             {view === "trains" && !onboarding && (
               <FirstVisitHint
                 id="discord"
@@ -1816,6 +1841,19 @@ function TodaySummaryCard({ summary }: { summary: TodaySummary }) {
 /* 1.7 : vidéos récompensées (Google AdSense). Le joueur choisit d'en regarder
    une contre des pièces ; rien d'autre dans le jeu n'est une publicité. Un
    abonné Premium ne charge même pas le script tant qu'il ne le demande pas. */
+/* 2.1 : Premium d'essai */
+function trialEnd(iso: string) {
+  return new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+}
+function trialLeft(iso: string) {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return "se termine";
+  const d = Math.floor(ms / 86_400_000);
+  if (d >= 1) return `encore ${d} jour${d > 1 ? "s" : ""}`;
+  const h = Math.max(1, Math.floor(ms / 3_600_000));
+  return `encore ${h} heure${h > 1 ? "s" : ""}`;
+}
+
 function AdWatchCard({ onChange, isPremium }: { onChange: () => void; isPremium: boolean }) {
   const [status, setStatus] = useState<{ watchedToday: number; remaining: number; maxPerDay: number; rewardPerAd: number } | null>(null);
   const [phase, setPhase] = useState<"idle" | "loading" | "playing">("idle");
@@ -6796,10 +6834,14 @@ function SettingsSection({
 
         <div className="flex items-center justify-between border border-line p-4 gap-3 flex-wrap">
           <span className={`text-xs font-mono2 uppercase tracking-wide ${company.isPremium ? "text-amber" : "text-slate2"}`}>
-            {company.isPremium ? "Premium actif" : "Compte gratuit"}
+            {company.premiumTrialUntil
+              ? `Premium d'essai · jusqu'au ${trialEnd(company.premiumTrialUntil)}`
+              : company.isPremium
+                ? "Premium actif"
+                : "Compte gratuit"}
           </span>
 
-          {!company.isPremium &&
+          {(!company.isPremium || Boolean(company.premiumTrialUntil)) &&
             (billingOpen ? (
               <PremiumCTA company={company} onChange={onChange} />
             ) : (

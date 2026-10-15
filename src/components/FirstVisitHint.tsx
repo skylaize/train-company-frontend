@@ -23,7 +23,7 @@ export interface HintProps {
      « Bon à savoir » explique une rubrique à celui qui la découvre (1.6). */
   tag?: string;
   /* un lien mis en avant à côté de « Compris » (ex. rejoindre le Discord) */
-  action?: { label: string; href: string };
+  action?: { label: string; href?: string; onClick?: () => void };
 }
 
 export function FirstVisitHint({ id, title, body, points, seen, onSeen, tag = "Nouveau dans cette version", action }: HintProps) {
@@ -67,7 +67,15 @@ export function FirstVisitHint({ id, title, body, points, seen, onSeen, tag = "N
         </div>
 
         <div className="shrink-0 flex items-center gap-2">
-          {action && (
+          {action?.onClick && (
+            <button
+              onClick={action.onClick}
+              className="text-[11px] font-mono2 uppercase tracking-[0.14em] bg-cobalt text-onaccent px-3 py-1.5 hover:bg-cobalt/90 transition-colors"
+            >
+              {action.label}
+            </button>
+          )}
+          {action?.href && (
             <a
               href={action.href}
               target="_blank"

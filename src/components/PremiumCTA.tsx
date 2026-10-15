@@ -8,6 +8,7 @@ import { useToast } from "../context/ToastContext";
 
 export interface PremiumInfo {
   isPremium: boolean;
+  premiumTrialUntil?: string | null; // 2.1 : Premium d'essai en cours
 }
 
 /* 1.7 : prix affichés, lus une fois sur le serveur. Ils suivent les réglages
@@ -58,7 +59,8 @@ export function PremiumCTA({ company, compact = false }: { company: PremiumInfo;
 
   const min = billing?.minCents ?? 599;
   // 2.0 : un Premium peut l'offrir à une autre compagnie
-  if (company.isPremium) return compact ? null : <GiftButton itemName="le Premium" priceLabel={`dès ${euros(min)}`} premium />;
+  const trial = Boolean(company.premiumTrialUntil);
+  if (company.isPremium && !trial) return compact ? null : <GiftButton itemName="le Premium" priceLabel={`dès ${euros(min)}`} premium />;
   const suggested = billing?.suggestedCents ?? null;
 
   const button = (
@@ -67,7 +69,7 @@ export function PremiumCTA({ company, compact = false }: { company: PremiumInfo;
       disabled={busy}
       className={`${compact ? "px-3 py-1.5" : "px-4 py-2"} text-[11px] bg-amber text-onaccent font-mono2 uppercase tracking-wide disabled:opacity-50`}
     >
-      {busy ? "Ouverture…" : `Passer Premium · dès ${euros(min)}`}
+      {busy ? "Ouverture…" : `${trial ? "Garder le Premium" : "Passer Premium"} · dès ${euros(min)}`}
     </button>
   );
   if (compact) return button;
