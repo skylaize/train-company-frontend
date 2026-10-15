@@ -8,7 +8,11 @@ import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { Emblem, EMBLEM_LABELS } from "./Emblem";
 import { applyTheme, ThemeId, THEMES } from "../theme";
-import { ShopShowroom, ShopTile, ShowroomCompany as PreviewCompany } from "./ShopShowroom";
+import { ShopShowroom, ShopTile, ShowroomCompany as PreviewCompany, ShowroomSpecial, PRESTIGE_KINDS } from "./ShopShowroom";
+import { PrestigeThumb, SOUND_LABELS, STATION_SKIN_LABELS, PLATE_STYLE_LABELS, NamePlate } from "./PrestigeArt";
+import { StaffFigure, UNIFORM_LABELS } from "./StaffFigure";
+import { POSTER_LABELS } from "./PosterArt";
+import { playPack, SoundPack } from "../sfx";
 import { Plate, PLATE_LABELS } from "./Plate";
 
 /* ============================================================
@@ -21,7 +25,7 @@ import { Plate, PLATE_LABELS } from "./Plate";
 
 interface ShopItem {
   id: string;
-  kind: "DLC" | "LIVREES" | "EMBLEMES" | "TITRES" | "THEME" | "CABINE" | "SAISON" | "COFFRET" | "PLAQUE";
+  kind: "DLC" | "LIVREES" | "EMBLEMES" | "TITRES" | "THEME" | "CABINE" | "SAISON" | "COFFRET" | "PLAQUE" | "AFFICHE" | "PLAQUE_RAME" | "SONS" | "GARE" | "MUSEE" | "TENUES" | "ALLIANCE";
   name: string;
   description: string;
   priceCents: number;
@@ -31,6 +35,14 @@ interface ShopItem {
   theme?: string;
   cabSkins?: string[];
   plates?: string[];
+  // 2.1 : l'atelier de prestige
+  posters?: string[];
+  trainPlates?: string[];
+  sounds?: string[];
+  stationSkins?: string[];
+  museum?: boolean;
+  uniforms?: string[];
+  allianceLiveries?: string[];
   isNew?: boolean;
   worthCents?: number;
   owned: boolean;
@@ -47,8 +59,12 @@ interface ShopData {
   enabled: boolean;
   items: ShopItem[];
   rotation?: { day: string; featured: string[]; daily: string[]; refreshAt: string };
-  equipped: { emblem: string | null; title: string | null; theme: string; livery: string; cabSkin?: string | null; plate?: string | null };
-  unlocked: { emblems: string[]; titles: string[]; themes: string[]; liveries: string[]; cabSkins?: string[]; plates?: string[] };
+  equipped: { emblem: string | null; title: string | null; theme: string; livery: string; cabSkin?: string | null; plate?: string | null; soundPack?: string | null; stationSkin?: string | null; uniform?: string | null };
+  unlocked: {
+    emblems: string[]; titles: string[]; themes: string[]; liveries: string[]; cabSkins?: string[]; plates?: string[];
+    // 2.1
+    posters?: string[]; trainPlates?: string[]; sounds?: string[]; stationSkins?: string[]; uniforms?: string[]; museum?: boolean; allianceLiveries?: string[];
+  };
   nextSeason?: { name: string; itemName: string; startsAt: string } | null;
 }
 
@@ -186,7 +202,9 @@ export function ShopSection({
   grade,
   onTryTheme,
   initialItem,
+  onOpenMuseum,
 }: {
+  onOpenMuseum?: () => void; // 2.1
   onChange: () => void;
   initialItem?: string | null;
   company?: PreviewCompany;
@@ -222,6 +240,37 @@ export function ShopSection({
     } catch (e: any) {
       showToast(e?.response?.data?.error ?? "Impossible d'ouvrir la page de paiement", "error");
       setBusy(null);
+    }
+  }
+
+  // 2.1 : le réseau du joueur, pour l'affiche
+  const [myLines, setMyLines] = useState<string[][]>([]);
+  useEffect(() => {
+    api
+      .get("/lines")
+      .then(({ data }) => setMyLines((data as { departureStation: string; arrivalStation: string; stops?: string[] }[]).map((l) => [l.departureStation, ...(l.stops ?? []), l.arrivalStation])))
+      .catch(() => setMyLines([]));
+  }, []);
+
+  /* 2.1 : ce qui se porte autrement qu'en changeant la compagnie */
+  async function special(s: ShowroomSpecial) {
+    try {
+      if (s.type === "museum") return onOpenMuseum?.();
+      if (s.type === "plates") {
+        const { data } = await api.get("/trains");
+        const trains = data as { id: string }[];
+        for (const t of trains) await api.post("/trains/plate", { trainId: t.id, style: s.style }).catch(() => {});
+        showToast(`Plaques ${PLATE_STYLE_LABELS[s.style]?.toLowerCase() ?? ""} posées sur ${trains.length} rame${trains.length > 1 ? "s" : ""}`);
+      }
+      if (s.type === "alliance") {
+        await api.post("/alliance/livery", { livery: s.color });
+        await api.patch("/company", { liveryColor: s.color });
+        showToast("Livrée commune peinte : chaque membre peut la porter");
+      }
+      await load();
+      onChange();
+    } catch (e: any) {
+      showToast(e?.response?.data?.error ?? "Impossible d'appliquer ce choix", "error");
     }
   }
 
@@ -322,8 +371,22 @@ export function ShopSection({
       {preview && (
         <PreviewModal onClose={() => setSelectedId(null)} title={preview.name}>
           <ShopShowroom
+            key={preview.id}
             item={preview}
-            company={{ ...me, liveryColor: data.equipped.livery || me.liveryColor, emblem: data.equipped.emblem, title: data.equipped.title, cabSkin: data.equipped.cabSkin ?? null, theme: data.equipped.theme, plate: data.equipped.plate ?? null }}
+            onSpecial={special}
+            company={{
+              ...me,
+              liveryColor: data.equipped.livery || me.liveryColor,
+              emblem: data.equipped.emblem,
+              title: data.equipped.title,
+              cabSkin: data.equipped.cabSkin ?? null,
+              theme: data.equipped.theme,
+              plate: data.equipped.plate ?? null,
+              stationSkin: data.equipped.stationSkin ?? null,
+              soundPack: data.equipped.soundPack ?? null,
+              uniform: data.equipped.uniform ?? null,
+              lines: myLines,
+            }}
             cabLabels={CAB_SKIN_LABELS}
             enabled={data.enabled}
             busy={busy !== null}
@@ -448,6 +511,71 @@ export function ShopSection({
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+
+          {/* 2.1 : l'atelier de prestige */}
+          {(data.unlocked.stationSkins?.length ?? 0) > 0 && (
+            <WearRow
+              title="Gares en vue cabine"
+              none="Gares d'origine"
+              current={data.equipped.stationSkin ?? null}
+              list={data.unlocked.stationSkins!}
+              labels={STATION_SKIN_LABELS}
+              onPick={(v) => equip({ stationSkin: v }, v ? `Gares ${STATION_SKIN_LABELS[v]?.toLowerCase()} en vue cabine` : "Gares d'origine")}
+            />
+          )}
+          {(data.unlocked.sounds?.length ?? 0) > 0 && (
+            <WearRow
+              title="Son d'arrivée en gare"
+              none="Carillon d'origine"
+              current={data.equipped.soundPack ?? null}
+              list={data.unlocked.sounds!}
+              labels={SOUND_LABELS}
+              onPick={(v) => {
+                if (v) playPack(v as SoundPack);
+                void equip({ soundPack: v }, v ? `${SOUND_LABELS[v]} à l'arrivée en gare` : "Carillon d'origine");
+              }}
+            />
+          )}
+          {(data.unlocked.uniforms?.length ?? 0) > 0 && (
+            <WearRow
+              title="Tenue du personnel"
+              none="Tenue de base"
+              current={data.equipped.uniform ?? null}
+              list={data.unlocked.uniforms!}
+              labels={UNIFORM_LABELS}
+              render={(v) => <StaffFigure uniform={v} seed="Odette Morel" size={30} />}
+              onPick={(v) => equip({ uniform: v }, v ? `Tenues ${UNIFORM_LABELS[v]?.toLowerCase()} pour tout le personnel` : "Tenue de base")}
+            />
+          )}
+          {(data.unlocked.trainPlates?.length ?? 0) > 0 && (
+            <div className="mb-6">
+              <h3 className="font-mono2 text-[11px] text-slate2 uppercase tracking-[0.14em] mb-2">Plaques de rame</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                {data.unlocked.trainPlates!.map((p) => (
+                  <button key={p} onClick={() => special({ type: "plates", style: p })} className="px-2 py-1.5 border border-line hover:border-slate2" title="Poser sur toutes mes rames">
+                    <NamePlate style={p} className="text-[11px]">
+                      {PLATE_STYLE_LABELS[p]}
+                    </NamePlate>
+                  </button>
+                ))}
+                <span className="text-[12px] font-body text-slate2">Un clic pose la plaque sur toutes vos rames ; chaque rame se règle aussi dans son atelier.</span>
+              </div>
+            </div>
+          )}
+          {((data.unlocked.posters?.length ?? 0) > 0 || data.unlocked.museum) && (
+            <div className="mb-6 flex flex-wrap gap-2">
+              {(data.unlocked.posters?.length ?? 0) > 0 && (
+                <button onClick={() => setSelectedId("affiche-reseau")} className="px-3 py-2 border border-line hover:border-slate2 font-body text-[13px]">
+                  Télécharger mon affiche ({data.unlocked.posters!.map((p) => POSTER_LABELS[p as keyof typeof POSTER_LABELS] ?? p).join(", ")})
+                </button>
+              )}
+              {data.unlocked.museum && onOpenMuseum && (
+                <button onClick={onOpenMuseum} className="px-3 py-2 border border-line hover:border-slate2 font-body text-[13px]">
+                  Ouvrir mon musée
+                </button>
+              )}
             </div>
           )}
 
@@ -598,6 +726,14 @@ const KIND_NAME: Record<string, string> = {
   SAISON: "Édition limitée",
   COFFRET: "Coffret",
   PLAQUE: "Plaques d'honneur",
+  // 2.1
+  AFFICHE: "Affiche de votre réseau",
+  PLAQUE_RAME: "Plaques de rame",
+  SONS: "Sons de gare",
+  GARE: "Habillage de gare",
+  MUSEE: "Musée de la compagnie",
+  TENUES: "Tenues du personnel",
+  ALLIANCE: "Coffret d'alliance",
 };
 
 function FeaturedCard({ item, enabled, busy, onBuy, onPreview }: { item: ShopItem; enabled: boolean; busy: boolean; onBuy: () => void; onPreview: () => void }) {
@@ -609,8 +745,10 @@ function FeaturedCard({ item, enabled, busy, onBuy, onPreview }: { item: ShopIte
     <article className="border border-line bg-navy-900/60 flex flex-col overflow-hidden">
       <button onClick={onPreview} className="relative h-[190px] overflow-hidden text-left group" aria-label={`Voir ${item.name} en vitrine`}>
         <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at 70% 110%, ${tint}99, transparent 65%), linear-gradient(180deg, #0f1726, #0b0f19)` }} />
-        <span className="absolute top-3 left-3 text-[12px] font-body text-amber">À la une</span>
-        {item.owned && <span className="absolute top-3 right-3 text-[12px] font-body text-rail-green">Possédé</span>}
+        {/* 2.1 : l'atelier de prestige */}
+        {PRESTIGE_KINDS.has(item.kind) && <PrestigeThumb item={item} big />}
+        <span className="absolute z-10 top-3 left-3 text-[12px] font-body text-amber">À la une</span>
+        {item.owned && <span className="absolute z-10 top-3 right-3 text-[12px] font-body text-rail-green">Possédé</span>}
         {hasTrain && (
           <div className="absolute inset-x-0 bottom-0">
             <TrainPicture
@@ -624,7 +762,7 @@ function FeaturedCard({ item, enabled, busy, onBuy, onPreview }: { item: ShopIte
             />
           </div>
         )}
-        {!hasTrain && item.emblems && (
+        {!hasTrain && item.emblems && !PRESTIGE_KINDS.has(item.kind) && (
           <div className="absolute inset-0 flex items-center justify-center gap-4 text-offwhite">
             {item.emblems.slice(0, 6).map((e) => (
               <span key={e} className="w-14 h-14 rounded-full bg-[#0b2a4a] border border-white/70 inline-flex items-center justify-center">
@@ -703,8 +841,8 @@ function PreviewModal({ title, onClose, children }: { title: string; onClose: ()
     };
   }, [onClose]);
   return createPortal(
-    <div className="fixed inset-0 z-[70] bg-black/70 flex items-start sm:items-center justify-center p-3 sm:p-6 overflow-y-auto" onClick={onClose}>
-      <div className="w-full max-w-5xl relative" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Aperçu : ${title}`}>
+    <div data-modal className="fixed inset-0 z-[70] bg-black/70 flex items-start sm:items-center justify-center p-3 sm:p-6 overflow-y-auto" onClick={onClose}>
+      <div className="modal-free w-full max-w-5xl relative" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Aperçu : ${title}`}>
         <button onClick={onClose} className="absolute -top-1 right-0 sm:-right-2 z-10 text-white/80 hover:text-white text-[28px] leading-none px-2" aria-label="Fermer l'aperçu">
           ×
         </button>
@@ -712,5 +850,25 @@ function PreviewModal({ title, onClose, children }: { title: string; onClose: ()
       </div>
     </div>,
     document.body
+  );
+}
+
+/* 2.1 : une rangée « ce que vous portez » pour l'atelier de prestige */
+function WearRow({ title, none, current, list, labels, onPick, render }: { title: string; none: string; current: string | null; list: string[]; labels: Record<string, string>; onPick: (v: string | null) => void; render?: (v: string) => React.ReactNode }) {
+  return (
+    <div className="mb-6">
+      <h3 className="font-mono2 text-[11px] text-slate2 uppercase tracking-[0.14em] mb-2">{title}</h3>
+      <div className="flex flex-wrap gap-2">
+        <button onClick={() => onPick(null)} className={`px-3 py-2 border font-mono2 text-[11px] uppercase ${!current ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}>
+          {none}
+        </button>
+        {list.map((v) => (
+          <button key={v} onClick={() => onPick(v)} className={`px-3 py-1.5 border flex items-center gap-2 font-body text-[12.5px] ${current === v ? "border-cobalt text-cobalt" : "border-line hover:border-slate2"}`}>
+            {render?.(v)}
+            {labels[v] ?? v}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -5,6 +5,7 @@ export const MODEL_LABEL: Record<string, string> = {
   EXPRESS: "Express",
   FRET_LOURD: "Fret lourd",
   COUCHETTES: "Couchettes",
+  NUIT_EUROPE: "Nuit internationale", // 2.1.1
   VAPEUR: "Vapeur",
   LUXE: "Grand luxe",
   CREMAILLERE: "Crémaillère",

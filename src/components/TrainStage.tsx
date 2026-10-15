@@ -20,9 +20,9 @@ import { WAGON_TYPES, isFreightLoco } from "../freight";
    ============================================================ */
 
 export type CarKind = "SECONDE" | "PREMIERE" | "BAR";
-type Model = "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE";
+type Model = "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE";
 
-const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220 };
+const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, NUIT_EUROPE: 200, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220 };
 const CAR_SEATS: Record<string, number> = { SECONDE: 100, PREMIERE: 60, BAR: 0 };
 export const CAR_TAG: Record<string, string> = {
   SECONDE: "+100 places · 2de classe",
@@ -353,7 +353,7 @@ export function TrainArrival({
   const modelName = modelLabel(model);
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+    <div data-modal className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-full max-w-xl bg-navy-900 border border-line overflow-hidden" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`${name} entre en gare`}>
         <canvas ref={ref} className="block w-full h-[200px]" />
         <div className="flex items-end justify-between gap-4 px-5 py-4 border-t border-line">

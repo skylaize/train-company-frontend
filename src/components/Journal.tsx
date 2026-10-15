@@ -174,7 +174,7 @@ export function JournalDrawer({ onLink }: { onLink: (l: NotifLink) => void }) {
 
   return (
     <>
-      {journalOpen && <div className="fixed inset-0 z-[90] bg-navy-950/55" onClick={() => openJournal(false)} />}
+      {journalOpen && <div data-modal className="fixed inset-0 z-[90] bg-navy-950/55" onClick={() => openJournal(false)} />}
       <aside
         className={`journal-drawer ${journalOpen ? "open" : ""} fixed z-[95] top-0 right-0 bottom-0 w-[420px] max-w-full bg-navy-900 border-l border-line shadow-[-16px_0_40px_-20px_rgba(0,0,0,0.6)] flex flex-col`}
         style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "env(safe-area-inset-bottom, 0px)" }}

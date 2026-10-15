@@ -1543,6 +1543,16 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
         return [{ w: L, kind: "coachSilver" }, { w: L, kind: "coachSilver" }, { w: 230, kind: "express", arg: true }];
       case "EXPRESS":
         return [...extra.map((k) => ({ w: L, kind: "coach", arg: k })), { w: L, kind: "coach" }, { w: L, kind: "coach" }, { w: 230, kind: "express" }];
+      // 2.1.1 : le train de nuit international — voitures-lits bleu nuit, voiture-restaurant, couchettes
+      case "NUIT_EUROPE":
+        return [
+          ...extra.map((k) => ({ w: L, kind: "coach", arg: k })),
+          { w: L, kind: "sleeper" },
+          { w: 190, kind: "pullman", arg: ["#1d2f5c", "VOITURES-LITS"] },
+          { w: 190, kind: "pullman", arg: ["#5b1e2d", "RESTAURANT"] },
+          { w: 190, kind: "pullman", arg: ["#1d2f5c", "VOITURES-LITS"] },
+          { w: 215, kind: "modern", arg: [o.livery, "#d9a441", false] },
+        ];
       case "COUCHETTES":
         return [...extra.map((k) => ({ w: L, kind: "coach", arg: k })), { w: L, kind: "sleeper" }, { w: L, kind: "sleeper" }, { w: 150, kind: "box", arg: [o.livery, "#e8edf5"] }];
       // 2.1 : des wagons seuls (vignettes du catalogue et de la boutique)

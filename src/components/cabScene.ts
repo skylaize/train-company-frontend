@@ -29,6 +29,8 @@ export function createCabScene(ctx) {
     // 2.1 : rames de la compagnie qui viennent en sens inverse sur l'autre voie ; gap = distance (px) entre les deux têtes
     oncoming: [] as { id: string; gap: number; model: string; livery: string; skin?: string | null; cars?: string[]; v: number }[],
     yards: null as string[] | null, // 2.1 : gares de triage de la compagnie
+    // 2.1.1 : poste-frontière sur le tronçon en cours ; dx = distance (px) devant la rame
+    border: null as { dx: number; to: { code: string; name: string }; from: { code: string; name: string } } | null,
   };
   const oncomingW = new Map(); // longueur de chaque rame croisée, mesurée à l'image précédente
   const puffs = []; // fumée de la locomotive à vapeur
@@ -381,6 +383,56 @@ export function createCabScene(ctx) {
     }
   }
 
+  /* ---- 2.1.1 : le poste-frontière ---- */
+  function flag(x, y, w, h, code) {
+    const H3 = (a, b, c) => { ctx.fillStyle = a; ctx.fillRect(x, y, w, h / 3); ctx.fillStyle = b; ctx.fillRect(x, y + h / 3, w, h / 3); ctx.fillStyle = c; ctx.fillRect(x, y + (2 * h) / 3, w, h / 3); };
+    const V3 = (a, b, c) => { ctx.fillStyle = a; ctx.fillRect(x, y, w / 3, h); ctx.fillStyle = b; ctx.fillRect(x + w / 3, y, w / 3, h); ctx.fillStyle = c; ctx.fillRect(x + (2 * w) / 3, y, w / 3, h); };
+    if (code === "FR") V3("#1f3f8f", "#f2f2f2", "#d4343a");
+    else if (code === "BE") V3("#1a1a1a", "#f5d020", "#d4343a");
+    else if (code === "IT") V3("#1d8a4a", "#f2f2f2", "#cf2b37");
+    else if (code === "DE") H3("#1a1a1a", "#d4343a", "#f2c12e");
+    else if (code === "ES") { ctx.fillStyle = "#c8202f"; ctx.fillRect(x, y, w, h); ctx.fillStyle = "#f6c200"; ctx.fillRect(x, y + h / 4, w, h / 2); }
+    else if (code === "CH") { ctx.fillStyle = "#d52b1e"; ctx.fillRect(x, y, w, h); ctx.fillStyle = "#fff"; ctx.fillRect(x + w / 2 - h * 0.1, y + h * 0.2, h * 0.2, h * 0.6); ctx.fillRect(x + w / 2 - h * 0.3, y + h * 0.4, h * 0.6, h * 0.2); }
+    else if (code === "GB") { ctx.fillStyle = "#1f3a7a"; ctx.fillRect(x, y, w, h); ctx.fillStyle = "#fff"; ctx.fillRect(x, y + h * 0.38, w, h * 0.24); ctx.fillRect(x + w * 0.42, y, w * 0.16, h); ctx.fillStyle = "#cf2b37"; ctx.fillRect(x, y + h * 0.44, w, h * 0.12); ctx.fillRect(x + w * 0.46, y, w * 0.08, h); }
+  }
+  function drawBorder(x, groundY, pal) {
+    const b = sc.border;
+    // la borne et le grand panneau bleu, comme sur les lignes européennes
+    ctx.fillStyle = pal.light ? "#3a4150" : "#6b7280";
+    ctx.fillRect(x - 2, groundY - 92, 4, 88);
+    ctx.fillRect(x + 150, groundY - 92, 4, 88);
+    ctx.font = "700 14px 'Work Sans', sans-serif";
+    const name = b.to.name;
+    const tw = Math.max(150, ctx.measureText(name).width + 70);
+    const px = x + 76 - tw / 2;
+    ctx.fillStyle = "#1f3f8f";
+    ctx.fillRect(px, groundY - 118, tw, 40);
+    ctx.strokeStyle = "#e8edf5"; ctx.lineWidth = 1.5; ctx.strokeRect(px + 3, groundY - 115, tw - 6, 34);
+    // le cercle d'étoiles de l'Europe, sauf vers Londres et la Suisse
+    if (b.to.code !== "GB" && b.to.code !== "CH" && b.from.code !== "GB" && b.from.code !== "CH") {
+      ctx.fillStyle = "#f2c12e";
+      for (let i = 0; i < 12; i++) { const a = (i / 12) * Math.PI * 2; ctx.fillRect(px + 22 + Math.cos(a) * 10 - 1, groundY - 98 + Math.sin(a) * 10 - 1, 2.2, 2.2); }
+    } else flag(px + 10, groundY - 108, 24, 16, b.to.code);
+    ctx.fillStyle = "#f2f4f8"; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    ctx.fillText(name, px + 44, groundY - 98);
+    // le petit poste de douane, éteint ou allumé
+    const hx = x - 120;
+    ctx.fillStyle = pal.light ? "#232a36" : "#c9c2b4";
+    ctx.fillRect(hx, groundY - 40, 46, 34);
+    ctx.fillStyle = pal.light ? "#1a202b" : "#7a5a44";
+    ctx.beginPath(); ctx.moveTo(hx - 5, groundY - 40); ctx.lineTo(hx + 23, groundY - 52); ctx.lineTo(hx + 51, groundY - 40); ctx.fill();
+    ctx.fillStyle = pal.light ? "#ffd892" : "#9fb3c8";
+    ctx.fillRect(hx + 8, groundY - 32, 14, 10);
+    if (pal.light) glow(hx + 15, groundY - 27, 40, 0.35);
+    // les deux drapeaux sur leur mât, de part et d'autre
+    for (const [fx, code] of [[x - 40, b.from.code], [x + 196, b.to.code]]) {
+      ctx.fillStyle = pal.light ? "#3a4150" : "#8a8f96";
+      ctx.fillRect(fx, groundY - 78, 2, 74);
+      const wave = Math.sin(sc.s * 0.002 + fx) * 1.5;
+      flag(fx + 2, groundY - 77 + wave, 26, 17, code);
+    }
+  }
+
   /* ---- la rame : dessinée par trainArt (2.0) ---- */
   function drawTrain(x, y, t, pal) {
     const W = sc.W;
@@ -601,6 +653,11 @@ export function createCabScene(ctx) {
     // gares de départ et d'arrivée, placées dans le monde
     const trainX = W * 0.46;
     const depX = trainX - sc.depDist, arrX = trainX + sc.arrDist;
+    // 2.1.1 : le poste-frontière
+    if (sc.border) {
+      const bx = trainX + sc.border.dx;
+      if (bx > -400 && bx < W + 300) drawBorder(bx, groundY, pal);
+    }
     // 2.1 : les rames croisées passent sur la voie du fond, derrière les quais
     if (farY !== null && sc.oncoming.length) drawOncoming(sc.box ? sc.box.right : trainX + W * 0.3, farY + 1, t, { ...pal, lamps });
     if (depX > -400) drawStation(depX, groundY, sc.dep, pal);

@@ -286,7 +286,7 @@ export function Tutorial({
   // Pas de cible sur cette étape : modale centrée classique
   if (!step.target || !rect) {
     return (
-      <div className="fixed inset-0 z-[60] flex items-center justify-center bg-navy-950/80 px-6">
+      <div data-modal className="fixed inset-0 z-[60] flex items-center justify-center bg-navy-950/80 px-6">
         <TutorialCard key={stepIndex} step={step} stepIndex={stepIndex} total={STEPS.length} onNext={next} onSkip={skip} isLast={isLast} waiting={waiting} justDone={!!step.awaits && satisfied && !wasDoneOnEntry} />
       </div>
     );

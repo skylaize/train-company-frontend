@@ -45,7 +45,7 @@ export function GiftDialog({
   }
 
   return createPortal(
-    <div className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+    <div data-modal className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <form onSubmit={send} className="w-full max-w-md bg-navy-900 border border-line" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Offrir ${itemName}`}>
         <div className="px-5 pt-4 pb-3 border-b border-line flex items-start justify-between gap-3">
           <div>

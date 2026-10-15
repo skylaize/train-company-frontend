@@ -5,7 +5,7 @@ import { createCabScene } from "./cabScene";
 import { weatherAt, SCENE_KIND } from "../stationWeather";
 import { PremiumCTA, PremiumInfo } from "./PremiumCTA";
 import { api } from "../api/client";
-import { routeStations, routeTimeline } from "../geo";
+import { routeStations, routeTimeline, FOREIGN_COUNTRY } from "../geo";
 
 /* ============================================================
    Vue cabine (1.4, Premium).
@@ -25,7 +25,7 @@ import { routeStations, routeTimeline } from "../geo";
 export interface CabTrain {
   id: string;
   name: string;
-  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE";
+  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE";
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
@@ -53,8 +53,8 @@ function tripPlan(t: CabTrain) {
   };
 }
 
-const CRUISE: Record<string, number> = { STANDARD: 430, EXPRESS: 560, FRET_LOURD: 380, COUCHETTES: 400, VAPEUR: 330, LUXE: 400, CREMAILLERE: 300, LOCOTRACTEUR: 300, FRET_RAPIDE: 470, FRET_ELECTRIQUE: 420 }; // px/s à l'écran
-const KMH: Record<string, number> = { STANDARD: 220, EXPRESS: 300, FRET_LOURD: 160, COUCHETTES: 200, VAPEUR: 110, LUXE: 180, CREMAILLERE: 60, LOCOTRACTEUR: 80, FRET_RAPIDE: 200, FRET_ELECTRIQUE: 160 };
+const CRUISE: Record<string, number> = { STANDARD: 430, EXPRESS: 560, FRET_LOURD: 380, COUCHETTES: 400, NUIT_EUROPE: 470, VAPEUR: 330, LUXE: 400, CREMAILLERE: 300, LOCOTRACTEUR: 300, FRET_RAPIDE: 470, FRET_ELECTRIQUE: 420 }; // px/s à l'écran
+const KMH: Record<string, number> = { STANDARD: 220, EXPRESS: 300, FRET_LOURD: 160, COUCHETTES: 200, NUIT_EUROPE: 230, VAPEUR: 110, LUXE: 180, CREMAILLERE: 60, LOCOTRACTEUR: 80, FRET_RAPIDE: 200, FRET_ELECTRIQUE: 160 };
 /* 2.1 : à l'échelle réelle, deux rames qui se croisent passent en une seconde ;
    on ralentit le croisement à l'écran (le moment où les têtes se croisent ne bouge pas) */
 const CROSS_SLOW = 0.4;
@@ -158,7 +158,7 @@ export function CabView({
   /* Rendue directement dans <body> : la page des trains est animée (transform),
      ce qui décalerait une fenêtre « fixed » placée à l'intérieur. */
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/85 px-4" role="dialog" aria-label={`Vue cabine de ${train.name}`}>
+    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/85 px-4" role="dialog" aria-label={`Vue cabine de ${train.name}`}>
       <div className="w-full max-w-5xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[94vh] overflow-y-auto">
         <div className="px-5 py-3 border-b border-line flex flex-wrap items-center gap-x-4 gap-y-1">
           <span className="font-mono2 text-[10.5px] uppercase tracking-[0.16em] text-cobalt">Vue cabine</span>
@@ -335,7 +335,7 @@ export function useCabScene(
       sc.livery = her?.livery ?? livery;
       sc.skin = her?.skin ?? skin ?? null;
       sc.express = t.model === "EXPRESS";
-      sc.sleeper = t.model === "COUCHETTES";
+      sc.sleeper = t.model === "COUCHETTES" || t.model === "NUIT_EUROPE";
       sc.model = t.model;
       sc.cars = t.cars ?? [];
       sc.firstLivery = premium;
@@ -360,6 +360,12 @@ export function useCabScene(
               return { id: o.id, gap: (1 - fo - f) * cruise * duration * CROSS_SLOW, model: o.model, livery: oh?.livery ?? livery, skin: oh?.skin ?? skin ?? null, cars: o.cars ?? [], v: CRUISE[o.model] ?? 430 };
             })
         : [];
+      /* 2.1.1 : un tronçon qui passe une frontière a son poste-frontière, à mi-chemin */
+      const fFrom = FOREIGN_COUNTRY[ph.from], fTo = FOREIGN_COUNTRY[ph.to];
+      if (!dwelling && (fFrom?.code ?? "FR") !== (fTo?.code ?? "FR")) {
+        const d0 = rampDistance(segElapsed, cruise), d1 = rampDistance(segLeft, cruise);
+        sc.border = { dx: (d0 + d1) / 2 - d0, to: fTo ?? { code: "FR", name: "FRANCE" }, from: fFrom ?? { code: "FR", name: "FRANCE" } };
+      } else sc.border = null;
       sc.dep = dwelling ? "" : ph.from;
       sc.arr = ph.to;
       sc.depDist = dwelling ? 1e9 : rampDistance(segElapsed, cruise);

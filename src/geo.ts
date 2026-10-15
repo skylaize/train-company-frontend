@@ -242,3 +242,15 @@ export function setMountainOwned(owned: boolean) {
 export function hasMountain() {
   return mountainOwned;
 }
+
+/* 2.1.1 : les pays des gares étrangères, pour le poste-frontière de la vue cabine */
+export const FOREIGN_COUNTRY: Record<string, { code: string; name: string }> = {
+  Londres: { code: "GB", name: "UNITED KINGDOM" },
+  Bruxelles: { code: "BE", name: "BELGIQUE · BELGIË" },
+  Francfort: { code: "DE", name: "DEUTSCHLAND" },
+  "Genève": { code: "CH", name: "SUISSE · SCHWEIZ" },
+  Zurich: { code: "CH", name: "SCHWEIZ · SUISSE" },
+  Milan: { code: "IT", name: "ITALIA" },
+  Turin: { code: "IT", name: "ITALIA" },
+  Barcelone: { code: "ES", name: "ESPAÑA" },
+};

@@ -241,7 +241,8 @@ function Chads({ color }: { color: string }) {
 
 const PERKS = [
   "L'extension « Trains de légende » : la vapeur et le grand luxe",
-  "Revente de vos rames au prix de reprise du jour",
+  "Revente de vos rames, avec la cote du jour et le meilleur jour pour vendre",
+  "Horaires par rame et alertes à vos seuils",
   "Vue cabine sur chaque rame, de gare en gare",
   "Prix du billet automatique, recalé en continu",
   "Rentabilité de chaque ligne et de chaque rame",

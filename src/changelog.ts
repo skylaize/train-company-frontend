@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.1.0";
+export const CURRENT_VERSION = "2.1.1";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,22 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.1.1",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Trains de nuit internationaux : voitures-lits, voiture-restaurant et couchettes vers l'étranger, avec la licence internationale. De 22 h à 6 h, recette ×3,9 et péage de nuit à moitié prix ; de jour, la rame roule presque vide (×0,6). Sur les grandes lignes qui passent une frontière" },
+      { type: "nouveau", text: "En vue cabine, chaque ligne internationale a son poste-frontière : le panneau du pays où l'on entre, ses drapeaux et la guérite de douane" },
+      { type: "nouveau", text: "Premium : les alertes personnalisées. Trésorerie sous un montant, rame usée à tant de pour cent, contrat de fret qui paie au moins tant, reprise d'une rame à un prix : vous fixez le seuil, le jeu vous prévient sur votre téléphone et dans le jeu" },
+      { type: "nouveau", text: "Premium : les horaires par rame. Une rame qui ne roule que la nuit, le jour ou aux heures de pointe : hors de sa plage, elle termine son trajet et se gare au terminus sans s'user, puis repart à l'heure dite" },
+      { type: "nouveau", text: "Premium : la cote de revente. Le prix de reprise de chaque modèle monte et descend d'un jour à l'autre ; la fiche de la rame montre ses 14 derniers jours, la semaine qui vient et le meilleur jour pour la vendre, avec une alerte d'un clic" },
+      { type: "nouveau", text: "Boutique, l'atelier de prestige : l'affiche de votre réseau à télécharger (Belle Époque, Art déco, moderne), les plaques de rame gravées, les sons de gare, trois habillages de gare en vue cabine, les tenues du personnel, le Musée de la compagnie et le coffret d'alliance pour peindre toute l'alliance" },
+      { type: "nouveau", text: "Le Musée de la compagnie : vos épaves restaurées sous les projecteurs, chacune avec son cartel. Vos alliés peuvent le visiter" },
+      { type: "nouveau", text: "Éditions limitées de saison en boutique : Toussaint, Nouvel An et Saint-Valentin, chacune avec sa livrée, son emblème et son titre" },
+      { type: "nouveau", text: "Deux succès : Wagons-lits et Nuits d'Europe" },
+      { type: "corrige", text: "Sur téléphone, faire défiler une fenêtre (composition d'une rame, atelier, vue cabine…) faisait bouger la page derrière. La fenêtre défile maintenant seule, dans son cadre, et la barre d'onglets s'efface tant qu'elle est ouverte" },
+    ],
+  },
   {
     version: "2.1.0",
     date: "Octobre 2026",

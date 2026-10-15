@@ -29,7 +29,7 @@ export function InstallGuide({ onClose }: { onClose: () => void }) {
         <>Réseau s'ouvre alors dans sa propre fenêtre, avec son icône. Firefox ne sait pas installer les sites : passez par Chrome ou Edge.</>,
       ];
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-4" role="dialog" aria-modal="true" aria-labelledby="install-title">
+    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-4" role="dialog" aria-modal="true" aria-labelledby="install-title">
       <div className="w-full max-w-md bg-navy-900 border border-line border-t-[3px] border-t-amber tutorial-step-enter">
         <div className="px-6 py-5 border-b border-line flex items-center gap-3">
           <LogoMark size={40} />

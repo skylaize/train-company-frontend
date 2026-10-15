@@ -18,7 +18,8 @@ const FRANCE_D = COUNTRIES.find((c) => c.id === "France")?.d ?? "";
 interface Rules { max: number; cost: number; allyStep: number; allyMaxAllies: number; messageMax: number; colors: string[]; applyMax?: number; applyMessageMax?: number; pitchMax?: number }
 interface RankRow { id: string; name: string; color: string; members: number; points: number; rank: number }
 export interface AllianceData {
-  alliance: null | { id: string; name: string; color: string; discordUrl: string | null; recruiting?: boolean; pitch?: string | null; founder: boolean; rank: number | null; total: number; points: number };
+  alliance: null | { id: string; name: string; color: string; discordUrl: string | null; recruiting?: boolean; pitch?: string | null; founder: boolean; rank: number | null; total: number; points: number; livery?: string | null };
+  liveryChoices?: string[]; // 2.1 : coffret d'alliance
   rules: Rules;
   invites?: { id: string; alliance: string; color: string; at: string }[];
   members?: { companyId: string; name: string; liveryColor: string; founder: boolean; isMe: boolean; points: number; joinedAt: string }[];
@@ -275,6 +276,40 @@ export function AllianceSection({ data, onReload, onChange }: { data: AllianceDa
           )}
         </span>
       </div>
+
+      {/* 2.1 : la livrée commune (coffret d'alliance) */}
+      {(a.livery || (data.liveryChoices?.length ?? 0) > 0) && (
+        <div className="mb-6 border border-line px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+          <span className="font-display text-[17px]">Livrée commune</span>
+          {a.livery ? (
+            <span className="flex items-center gap-2 text-[13px] font-body text-slate2">
+              <span className="w-6 h-6 border border-[#d9a441]" style={{ background: a.livery }} />
+              portée par l'alliance, filet doré compris
+            </span>
+          ) : (
+            <span className="text-[13px] font-body text-slate2">Choisissez la couleur de toute l'alliance :</span>
+          )}
+          {(data.liveryChoices?.length ?? 0) > 0 && (
+            <span className="flex items-center gap-1.5" role="group" aria-label="Livrées d'alliance">
+              {data.liveryChoices!.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => run(() => api.post("/alliance/livery", { livery: c }), "Livrée commune peinte")}
+                  aria-pressed={a.livery === c}
+                  title={c}
+                  className={`w-7 h-7 border-2 ${a.livery === c ? "border-offwhite" : "border-line hover:border-slate2"}`}
+                  style={{ background: c }}
+                />
+              ))}
+            </span>
+          )}
+          {a.livery && (
+            <button onClick={() => run(() => api.patch("/company", { liveryColor: a.livery }), "Vos rames portent la livrée de l'alliance")} className="ml-auto text-[13px] font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10">
+              La porter sur mes rames
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1fr)]">
         {/* les membres */}

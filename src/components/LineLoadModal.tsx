@@ -36,7 +36,7 @@ export function LineLoadModal({ lineId, title, isPremium, onClose }: { lineId: s
 
   const H = 140;
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+    <div data-modal className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-full max-w-2xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Remplissage de ${title}`}>
         <div className="flex items-start justify-between px-5 pt-4 pb-3 border-b border-line">
           <div>

@@ -4,6 +4,9 @@ import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
 import { modelLabel, hhmm, minutesLeft, PART_LABEL, PART_NEED } from "../models";
 import { playAlert, playChime } from "../sfx";
+import { ResaleOutlook, TrainSchedule } from "./PremiumTools";
+import { NamePlate, PLATE_STYLE_LABELS } from "./PrestigeArt";
+import { isFreightLoco } from "../freight";
 
 /* ============================================================
    La fiche atelier d'une rame (2.0).
@@ -28,6 +31,10 @@ export interface SheetTrain {
   workshopUntil?: string | null;
   serviceAt?: number | null;
   resaleValue?: number;
+  serviceFrom?: number | null; // 2.1.1 (Premium) : horaires
+  plateStyle?: string | null; // 2.1 : plaque nominative
+  serviceTo?: number | null;
+  departedAt?: string | null;
   crew?: { id: string; name: string; role: string; level: number }[];
   heritage?: { label: string; serial: string; history: string; prestige: number } | null; // 2.0 : rame de collection
 }
@@ -64,6 +71,7 @@ export function TrainSheet({
   trains,
   balance,
   isPremium,
+  plateStyles = [],
   costPerPoint,
   crew,
   onClose,
@@ -75,6 +83,7 @@ export function TrainSheet({
   trains: { id: string; name: string }[];
   balance: number;
   isPremium: boolean;
+  plateStyles?: string[]; // 2.1 : plaques de rame achetées en boutique
   costPerPoint: number;
   crew: CrewMember[];
   onClose: () => void;
@@ -130,7 +139,7 @@ export function TrainSheet({
   const trainName = (id?: string | null) => trains.find((t) => t.id === id)?.name ?? null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] bg-black/60 flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
+    <div data-modal className="fixed inset-0 z-[70] bg-black/60 flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div
         className="w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto bg-navy-900 border border-line sheet-up sm:animate-none"
         onClick={(e) => e.stopPropagation()}
@@ -340,12 +349,45 @@ export function TrainSheet({
             })}
         </section>
 
+        {/* 2.1 : la plaque nominative, sous l'emblème de la motrice */}
+        {plateStyles.length > 0 && (
+          <section className="px-5 py-4 border-b border-line">
+            <h4 className="font-body font-semibold text-[15px]">Plaque nominative</h4>
+            <p className="text-[13px] text-slate2 font-body mt-0.5">Le nom de la rame, gravé sur la motrice : on le voit au quai, en vue cabine et au catalogue.</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => post("plate", "/trains/plate", { trainId: train.id, style: null }, `Plaque retirée de ${train.name}`)}
+                className={`px-3 py-2 border font-mono2 text-[11px] uppercase ${!train.plateStyle ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}
+              >
+                Aucune
+              </button>
+              {plateStyles.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => post("plate", "/trains/plate", { trainId: train.id, style: p }, `Plaque ${PLATE_STYLE_LABELS[p]?.toLowerCase() ?? ""} posée sur ${train.name}`)}
+                  aria-pressed={train.plateStyle === p}
+                  className={`px-2 py-1.5 border ${train.plateStyle === p ? "border-cobalt" : "border-line hover:border-slate2"}`}
+                >
+                  <NamePlate style={p} className="text-[11px]">
+                    {train.name}
+                  </NamePlate>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* 2.1.1 (Premium) : horaires de la rame */}
+        {!isFreightLoco(train.model) && <TrainSchedule train={train} isPremium={isPremium} onChange={onChange} onGoPremium={onGoPremium} />}
+
         {/* revente */}
         <section className="px-5 py-4">
           <h4 className="font-body font-semibold text-[15px]">Revente</h4>
           <p className="text-[13px] text-slate2 font-body mt-0.5">
             Valeur de reprise aujourd'hui : <span className="font-mono2 text-offwhite">{fmt(train.resaleValue ?? 0)} pi.</span> {train.heritage ? "Une rame de collection ne perd rien avec l'âge : elle se reprend à 90 % de ce qu'elle a coûté, selon son état." : "Elle baisse avec l'âge et l'usure ; les voitures attelées sont reprises à moitié prix."}
           </p>
+          {/* 2.1.1 (Premium) : la cote, son historique et le meilleur jour pour revendre */}
+          {isPremium && !train.heritage && <ResaleOutlook trainId={train.id} trainName={train.name} />}
           {isPremium ? (
             confirmSell ? (
               <div className="flex flex-wrap gap-2 mt-3">

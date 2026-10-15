@@ -85,7 +85,7 @@ export function MobileTabBar({ tabs, groups, extra, current }: { tabs: NavItem[]
   return (
     <>
       {open && (
-        <div className="md:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Toutes les rubriques">
+        <div data-modal data-nav-sheet className="md:hidden fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Toutes les rubriques">
           <button className="absolute inset-0 bg-navy-950/70" aria-label="Fermer" onClick={() => setOpen(false)} />
           <div className="absolute left-0 right-0 bottom-0 max-h-[82vh] overflow-y-auto bg-navy-900 border-t border-line pb-[calc(env(safe-area-inset-bottom)+72px)] sheet-up">
             <div className="flex justify-center pt-2.5 pb-1">
@@ -127,7 +127,7 @@ export function MobileTabBar({ tabs, groups, extra, current }: { tabs: NavItem[]
         </div>
       )}
       <nav
-        className="md:hidden fixed left-0 right-0 bottom-0 z-[60] grid grid-cols-5 border-t border-line bg-navy-950/95 backdrop-blur pb-[env(safe-area-inset-bottom)]"
+        className="app-tabbar md:hidden fixed left-0 right-0 bottom-0 z-[60] grid grid-cols-5 border-t border-line bg-navy-950/95 backdrop-blur pb-[env(safe-area-inset-bottom)]"
         aria-label="Rubriques principales"
       >
         {tabs.map((t) => (

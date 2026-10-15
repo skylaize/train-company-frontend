@@ -553,3 +553,29 @@ tbody tr:nth-child(n+6) { animation-delay: 0.16s; }
 .tutorial-stamp { transform: rotate(-6deg); animation: tutorial-stamp 0.35s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
 @keyframes tutorial-stamp { from { transform: scale(1.6) rotate(-14deg); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .tutorial-stamp { animation: none; } }
+
+/* 2.1.1 : une fenêtre ouverte (composition, atelier, vue cabine…) bloque le
+   défilement de la page derrière elle, iPhone compris : sans ça, faire défiler
+   la fenêtre jusqu'au bout entraînait l'interface derrière. */
+html:has([data-modal]),
+body:has([data-modal]) {
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+[data-modal],
+[data-modal] .overflow-y-auto,
+[data-modal] .overflow-auto {
+  overscroll-behavior: contain;
+}
+/* une fenêtre plus haute que l'écran (téléphone) défile dans son cadre au lieu
+   d'être coupée en haut et en bas */
+[data-modal] > [role="dialog"]:not(.modal-free) {
+  max-height: calc(100vh - 1.5rem);
+  max-height: calc(100dvh - 1.5rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* la barre d'onglets du téléphone passe sous une fenêtre ouverte (sauf le menu « Plus », qu'elle accompagne) */
+body:has([data-modal]:not([data-nav-sheet])) .app-tabbar {
+  display: none;
+}

@@ -35,7 +35,7 @@ export function WhatsNewModal({ onClose }: { onClose: () => void }) {
   })).filter((g) => g.items.length > 0);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-4 py-6">
+    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-4 py-6">
       <div className="w-full max-w-3xl bg-navy-900 border border-line tutorial-step-enter flex flex-col max-h-[88vh]">
         {/* bande perforée : le bulletin reste un imprimé détachable */}
         <div

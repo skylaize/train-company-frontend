@@ -62,7 +62,7 @@ export function FreightComposition({ train, balance, livery, onClose, onChange }
   const speedPct = Math.round((1 / pace - 1) * 100);
 
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+    <div data-modal className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <div
         className="w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-navy-900 border border-line border-t-[3px] border-t-amber"
         onClick={(e) => e.stopPropagation()}

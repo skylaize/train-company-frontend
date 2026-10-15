@@ -5,6 +5,10 @@ import { Emblem, EMBLEM_LABELS } from "./Emblem";
 import { THEMES } from "../theme";
 import { Plate, PLATE_LABELS } from "./Plate";
 import { TrainPicture } from "./TrainPicture";
+import { PrestigeThumb, PRESTIGE_KINDS, NamePlate, MuseumHall, StationThumb, PLATE_STYLE_LABELS, SOUND_LABELS, STATION_SKIN_LABELS } from "./PrestigeArt";
+import { PosterCanvas, PosterHandle, PosterStyle, POSTER_LABELS } from "./PosterArt";
+import { StaffFigure, UNIFORM_LABELS } from "./StaffFigure";
+import { playPack, SoundPack } from "../sfx";
 
 /* ============================================================
    Vitrine de la boutique.
@@ -34,6 +38,14 @@ export interface ShowroomItem {
   owned: boolean;
   seasonName?: string | null;
   availableUntil?: string | null;
+  // 2.1 : l'atelier de prestige
+  posters?: string[];
+  trainPlates?: string[];
+  sounds?: string[];
+  stationSkins?: string[];
+  museum?: boolean;
+  uniforms?: string[];
+  allianceLiveries?: string[];
 }
 
 export interface ShowroomCompany {
@@ -44,7 +56,19 @@ export interface ShowroomCompany {
   cabSkin?: string | null;
   theme?: string;
   plate?: string | null;
+  // 2.1
+  stationSkin?: string | null;
+  soundPack?: string | null;
+  uniform?: string | null;
+  lines?: string[][]; // le réseau, pour l'affiche
+  allianceLivery?: string | null;
 }
+
+/* 2.1 : ce que certains objets « portent » autrement qu'en changeant la compagnie */
+export type ShowroomSpecial =
+  | { type: "plates"; style: string }
+  | { type: "alliance"; color: string }
+  | { type: "museum" };
 
 const KIND_LABEL: Record<string, string> = {
   LIVREES: "Livrées",
@@ -55,6 +79,14 @@ const KIND_LABEL: Record<string, string> = {
   SAISON: "Édition limitée",
   COFFRET: "Coffret",
   PLAQUE: "Plaques d'honneur",
+  // 2.1
+  AFFICHE: "Affiche",
+  PLAQUE_RAME: "Plaques de rame",
+  SONS: "Sons de gare",
+  GARE: "Habillage de gare",
+  MUSEE: "Musée",
+  TENUES: "Tenues du personnel",
+  ALLIANCE: "Coffret d'alliance",
 };
 
 export const euros = (cents: number) => (cents / 100).toFixed(2).replace(".", ",") + " €";
@@ -69,6 +101,7 @@ export function ShopShowroom({
   onBuy,
   onEquip,
   onTryTheme,
+  onSpecial,
 }: {
   item: ShowroomItem;
   company: ShowroomCompany;
@@ -78,8 +111,19 @@ export function ShopShowroom({
   onBuy: () => void;
   onEquip: (patch: Record<string, string | null>, message: string) => void;
   onTryTheme: (theme: string) => void;
+  onSpecial?: (s: ShowroomSpecial) => void;
 }) {
-  const [livery, setLivery] = useState(company.liveryColor);
+  const allianceKit = item.kind === "ALLIANCE";
+  const liveries = allianceKit ? item.allianceLiveries : item.liveries;
+  const [livery, setLivery] = useState(liveries?.[0] ?? company.liveryColor);
+  // 2.1 : les variantes de l'atelier de prestige
+  const [stationSkin, setStationSkin] = useState<string | null>(item.stationSkins?.[0] ?? company.stationSkin ?? null);
+  const [trainPlate, setTrainPlate] = useState<string | null>(item.trainPlates?.[0] ?? null);
+  const [sound, setSound] = useState<string | null>(item.sounds?.[0] ?? null);
+  const [uniform, setUniform] = useState<string | null>(item.uniforms?.[0] ?? null);
+  const [poster, setPoster] = useState<PosterStyle>((item.posters?.[0] as PosterStyle) ?? "belle-epoque");
+  const posterRef = useRef<PosterHandle>(null);
+  const stage = item.kind === "AFFICHE" || item.kind === "SONS" || item.kind === "MUSEE" || item.kind === "TENUES";
   const [emblem, setEmblem] = useState<string | null>(company.emblem ?? null);
   const [title, setTitle] = useState<string | null>(company.title ?? null);
   const [cab, setCab] = useState<string | null>(null);
@@ -87,7 +131,7 @@ export function ShopShowroom({
 
   // un nouvel article en vitrine : on montre sa première variante
   useEffect(() => {
-    setLivery(item.liveries?.[0] ?? company.liveryColor);
+    setLivery(liveries?.[0] ?? company.liveryColor);
     setEmblem(item.emblems?.[0] ?? company.emblem ?? null);
     setTitle(item.titles?.[0] ?? company.title ?? null);
     setCab(item.cabSkins?.[0] ?? null);
@@ -97,8 +141,8 @@ export function ShopShowroom({
   /* ---------- la scène ---------- */
   const wrapRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const stateRef = useRef({ livery, cab, name: company.name });
-  stateRef.current = { livery, cab, name: company.name };
+  const stateRef = useRef({ livery, cab, name: company.name, stationSkin, trainPlate });
+  stateRef.current = { livery, cab, name: company.name, stationSkin, trainPlate };
   const [box, setBox] = useState({ w: 0, h: 0 });
   const [badge, setBadge] = useState<{ x: number; y: number; r: number } | null>(null);
   const drawRef = useRef<(() => void) | null>(null);
@@ -136,7 +180,10 @@ export function ShopShowroom({
       sc.weather = "nuit";
       sc.livery = st.livery;
       sc.skin = st.cab;
-      sc.express = false;
+      sc.stationSkin = st.stationSkin;
+      sc.plate = st.trainPlate ? { style: st.trainPlate, text: "Étoile du Nord" } : null;
+      sc.express = allianceKit;
+      if (allianceKit) sc.model = "EXPRESS";
       sc.v = 0;
       sc.dep = st.name;
       sc.arr = "";
@@ -152,7 +199,7 @@ export function ShopShowroom({
   // mouvement réduit : la scène ne tourne pas en boucle, on la redessine à chaque essai
   useEffect(() => {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) drawRef.current?.();
-  }, [livery, cab, box.w]);
+  }, [livery, cab, box.w, stationSkin, trainPlate]);
 
   /* Emplacement de l'emblème : la scène le donne à chaque image (badge). */
   const locoX = badge?.x ?? 0;
@@ -164,7 +211,11 @@ export function ShopShowroom({
      un coffret livrée + emblème n'est pas porté parce que l'emblème l'est */
   const parts: boolean[] = [];
   if (item.kind === "THEME" && item.theme) parts.push(item.theme === company.theme);
+  if (allianceKit) parts.push(livery === company.allianceLivery);
   if (item.liveries?.length) parts.push(livery === company.liveryColor);
+  if (item.stationSkins?.length) parts.push(stationSkin === company.stationSkin);
+  if (item.sounds?.length) parts.push(sound === company.soundPack);
+  if (item.uniforms?.length) parts.push(uniform === company.uniform);
   if (item.emblems?.length) parts.push(emblem === company.emblem);
   if (item.titles?.length) parts.push(title === company.title);
   if (item.cabSkins?.length) parts.push(cab === company.cabSkin);
@@ -172,6 +223,14 @@ export function ShopShowroom({
   const isCurrent = parts.length > 0 && parts.every(Boolean);
 
   function equipCurrent() {
+    // 2.1 : l'atelier de prestige
+    if (item.kind === "GARE" && stationSkin) return onEquip({ stationSkin }, `Gares ${STATION_SKIN_LABELS[stationSkin]?.toLowerCase() ?? ""} en vue cabine`);
+    if (item.kind === "SONS" && sound) return onEquip({ soundPack: sound }, `${SOUND_LABELS[sound] ?? sound} à l'arrivée en gare`);
+    if (item.kind === "TENUES" && uniform) return onEquip({ uniform }, `Tenues ${UNIFORM_LABELS[uniform]?.toLowerCase() ?? ""} pour tout le personnel`);
+    if (item.kind === "PLAQUE_RAME" && trainPlate) return onSpecial?.({ type: "plates", style: trainPlate });
+    if (allianceKit) return onSpecial?.({ type: "alliance", color: livery });
+    if (item.kind === "MUSEE") return onSpecial?.({ type: "museum" });
+    if (item.kind === "AFFICHE") return posterRef.current?.download();
     if (item.kind === "THEME" && item.theme) return onEquip({ theme: item.theme }, `Habillage ${themeInfo?.label ?? ""} appliqué`);
     // un matériel seul : on le dit ; un coffret : tout ce qu'il contient se porte d'un coup
     if (item.cabSkins && cab && item.kind === "CABINE") return onEquip({ cabSkin: cab }, `${cabLabels[cab] ?? cab} en vue cabine`);
@@ -187,13 +246,28 @@ export function ShopShowroom({
   return (
     <section className="mb-8">
       <div ref={wrapRef} className="relative border border-line bg-black overflow-hidden">
-        <canvas ref={canvasRef} className="block w-full aspect-[16/7] max-md:aspect-[4/3]" aria-label={`Votre rame en vitrine avec ${item.name}`} />
+        {stage ? (
+          <PrestigeStage
+            item={item}
+            company={company}
+            poster={poster}
+            posterRef={posterRef}
+            sound={sound}
+            uniform={uniform}
+            onPlay={(s) => {
+              setSound(s);
+              playPack(s as SoundPack);
+            }}
+          />
+        ) : (
+          <canvas ref={canvasRef} className="block w-full aspect-[16/7] max-md:aspect-[4/3]" aria-label={`Votre rame en vitrine avec ${item.name}`} />
+        )}
 
         {/* halo de projecteur, pour l'effet vitrine */}
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 46% 70%, rgba(255,226,160,.16), transparent 55%)" }} />
 
         {/* emblème peint sur la motrice */}
-        {emblem && !cab && box.w > 0 && badge && (
+        {!stage && emblem && !cab && box.w > 0 && badge && (
           <span
             aria-hidden="true"
             className="absolute pointer-events-none text-white transition-opacity duration-300"
@@ -206,7 +280,12 @@ export function ShopShowroom({
         )}
 
         {/* plaque du quai : le titre de la compagnie (son nom est déjà sur le panneau de gare) */}
-        {box.w > 0 && item.plates?.length ? (
+        {item.kind === "PLAQUE_RAME" && trainPlate && box.w > 0 ? (
+          /* 2.1 : la plaque, en grand sous la rame, telle qu'on la lira au quai */
+          <div className="absolute pointer-events-none" style={{ left: box.w * 0.46, top: box.h * 0.74 + 18, transform: "translateX(-50%)" }}>
+            <NamePlate style={trainPlate} className="text-[15px] shadow-lg">Étoile du Nord</NamePlate>
+          </div>
+        ) : stage || item.kind === "GARE" || allianceKit ? null : box.w > 0 && item.plates?.length ? (
           /* 1.7 : plaque d'honneur, telle qu'on la verra au classement */
           <div className="absolute pointer-events-none" style={{ left: box.w * 0.46, top: box.h * 0.74 + 18, transform: "translateX(-50%)" }}>
             <Plate plate={plate} className="text-[14px] font-body shadow-lg">
@@ -251,9 +330,9 @@ export function ShopShowroom({
       <div className="border border-t-0 border-line bg-navy-900 px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-3">
         <p className="text-[12.5px] text-slate2 font-body basis-full md:basis-auto md:flex-1 min-w-[220px]">{item.description}</p>
 
-        {item.liveries && item.liveries.length > 0 && (
+        {liveries && liveries.length > 0 && (
           <div className="flex items-center gap-1.5" role="group" aria-label="Livrées">
-            {item.liveries.map((c) => (
+            {liveries.map((c) => (
               <button
                 key={c}
                 onClick={() => setLivery(c)}
@@ -322,6 +401,28 @@ export function ShopShowroom({
             ))}
           </div>
         )}
+        {/* 2.1 : les variantes de l'atelier de prestige */}
+        <Variants list={item.stationSkins} value={stationSkin} labels={STATION_SKIN_LABELS} onPick={setStationSkin} label="Habillages de gare" />
+        <Variants list={item.trainPlates} value={trainPlate} labels={PLATE_STYLE_LABELS} onPick={setTrainPlate} label="Plaques" />
+        <Variants list={item.uniforms} value={uniform} labels={UNIFORM_LABELS} onPick={setUniform} label="Tenues" />
+        <Variants list={item.posters} value={poster} labels={POSTER_LABELS} onPick={(p) => setPoster(p as PosterStyle)} label="Affiches" />
+        {item.sounds && item.sounds.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Sons">
+            {item.sounds.map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setSound(s);
+                  playPack(s as SoundPack);
+                }}
+                aria-pressed={sound === s}
+                className={`px-2.5 py-1.5 border font-body text-[12.5px] ${sound === s ? "border-white text-white" : "border-line text-slate2"}`}
+              >
+                ▶ {SOUND_LABELS[s] ?? s}
+              </button>
+            ))}
+          </div>
+        )}
         {themeInfo && (
           <div className="flex items-center gap-2">
             <span className="flex">
@@ -337,10 +438,20 @@ export function ShopShowroom({
           {item.owned ? (
             <button
               onClick={equipCurrent}
-              disabled={Boolean(isCurrent)}
+              disabled={Boolean(isCurrent) && !["AFFICHE", "MUSEE", "PLAQUE_RAME"].includes(item.kind) && !allianceKit}
               className="px-4 py-2 bg-cobalt text-onaccent font-mono2 text-[11px] uppercase tracking-wide disabled:opacity-40"
             >
-              {isCurrent ? "Déjà porté" : "Porter"}
+              {item.kind === "AFFICHE"
+                ? "Télécharger l'affiche"
+                : item.kind === "MUSEE"
+                ? "Ouvrir le musée"
+                : item.kind === "PLAQUE_RAME"
+                ? "Poser sur toutes mes rames"
+                : allianceKit
+                ? "Peindre l'alliance"
+                : isCurrent
+                ? "Déjà porté"
+                : "Porter"}
             </button>
           ) : (
             <>
@@ -382,16 +493,18 @@ export function ShopTile({
       }`}
     >
       <div className="h-32 bg-gradient-to-b from-navy-950 to-[#121a28] border-b border-line flex items-center justify-center gap-2 px-3 relative overflow-hidden">
+        {/* 2.1 : l'atelier de prestige a ses propres visuels */}
+        {PRESTIGE_KINDS.has(item.kind) && <PrestigeThumb item={item} />}
         {item.kind === "SAISON" && (
-          <span className="absolute top-1.5 left-1.5 font-mono2 text-[9px] uppercase tracking-wide bg-amber text-onaccent px-1.5 py-0.5">
+          <span className="absolute z-10 top-1.5 left-1.5 font-mono2 text-[9px] uppercase tracking-wide bg-amber text-onaccent px-1.5 py-0.5">
             Limité{item.availableUntil ? ` · ${daysLeft(item.availableUntil)} j` : ""}
           </span>
         )}
         {item.isNew && !item.owned && item.kind !== "SAISON" && (
-          <span className="absolute top-1.5 left-1.5 font-mono2 text-[9px] uppercase tracking-wide bg-cobalt text-onaccent px-1.5 py-0.5">Nouveau</span>
+          <span className="absolute z-10 top-1.5 left-1.5 font-mono2 text-[9px] uppercase tracking-wide bg-cobalt text-onaccent px-1.5 py-0.5">Nouveau</span>
         )}
         {item.worthCents && item.worthCents > item.priceCents && !item.owned && (
-          <span className="absolute bottom-1.5 right-1.5 font-mono2 text-[9px] uppercase tracking-wide text-amber border border-amber/50 px-1.5 py-0.5">
+          <span className="absolute z-10 bottom-1.5 right-1.5 font-mono2 text-[9px] uppercase tracking-wide text-amber border border-amber/50 px-1.5 py-0.5">
             −{Math.round((1 - item.priceCents / item.worthCents) * 100)} %
           </span>
         )}
@@ -405,7 +518,7 @@ export function ShopTile({
           </div>
         )}
         {item.owned && (
-          <span className="absolute top-1.5 right-1.5 font-mono2 text-[9px] uppercase tracking-wide text-rail-green border border-rail-green/50 px-1.5 py-0.5">Possédé</span>
+          <span className="absolute z-10 top-1.5 right-1.5 font-mono2 text-[9px] uppercase tracking-wide text-rail-green border border-rail-green/50 px-1.5 py-0.5">Possédé</span>
         )}
         {/* 2.0 : la vraie rame, dessinée comme en vue cabine, à la livrée ou au matériel de l'article */}
         {(item.liveries?.length || item.cabSkins?.length) ? (
@@ -428,7 +541,7 @@ export function ShopTile({
             )}
           </div>
         ) : null}
-        {!item.liveries && !item.cabSkins && item.emblems?.slice(0, 6).map((e) => (
+        {!PRESTIGE_KINDS.has(item.kind) && !item.liveries && !item.cabSkins && item.emblems?.slice(0, 6).map((e) => (
           <span key={e} className="text-offwhite"><Emblem id={e} size={20} /></span>
         ))}
         {item.titles && item.kind !== "COFFRET" && (
@@ -452,3 +565,113 @@ export function ShopTile({
     </button>
   );
 }
+
+/* 2.1 : une rangée de variantes à essayer */
+function Variants({ list, value, labels, onPick, label }: { list?: string[]; value: string | null; labels: Record<string, string>; onPick: (v: string) => void; label: string }) {
+  if (!list?.length) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={label}>
+      {list.map((v) => (
+        <button
+          key={v}
+          onClick={() => onPick(v)}
+          aria-pressed={value === v}
+          className={`px-2.5 py-1.5 border font-body text-[12.5px] ${value === v ? "border-white text-white" : "border-line text-slate2"}`}
+        >
+          {labels[v] ?? v}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* 2.1 : la scène des objets qui ne se portent pas sur la rame */
+function PrestigeStage({
+  item,
+  company,
+  poster,
+  posterRef,
+  sound,
+  uniform,
+  onPlay,
+}: {
+  item: ShowroomItem;
+  company: ShowroomCompany;
+  poster: PosterStyle;
+  posterRef: React.RefObject<PosterHandle>;
+  sound: string | null;
+  uniform: string | null;
+  onPlay: (s: string) => void;
+}) {
+  const box = "relative w-full aspect-[16/7] max-md:aspect-[4/3] overflow-hidden";
+  if (item.kind === "AFFICHE") {
+    const lines = company.lines?.length ? company.lines : [["Paris", "Lyon", "Marseille"], ["Paris", "Lille"], ["Bordeaux", "Toulouse"]];
+    return (
+      <div className={box} style={{ background: "radial-gradient(ellipse at 50% 20%, #3b3326 0%, #1a1712 55%, #0c0b09 100%)" }}>
+        {/* le mur carrelé du hall, et le cadre de l'affiche */}
+        <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "34px 18px" }} />
+        <div className="absolute left-1/2 top-[6%] bottom-[6%] -translate-x-1/2 p-[6px] bg-[#2a2219] shadow-[0_18px_40px_rgba(0,0,0,0.7)]" style={{ aspectRatio: "1200/1700" }}>
+          <PosterCanvas ref={posterRef} style={poster} data={{ company: company.name, livery: company.liveryColor, lines }} watermark={!item.owned} />
+        </div>
+        <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(255,226,160,.18), transparent 60%)" }} />
+        <p className="absolute bottom-3 right-4 max-w-[30%] text-right text-[12px] font-body text-white/70 max-md:hidden">
+          Votre réseau, vos lignes et votre nom. Téléchargée en 1200 × 1700, à imprimer en A3.
+        </p>
+      </div>
+    );
+  }
+  if (item.kind === "MUSEE") {
+    return (
+      <div className={box}>
+        <MuseumHall />
+      </div>
+    );
+  }
+  if (item.kind === "SONS") {
+    return (
+      <div className={box}>
+        <StationThumb skin={company.stationSkin ?? null} livery={company.liveryColor} name={company.name} />
+        <div className="absolute inset-0 bg-black/45" />
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(520px,88%)] bg-[#0b1220] border border-[#2b3443] px-4 py-3 shadow-2xl">
+          <div className="font-mono2 text-[11px] text-[#ffd36b] mb-2">ANNONCES EN GARE</div>
+          {(item.sounds ?? []).map((s) => (
+            <button key={s} onClick={() => onPlay(s)} className="w-full flex items-center gap-3 py-2 border-t border-[#1d2636] first:border-t-0 text-left group">
+              <span className={`w-8 h-8 rounded-full border inline-flex items-center justify-center text-[11px] ${sound === s ? "border-[#ffd36b] text-[#ffd36b]" : "border-white/30 text-white/80 group-hover:border-white"}`}>▶</span>
+              <span className="flex-1 font-body text-[14px] text-[#e8edf5]">{SOUND_LABELS[s] ?? s}</span>
+              <span className="flex items-end gap-[2px] h-5" aria-hidden="true">
+                {Array.from({ length: 14 }).map((_, k) => (
+                  <span key={k} className={`w-[3px] ${sound === s ? "bg-[#ffd36b]" : "bg-white/25"}`} style={{ height: `${25 + Math.abs(Math.sin((k + s.length) * 1.3)) * 75}%` }} />
+                ))}
+              </span>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  // TENUES
+  const crew = [
+    { seed: "Odette Morel", role: "Cheffe de gare" },
+    { seed: "Louis Garnier", role: "Conducteur" },
+    { seed: "Amina Diallo", role: "Contrôleuse" },
+  ];
+  return (
+    <div className={box}>
+      <StationThumb skin={company.stationSkin ?? null} livery={company.liveryColor} name={company.name} />
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+      <div className="absolute inset-x-0 bottom-0 flex items-end justify-center gap-[4%] pb-3">
+        {crew.map((c) => (
+          <figure key={c.seed} className="flex flex-col items-center">
+            <StaffFigure uniform={uniform} seed={c.seed} size={118} accent={company.liveryColor} />
+            <figcaption className="mt-1 text-center">
+              <span className="block text-[13px] font-body text-white">{c.seed.split(" ")[0]}</span>
+              <span className="block text-[11px] font-body text-white/60">{c.role}</span>
+            </figcaption>
+          </figure>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export { PRESTIGE_KINDS };

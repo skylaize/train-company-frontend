@@ -131,7 +131,7 @@ export function AbsenceReport({
   if (report.marketTrades) rows.push(["Achats et ventes au marché", fmt(report.marketTrades), signed(report.marketNet ?? 0)]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-4">
+    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-4">
       <div className="w-full max-w-lg bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[90vh] overflow-y-auto">
         <div className="px-5 pt-5 pb-4 border-b border-line">
           <div className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-[0.14em]">Pendant votre absence · {formatAway(hours)}</div>

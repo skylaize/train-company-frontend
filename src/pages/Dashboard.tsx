@@ -1,3 +1,6 @@
+import { StaffFigure } from "../components/StaffFigure";
+import { MuseumSection } from "../components/MuseumSection";
+import { AlertsPanel, useAlertFeed } from "../components/PremiumTools";
 import { useCallback, useEffect, useState, useRef } from "react";
 import { TrainPicture } from "../components/TrainPicture";
 import { COUNTRIES, COUNTRY_LABELS, SEA_LABELS } from "../components/europeMap";
@@ -79,7 +82,7 @@ import { WreckYard, loadWrecks, RARITY_COLOR, type Wreck as WreckInfo } from "..
 interface Train {
   id: string;
   name: string;
-  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE";
+  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE";
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
@@ -89,6 +92,8 @@ interface Train {
   direction?: number;
   cars?: string[];
   plateStyle?: string | null; // 2.1 : plaque nominative
+  serviceFrom?: number | null; // 2.1.1 (Premium) : horaires
+  serviceTo?: number | null;
   lastPassengers?: number | null;
   lastSeats?: number | null;
   // 2.0 : l'atelier
@@ -326,6 +331,8 @@ export default function Dashboard() {
   const reloadAlliance = () => loadAlliance().then((d) => d && setAlliance(d));
   /* 2.0.3 : le journal de bord se tient par compagnie, et ses liens ouvrent la bonne rubrique */
   useEffect(() => setJournalOwner(company?.id ?? null), [company?.id, setJournalOwner]);
+  // 2.1.1 (Premium) : les alertes personnalisées déclenchées s'affichent aussi dans le jeu
+  useAlertFeed(company?.id, !!company?.isPremium, (msg) => notify(/^Rames usées/.test(msg) ? "rames" : /^Contrat de fret/.test(msg) ? "fret" : "argent", msg, { label: "Mes alertes", view: "alertes" }));
   // 2.1 : le son de gare choisi en boutique remplace le carillon
   useEffect(() => setSoundPack(company?.soundPack ?? null), [company?.soundPack]);
   useEffect(() => {
@@ -1020,6 +1027,10 @@ export default function Dashboard() {
       items: [
         ...(navOpen.personnel ? [{ id: "personnel", label: "Personnel", icon: <StaffMark size={16} />, count: staff.length, alert: staff.some((x) => x.raiseRequested), active: view === "personnel", onClick: () => setView("personnel") }] : []),
         ...(navOpen.comptes ? [{ id: "finances", label: "Finances", icon: <BankMark size={16} />, active: FINANCE_VIEWS.includes(view), onClick: () => setView("rapport") }] : []),
+        // 2.1 : le musée, une fois ouvert en boutique
+        ...(company?.unlocked?.museum ? [{ id: "musee", label: "Musée", icon: <MedalMark size={16} />, active: view === "musee", onClick: () => setView("musee") }] : []),
+        // 2.1.1 (Premium) : alertes personnalisées
+        ...(company?.isPremium ? [{ id: "alertes", label: "Alertes", icon: <AnnounceMark size={16} />, active: view === "alertes", onClick: () => setView("alertes") }] : []),
         { id: "carriere", label: "Progression", icon: <RankMark size={16} />, count: achievements.filter((x) => x.unlocked).length, active: view === "carriere" || view === "succes", onClick: () => setView("carriere") },
       ],
     },
@@ -1216,7 +1227,7 @@ export default function Dashboard() {
       )}
       {showInstallGuide && <InstallGuide onClose={() => setShowInstallGuide(false)} />}
       {showCatalog && (
-        <TrainCatalogModal buying={buyingTrain} gradeId={career?.currentRank.id ?? 0} onBuy={buyTrain} onClose={() => setShowCatalog(false)} livery={company.liveryColor} onOpenShop={(id) => { setShowCatalog(false); setShopFocus(id); setView("boutique"); }} />
+        <TrainCatalogModal buying={buyingTrain} gradeId={career?.currentRank.id ?? 0} hasLicence={!!(company as { intlLicenceAt?: string | null }).intlLicenceAt} onBuy={buyTrain} onClose={() => setShowCatalog(false)} livery={company.liveryColor} onOpenShop={(id) => { setShowCatalog(false); setShopFocus(id); setView("boutique"); }} />
       )}
       {reveals.length > 0 && (
         <PurchaseReveal
@@ -1340,6 +1351,8 @@ export default function Dashboard() {
             {view === "rapport" && <WeeklyReportSection isPremium={company.isPremium} />}
             {view === "banque" && <BankSection balance={company.balance} onChange={loadAll} />}
             {view === "bourse" && <StockMarketSection balance={company.balance} onChange={loadAll} />}
+            {view === "musee" && <MuseumSection onGoShop={() => { setShopFocus("coffret-musee"); setView("boutique"); }} />}
+            {view === "alertes" && <AlertsPanel isPremium={company.isPremium} trains={trains.map((t) => ({ id: t.id, name: t.name }))} onGoPremium={() => setView("boutique")} />}
             {view === "infrastructures" && (
               <InfrastructureSection
                 balance={company.balance}
@@ -1572,7 +1585,7 @@ export default function Dashboard() {
               />
             )}
             {view === "missions" && <MissionsSection onChange={loadAll} />}
-            {view === "boutique" && <ShopSection key={shopKey} initialItem={shopFocus} onChange={loadAll} company={{ name: company.name, liveryColor: company.liveryColor, emblem: company.emblem, title: company.title }} grade={career?.currentRank.name} onTryTheme={setThemeTrial} />}
+            {view === "boutique" && <ShopSection key={shopKey} initialItem={shopFocus} onOpenMuseum={() => setView("musee")} onChange={loadAll} company={{ name: company.name, liveryColor: company.liveryColor, emblem: company.emblem, title: company.title }} grade={career?.currentRank.name} onTryTheme={setThemeTrial} />}
             {view === "rentabilite" && <ProfitabilitySection company={company} onChange={loadAll} />}
             {view === "cours" && (
               <>
@@ -1636,7 +1649,7 @@ export default function Dashboard() {
               </>
             )}
             {view === "personnel" && (
-              <StaffSection staff={staff} gradeId={career?.currentRank.id ?? 0} onChange={loadAll} trains={trains} />
+              <StaffSection staff={staff} gradeId={career?.currentRank.id ?? 0} onChange={loadAll} trains={trains} uniform={company.uniform ?? null} livery={company.liveryColor} />
             )}
             {view === "parametres" && (
               <SettingsSection company={company} referral={referral} onChange={loadAll} onOpenShop={() => setView("boutique")} />
@@ -1663,6 +1676,8 @@ const PAGE_COPY = {
   banque: { title: "Finances", subtitle: "Emprunter pour investir plus tôt, et rembourser heure par heure." },
   bourse: { title: "Finances", subtitle: "Les compagnies du réseau cotées entre joueurs : cours, dividendes et portefeuille." },
   infrastructures: { title: "Infrastructures", subtitle: "Gares, ateliers et caténaires : ce qui ne roule pas mais rapporte." },
+  alertes: { title: "Alertes", subtitle: "Ce qui mérite qu'on vous prévienne, avec votre seuil." },
+  musee: { title: "Musée", subtitle: "Vos épaves restaurées, sous les projecteurs." },
   succes: { title: "Progression", subtitle: "Votre carrière grade après grade, et les étapes franchies par la compagnie." },
   carte: { title: "Carte du réseau", subtitle: "Vos lignes et vos trains, positionnés en temps réel." },
   personnel: { title: "Personnel", subtitle: "Une équipe qui prend de l'expérience et doit suivre la taille de votre flotte." },
@@ -2940,7 +2955,7 @@ function PriceControl({ line, ridership, premium, onChange }: { line: Line; ride
 /* ---------------- 1.7 : composition des rames ---------------- */
 
 // doit rester aligné sur ridership.service.ts
-const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220 };
+const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, NUIT_EUROPE: 200, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220 };
 const CAR_TYPES: { id: string; label: string; short: string; seats: number; first: boolean; price: number; unique?: boolean; blurb: string }[] = [
   { id: "SECONDE", label: "Voiture de 2de classe", short: "2", seats: 100, first: false, price: 150, blurb: "+100 places. Pour les lignes où des voyageurs restent à quai." },
   { id: "PREMIERE", label: "Voiture de 1re classe", short: "1", seats: 60, first: true, price: 300, blurb: "+60 places payées 1,8 fois le billet. Rentable sur les lignes chargées." },
@@ -3000,7 +3015,7 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
 
   /* dans <body> : la page est animée (transform), ce qui décalerait une fenêtre « fixed » */
   return createPortal(
-    <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
+    <div data-modal className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <div className="w-full max-w-xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Composition de ${train.name}`}>
         <div className="flex items-start justify-between px-5 pt-4 pb-3 border-b border-line">
           <div>
@@ -3241,6 +3256,7 @@ function TrainsSection({
           trains={trains}
           balance={company.balance}
           isPremium={company.isPremium}
+          plateStyles={company.unlocked?.trainPlates ?? []}
           costPerPoint={repairCostPerPoint}
           crew={staff.filter((s) => s.role === "CONTROLEUR" || s.role === "CONDUCTEUR").map((s) => ({ id: s.id, name: s.name ?? "Employé", role: s.role, level: s.level, trainId: s.trainId ?? null }))}
           onClose={() => setSheetId(null)}
@@ -3360,6 +3376,12 @@ function TrainsSection({
                       {isParisNight() ? "nuit ×3" : "jour ×0,8"}
                     </span>
                   )}
+                  {t.model === "NUIT_EUROPE" && (
+                    <span className={`inline-flex items-center gap-1 ${isParisNight() ? "text-cobalt" : ""}`} title="Recette ×3,9 et péage de nuit à moitié prix de 22 h à 6 h (heure de Paris), ×0,6 le jour">
+                      <MoonMark size={11} />
+                      {isParisNight() ? "nuit ×3,9" : "jour ×0,6"}
+                    </span>
+                  )}
                   {/* 1.7 : composition de la rame */}
                   <button onClick={() => setCompoId(t.id)} className="flex items-center gap-1.5 whitespace-nowrap hover:text-cobalt transition-colors" title={isFreightLoco(t.model) ? "Composition : atteler ou dételer des wagons" : "Composition : ajouter ou retirer des voitures"}>
                     <span className="inline-block w-[92px]">
@@ -3402,9 +3424,10 @@ function TrainsSection({
                 ) : t.line ? (
                   <>
                     <div className="text-[14px] flex items-center gap-2 flex-wrap">
-                      <span className={`w-1.5 h-1.5 rounded-full ${t.status === "EN_ROUTE" ? "bg-rail-green blink-dot" : "bg-slate2"}`} />
+                      <span className={`w-1.5 h-1.5 rounded-full ${t.status === "EN_ROUTE" && t.departedAt ? "bg-rail-green blink-dot" : "bg-slate2"}`} />
                       <span>
-                        {t.status === "EN_ROUTE" ? "Roule vers " : "À quai, part vers "}
+                        {/* 2.1.1 (Premium) : hors de ses horaires, la rame attend au terminus */}
+                        {t.status === "EN_ROUTE" && !t.departedAt && t.serviceFrom != null ? `Garée jusqu'à ${t.serviceFrom} h, repartira vers ` : t.status === "EN_ROUTE" ? "Roule vers " : "À quai, part vers "}
                         <span className="font-semibold">{to}</span>
                         <span className="text-slate2"> depuis {from}{stops.length > 0 ? `, via ${(t.direction === 1 ? [...stops].reverse() : stops).join(", ")}` : ""}</span>
                       </span>
@@ -3495,6 +3518,8 @@ function TrainsSection({
                     options={lines
                       // 1.6 : une rame couchettes ne fait que les grandes lignes
                       .filter((l) => (t.model !== "COUCHETTES" || l.durationMinutes >= 10) && (t.model !== "LUXE" || l.durationMinutes >= 12))
+                      // 2.1.1 : le train de nuit international passe une frontière
+                      .filter((l) => t.model !== "NUIT_EUROPE" || (l.durationMinutes >= 10 && [l.departureStation, ...(l.stops ?? []), l.arrivalStation].some((s) => INTL_STATIONS.includes(s))))
                       .map((l) => ({ id: l.id, label: `${l.departureStation} → ${l.arrivalStation}` }))}
                     onSelect={(lineId) => assign(t.id, lineId)}
                   />
@@ -4620,7 +4645,7 @@ function EditCompanyModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-6">
+    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-6">
       <div className="w-full max-w-sm bg-navy-900 border border-line border-t-[3px] tutorial-step-enter" style={{ borderTopColor: liveryColor }}>
         <div className="p-6 space-y-4">
           <h2 className="font-display text-2xl">Modifier la compagnie</h2>
@@ -4741,7 +4766,18 @@ const CATALOG = [
     price: 900,
     minGradeId: 2,
   },
-];
+  // 2.1.1
+  {
+    id: "NUIT_EUROPE",
+    name: "Train de nuit international",
+    spec: "Voitures-lits et voiture-restaurant vers l'étranger : recette ×3,9 de 22 h à 6 h et péage de nuit à moitié prix, ×0,6 le jour. Lignes qui passent une frontière, 10 min et plus",
+    speedLevel: 2,
+    capacityLevel: 2,
+    price: 2400,
+    minGradeId: 3,
+    needsLicence: true,
+  },
+] as { id: string; name: string; spec: string; speedLevel: number; capacityLevel: number; price: number; minGradeId: number; needsLicence?: boolean }[];
 
 function StatBars({ level, max = 3, active }: { level: number; max?: number; active: boolean }) {
   return (
@@ -4780,6 +4816,7 @@ interface DlcInfo {
 function TrainCatalogModal({
   buying,
   gradeId,
+  hasLicence = false,
   onBuy,
   onClose,
   onOpenShop,
@@ -4787,6 +4824,7 @@ function TrainCatalogModal({
 }: {
   buying: boolean;
   gradeId: number;
+  hasLicence?: boolean; // 2.1.1 : licence internationale (train de nuit international)
   onBuy: (model: string) => void;
   onClose: () => void;
   onOpenShop?: (dlcId: string) => void;
@@ -4799,7 +4837,7 @@ function TrainCatalogModal({
     api.get("/dlc").then(({ data }) => setDlcs(data?.dlcs ?? [])).catch(() => setDlcs([]));
   }, []);
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-6">
+    <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-6">
       <div className="w-full max-w-5xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[92vh] overflow-y-auto">
         <div className="px-6 py-5 border-b border-line">
           <h2 className="font-display text-2xl">Catalogue du matériel roulant</h2>
@@ -4812,14 +4850,15 @@ function TrainCatalogModal({
           <h3 className="font-display text-xl">Voyageurs</h3>
           <p className="text-sm text-slate2 font-body mt-0.5">Pour vos lignes. Les voitures s'ajoutent ensuite, rame par rame.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-line">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-line">
           {CATALOG.map((model) => {
-            const locked = (model.minGradeId ?? 0) > gradeId;
+            const noLicence = !!model.needsLicence && !hasLicence;
+            const locked = (model.minGradeId ?? 0) > gradeId || noLicence;
             return (
               <div key={model.id} className={`relative p-5 flex flex-col ${locked ? "opacity-45" : ""}`}>
                 {locked && (
                   <span className="absolute top-4 right-4 text-[10px] font-mono2 uppercase text-slate2 border border-line px-1.5 py-0.5">
-                    {GRADE_NAMES[model.minGradeId ?? 0]}
+                    {(model.minGradeId ?? 0) > gradeId ? GRADE_NAMES[model.minGradeId ?? 0] : "Licence internationale"}
                   </span>
                 )}
 
@@ -4857,7 +4896,7 @@ function TrainCatalogModal({
                   </>
                 ) : (
                   <button disabled className="w-full border border-line text-slate2 text-xs font-mono2 uppercase py-2.5 cursor-not-allowed">
-                    Grade insuffisant
+                    {(model.minGradeId ?? 0) > gradeId ? "Grade insuffisant" : "Licence requise"}
                   </button>
                 )}
               </div>
@@ -6179,7 +6218,7 @@ function formatHoursShort(h: number) {
    2. Mon équipe suit-elle ma flotte ? (la couverture, poste par poste)
    Le reste — la fiche de chaque employé — se consulte ensuite.
    ============================================================ */
-function StaffSection({ staff, gradeId, onChange, trains = [] }: { staff: Staff[]; gradeId: number; onChange: () => void; trains?: { id: string; name: string; model: string }[] }) {
+function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, livery }: { staff: Staff[]; gradeId: number; onChange: () => void; trains?: { id: string; name: string; model: string }[]; uniform?: string | null; livery?: string }) {
   const [overview, setOverview] = useState<StaffOverview | null>(null);
   const [unavailable, setUnavailable] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
@@ -6399,8 +6438,12 @@ function StaffSection({ staff, gradeId, onChange, trains = [] }: { staff: Staff[
                     const pct = m.xpForNext ? Math.min(100, ((m.xp - from) / (m.xpForNext - from)) * 100) : 100;
                     return (
                       <li key={m.id} className={`p-4 border ${m.raiseRequested ? "border-amber/50" : "border-line"} bg-navy-900/40`}>
-                        <div className="flex items-baseline justify-between gap-3">
-                          <div className="font-body text-sm text-offwhite truncate">{m.name}</div>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            {/* 2.1 : le portrait, dans la tenue choisie en boutique */}
+                            <StaffFigure uniform={uniform} seed={m.name} size={34} accent={livery} className="shrink-0 -mb-1" />
+                            <div className="font-body text-sm text-offwhite truncate">{m.name}</div>
+                          </div>
                           <span className="font-mono2 text-[11px] text-slate2 shrink-0">Niv. {m.level}</span>
                         </div>
                         <p className="text-xs text-slate2 font-body mt-1">{m.effect}</p>
@@ -6736,6 +6779,9 @@ function SettingsSection({
             ["File de chantiers", "Le chantier suivant démarre seul, même la nuit — sans aller plus vite"],
             ["Deux ordres par donneur d'ordre", "Plus de choix à la table, pas une meilleure prime"],
             ["Marché de fret élargi", "Six contrats visibles au lieu de trois"],
+            ["Alertes personnalisées", "Trésorerie, usure, contrat de fret, reprise d'une rame : vous fixez le seuil, le jeu vous prévient"],
+            ["Horaires par rame", "Une rame qui ne roule que la nuit ou aux heures de pointe, et se gare au terminus le reste du temps"],
+            ["Cote de revente", "La reprise de chaque rame sur 14 jours et le meilleur jour de la semaine pour la vendre"],
             ["Alertes et ordres permanents", "Le marché vous prévient, ou achète et vend au seuil choisi — au même cours qu'un joueur présent"],
             ["Cinq marchandises en stock", "De la variété dans l'entrepôt, pas une unité de capacité en plus"],
             ["−20 % sur les places de dépôt", "Vous atteignez la même taille optimale plus tôt, pas une taille plus grande"],

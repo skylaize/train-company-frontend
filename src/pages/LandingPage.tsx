@@ -481,14 +481,15 @@ export default function LandingPage() {
               <ul className="cols">
                 {RELEASE_171 && <li>Aucune publicité, nulle part</li>}
                 <li>L'extension « Trains de légende » incluse</li>
-                <li>Revente de vos rames au prix du jour</li>
+                <li>Revente de vos rames, cote du jour et meilleur jour pour vendre</li>
+                <li>Horaires par rame et alertes personnalisées</li>
                 <li>À offrir à une autre compagnie</li>
                 <li>Vue cabine en direct sur chaque rame</li>
                 <li>Veille concurrentielle et événements de gare annoncés une heure avant</li>
                 <li>Appels d'offres de la semaine suivante dès le dimanche</li>
                 <li>Licence internationale une semaine avant tout le monde</li>
                 <li>Rentabilité de chaque ligne et de chaque rame</li>
-                <li>Prix du billet automatique, recalé chaque heure</li>
+                <li>Prix du billet automatique, recalé en continu</li>
                 <li>Remplissage heure par heure et heure de pointe</li>
                 <li>Rapport de la semaine exportable en tableur</li>
                 <li>Ordres de bourse automatiques et alertes de cours</li>
