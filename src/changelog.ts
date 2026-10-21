@@ -20,6 +20,7 @@ const ALL_ENTRIES: ChangelogEntry[] = [
     changes: [
       { type: "nouveau", text: "L'affiche du réseau se décline : A3 à imprimer, story pour Instagram et TikTok, carré pour un post. Avec votre QR code et votre code de parrainage, et un bouton « Partager » sur téléphone (merci FredoDeThors)" },
       { type: "corrige", text: "Sur iPhone, le menu « Affecter à une ligne » ne défilait pas : glisser le doigt choisissait la ligne sous le doigt. La liste défile de nouveau, et un appui franc choisit la ligne (merci FredoDeThors)" },
+      { type: "corrige", text: "La connexion pouvait charger sans fin quand le serveur peinait : le jeu abandonne au bout de 25 secondes et propose de réessayer, et le serveur répond toujours, même en cas d'erreur" },
       { type: "corrige", text: "Un lien de parrainage perdait son code en route vers l'inscription : le code est maintenant gardé jusqu'à la fondation de la compagnie" },
     ],
   },

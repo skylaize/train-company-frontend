@@ -321,6 +321,8 @@ export default function Dashboard() {
   const [lines, setLines] = useState<Line[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(true);
+  // 2.1.2 : le premier chargement a échoué (serveur lent, réseau coupé)
+  const [loadFailed, setLoadFailed] = useState(false);
   const [view, setView] = useState<DashboardView>("trains");
   const [now, setNow] = useState(new Date());
   const [market, setMarket] = useState<Contract[]>([]);
@@ -619,6 +621,7 @@ export default function Dashboard() {
     try {
       const { data: c } = await api.get("/company");
       setCompany(c);
+      setLoadFailed(false);
       if (c && typeof c.balance === "number") {
         if (lastBalance.current !== null && c.balance > lastBalance.current) {
           setGain({ amount: c.balance - lastBalance.current, key: Date.now() });
@@ -797,8 +800,14 @@ export default function Dashboard() {
       // 401 = token invalide/expiré -> déconnexion propre et retour à la connexion
       if (err?.response?.status === 404) {
         setCompany(null);
+        setLoadFailed(false);
       } else if (err?.response?.status === 401) {
         logout();
+      } else {
+        /* 2.1.2 : serveur en erreur ou trop lent. Sans compagnie chargée, on
+           proposait de fonder une compagnie, ou le squelette tournait sans
+           fin : on le dit, avec un bouton pour réessayer. */
+        setLoadFailed(true);
       }
     } finally {
       setLoading(false);
@@ -889,6 +898,32 @@ export default function Dashboard() {
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="h-8 bg-navy-900 animate-skeleton" style={{ animationDelay: `${i * 0.1}s` }} />
             ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!company && loadFailed) {
+    return (
+      <div className="min-h-screen bg-navy-950 flex items-center justify-center p-6">
+        <div className="max-w-sm text-center">
+          <h1 className="font-display text-[22px] mb-2">Le réseau ne répond pas</h1>
+          <p className="font-body text-[14px] text-slate2 mb-5">Le serveur met trop de temps à répondre. Votre compagnie n'est pas perdue : réessayez dans un instant.</p>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={() => {
+                setLoadFailed(false);
+                setLoading(true);
+                void loadAll();
+              }}
+              className="px-4 py-2 bg-cobalt text-onaccent font-mono2 text-[12px] uppercase tracking-wide"
+            >
+              Réessayer
+            </button>
+            <button onClick={logout} className="px-4 py-2 border border-line font-body text-[13px] text-slate2">
+              Se déconnecter
+            </button>
           </div>
         </div>
       </div>
