@@ -29,10 +29,10 @@ export interface PosterData {
   lines: string[][]; // chaque ligne : ses gares dans l'ordre
 }
 
-const FRANCE = COUNTRIES.find((c) => c.id === "France")?.d ?? "";
-const NEIGHBOURS = COUNTRIES.filter((c) => c.id !== "France");
+export const FRANCE = COUNTRIES.find((c) => c.id === "France")?.d ?? "";
+export const NEIGHBOURS = COUNTRIES.filter((c) => c.id !== "France");
 
-function mapTransform(lines: string[][], box: { x: number; y: number; w: number; h: number }) {
+export function mapTransform(lines: string[][], box: { x: number; y: number; w: number; h: number }) {
   // la France entière, un peu élargie si le réseau déborde (Londres, Milan)
   let minX = -45, maxX = 390, minY = -5, maxY = 425;
   for (const st of lines.flat()) {
@@ -46,7 +46,7 @@ function mapTransform(lines: string[][], box: { x: number; y: number; w: number;
   return { k, ox, oy, pt: (s: string) => (STATION_COORDS[s] ? { x: ox + STATION_COORDS[s].x * k, y: oy + STATION_COORDS[s].y * k } : null) };
 }
 
-function grain(ctx: CanvasRenderingContext2D, W: number, H: number, alpha: number, seed = 7) {
+export function grain(ctx: CanvasRenderingContext2D, W: number, H: number, alpha: number, seed = 7) {
   let x = seed;
   const rnd = () => ((x = (x * 16807) % 2147483647) / 2147483647);
   ctx.save();
@@ -57,7 +57,7 @@ function grain(ctx: CanvasRenderingContext2D, W: number, H: number, alpha: numbe
   ctx.restore();
 }
 
-function spaced(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, spacing: number) {
+export function spaced(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, spacing: number) {
   const chars = [...text];
   const total = chars.reduce((s, c) => s + ctx.measureText(c).width, 0) + spacing * (chars.length - 1);
   let cx = x - total / 2;
@@ -68,7 +68,7 @@ function spaced(ctx: CanvasRenderingContext2D, text: string, x: number, y: numbe
   }
 }
 
-function fitFont(ctx: CanvasRenderingContext2D, text: string, family: string, weight: number, max: number, width: number) {
+export function fitFont(ctx: CanvasRenderingContext2D, text: string, family: string, weight: number, max: number, width: number) {
   let size = max;
   ctx.font = `${weight} ${size}px ${family}`;
   while (ctx.measureText(text).width > width && size > 20) {
@@ -79,7 +79,7 @@ function fitFont(ctx: CanvasRenderingContext2D, text: string, family: string, we
 }
 
 /* noms de gares : à droite, sinon à gauche, sinon au-dessus ; rien ne se chevauche */
-function labels(ctx: CanvasRenderingContext2D, stations: { name: string; x: number; y: number }[], font: string, color: string, halo: string | null, off: number) {
+export function labels(ctx: CanvasRenderingContext2D, stations: { name: string; x: number; y: number }[], font: string, color: string, halo: string | null, off: number) {
   ctx.font = font;
   const boxes: { x1: number; y1: number; x2: number; y2: number }[] = stations.map((s) => ({ x1: s.x - off, y1: s.y - off, x2: s.x + off, y2: s.y + off }));
   const hit = (b: { x1: number; y1: number; x2: number; y2: number }) => boxes.some((o) => b.x1 < o.x2 && b.x2 > o.x1 && b.y1 < o.y2 && b.y2 > o.y1);
@@ -106,7 +106,7 @@ function labels(ctx: CanvasRenderingContext2D, stations: { name: string; x: numb
   }
 }
 
-function countryPath(ctx: CanvasRenderingContext2D, d: string, t: { k: number; ox: number; oy: number }) {
+export function countryPath(ctx: CanvasRenderingContext2D, d: string, t: { k: number; ox: number; oy: number }) {
   const p = new Path2D(d);
   return (fill: string | null, stroke: string | null, lw: number) => {
     ctx.save();

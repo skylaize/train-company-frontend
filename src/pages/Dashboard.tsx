@@ -19,6 +19,8 @@ import { INSTAGRAM, DISCORD } from "../social";
 import { createPortal } from "react-dom";
 import { api } from "../api/client";
 import { clearReferral, pendingReferral, referralLink } from "../referral";
+import { PioneersBanner, PioneersModal } from "../components/Pioneers";
+import { Train200Card, Train200MapLayer } from "../components/Train200";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { JournalBell } from "../components/Journal";
@@ -323,6 +325,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   // 2.1.2 : le premier chargement a échoué (serveur lent, réseau coupé)
   const [loadFailed, setLoadFailed] = useState(false);
+  // 2.1.2 : la fenêtre des 200 pionniers
+  const [pioneersOpen, setPioneersOpen] = useState(false);
+  const closePioneers = useCallback(() => setPioneersOpen(false), []);
   const [view, setView] = useState<DashboardView>("trains");
   const [now, setNow] = useState(new Date());
   const [market, setMarket] = useState<Contract[]>([]);
@@ -1401,6 +1406,9 @@ export default function Dashboard() {
             {(view === "carriere" || view === "succes") && (
               <SubTabs value={view} onChange={setView} tabs={[{ id: "carriere", label: "Grades" }, { id: "succes", label: "Succès", count: achievements.filter((a) => a.unlocked).length }]} />
             )}
+            {/* 2.1.2 : les 200 pionniers */}
+            {view === "trains" && !onboarding && <PioneersBanner onOpen={() => setPioneersOpen(true)} />}
+            {view === "trains" && !onboarding && <Train200Card onShowMap={() => setView("carte")} />}
             {view === "trains" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
             {/* 2.1 : Premium d'essai en cours, puis la proposition de le garder */}
             {view === "trains" && company.premiumTrialUntil && (
@@ -1713,8 +1721,14 @@ export default function Dashboard() {
               <StaffSection staff={staff} gradeId={career?.currentRank.id ?? 0} onChange={loadAll} trains={trains} uniform={company.uniform ?? null} livery={company.liveryColor} />
             )}
             {view === "parametres" && (
-              <SettingsSection company={company} referral={referral} onChange={loadAll} onOpenShop={() => setView("boutique")} />
+              <>
+                <button onClick={() => setPioneersOpen(true)} className="mb-6 px-3 py-2 border border-amber/50 text-amber font-body text-[13px] hover:bg-amber/10">
+                  Les 200 pionniers : mon billet et la grande carte
+                </button>
+                <SettingsSection company={company} referral={referral} onChange={loadAll} onOpenShop={() => setView("boutique")} />
+              </>
             )}
+            {pioneersOpen && <PioneersModal onClose={closePioneers} />}
             {/* 1.7 : une bannière en pied de page, seulement sur les pages qu'on lit */}
             {adsEnabled && !company.isPremium && !company.adFree && !onboarding && BANNER_VIEWS.includes(view) && <AdBanner placement={view} />}
           </div>
@@ -5917,6 +5931,9 @@ function NetworkMap({
               </g>
             );
           })}
+
+          {/* 2.1.2 : le Train des 200, en direct */}
+          <Train200MapLayer k={k} />
 
           {/* les rames : couleur de leur ligne, une traînée derrière elles */}
           {trains.map((t) => {
