@@ -20,6 +20,7 @@ import { createPortal } from "react-dom";
 import { api } from "../api/client";
 import { clearReferral, pendingReferral, referralLink } from "../referral";
 import { PioneersBanner, PioneersModal } from "../components/Pioneers";
+import { Train200Card, Train200MapLayer } from "../components/Train200";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { JournalBell } from "../components/Journal";
@@ -1407,6 +1408,7 @@ export default function Dashboard() {
             )}
             {/* 2.1.2 : les 200 pionniers */}
             {view === "trains" && !onboarding && <PioneersBanner onOpen={() => setPioneersOpen(true)} />}
+            {view === "trains" && !onboarding && <Train200Card onShowMap={() => setView("carte")} />}
             {view === "trains" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
             {/* 2.1 : Premium d'essai en cours, puis la proposition de le garder */}
             {view === "trains" && company.premiumTrialUntil && (
@@ -5929,6 +5931,9 @@ function NetworkMap({
               </g>
             );
           })}
+
+          {/* 2.1.2 : le Train des 200, en direct */}
+          <Train200MapLayer k={k} />
 
           {/* les rames : couleur de leur ligne, une traînée derrière elles */}
           {trains.map((t) => {
