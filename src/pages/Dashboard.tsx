@@ -607,6 +607,8 @@ export default function Dashboard() {
      carrière, les ordres et la météo toutes les 2 min. Rien quand l'onglet
      est caché. Une action du joueur recharge tout, tout de suite. */
   const loadingRef = useRef(false);
+  // 2.1.2 : vrai jusqu'au premier affichage du tableau de bord
+  const loadingFirstRef = useRef(true);
   const queuedRef = useRef(false);
   const lastMidRef = useRef(0);
   const lastSlowRef = useRef(0);
@@ -653,9 +655,22 @@ export default function Dashboard() {
         // un essai en cours garde l'écran : le thème du compte n'est qu'enregistré
         if (themeTrialRef.current) applyTheme(themeTrialRef.current.theme as ThemeId, { persist: false });
       }
+      /* 2.1.2 : l'écran s'affiche dès que les lignes et les rames sont là.
+         Il attendait la quinzaine d'appels, dont les plus lents (succès,
+         classement, résumé du jour) prennent plusieurs secondes : le reste
+         arrive juste après, sans bloquer le premier affichage. */
+      const linesReq = api.get("/lines");
+      const trainsReq = api.get("/trains");
+      if (loadingFirstRef.current) {
+        const [{ data: l0 }, { data: t0 }] = await Promise.all([linesReq, trainsReq]);
+        setLines(l0);
+        setTrains(t0);
+        loadingFirstRef.current = false;
+        setLoading(false);
+      }
       const [{ data: l }, { data: t }, { data: mkt }, { data: mine }, { data: lb }, { data: inc }, { data: tx }, { data: ach }, { data: dc }, { data: st }, { data: wx }, { data: sum }, { data: car }, { data: ref }, { data: cli }] = await Promise.all([
-        api.get("/lines"),
-        api.get("/trains"),
+        linesReq,
+        trainsReq,
         when(mid, () => api.get("/contracts/market")),
         api.get("/contracts/mine"),
         when(mid, () => api.get("/leaderboard")),
