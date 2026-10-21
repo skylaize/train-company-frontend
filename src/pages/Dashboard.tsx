@@ -18,6 +18,9 @@ import { DiscordPanel } from "../components/DiscordPanel";
 import { INSTAGRAM, DISCORD } from "../social";
 import { createPortal } from "react-dom";
 import { api } from "../api/client";
+import { clearReferral, pendingReferral, referralLink } from "../referral";
+import { PioneersBanner, PioneersModal } from "../components/Pioneers";
+import { Train200Card, Train200MapLayer } from "../components/Train200";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { JournalBell } from "../components/Journal";
@@ -320,6 +323,11 @@ export default function Dashboard() {
   const [lines, setLines] = useState<Line[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(true);
+  // 2.1.2 : le premier chargement a échoué (serveur lent, réseau coupé)
+  const [loadFailed, setLoadFailed] = useState(false);
+  // 2.1.2 : la fenêtre des 200 pionniers
+  const [pioneersOpen, setPioneersOpen] = useState(false);
+  const closePioneers = useCallback(() => setPioneersOpen(false), []);
   const [view, setView] = useState<DashboardView>("trains");
   const [now, setNow] = useState(new Date());
   const [market, setMarket] = useState<Contract[]>([]);
@@ -618,6 +626,7 @@ export default function Dashboard() {
     try {
       const { data: c } = await api.get("/company");
       setCompany(c);
+      setLoadFailed(false);
       if (c && typeof c.balance === "number") {
         if (lastBalance.current !== null && c.balance > lastBalance.current) {
           setGain({ amount: c.balance - lastBalance.current, key: Date.now() });
@@ -796,8 +805,14 @@ export default function Dashboard() {
       // 401 = token invalide/expiré -> déconnexion propre et retour à la connexion
       if (err?.response?.status === 404) {
         setCompany(null);
+        setLoadFailed(false);
       } else if (err?.response?.status === 401) {
         logout();
+      } else {
+        /* 2.1.2 : serveur en erreur ou trop lent. Sans compagnie chargée, on
+           proposait de fonder une compagnie, ou le squelette tournait sans
+           fin : on le dit, avec un bouton pour réessayer. */
+        setLoadFailed(true);
       }
     } finally {
       setLoading(false);
@@ -888,6 +903,32 @@ export default function Dashboard() {
             {[0, 1, 2, 3].map((i) => (
               <div key={i} className="h-8 bg-navy-900 animate-skeleton" style={{ animationDelay: `${i * 0.1}s` }} />
             ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!company && loadFailed) {
+    return (
+      <div className="min-h-screen bg-navy-950 flex items-center justify-center p-6">
+        <div className="max-w-sm text-center">
+          <h1 className="font-display text-[22px] mb-2">Le réseau ne répond pas</h1>
+          <p className="font-body text-[14px] text-slate2 mb-5">Le serveur met trop de temps à répondre. Votre compagnie n'est pas perdue : réessayez dans un instant.</p>
+          <div className="flex justify-center gap-3">
+            <button
+              onClick={() => {
+                setLoadFailed(false);
+                setLoading(true);
+                void loadAll();
+              }}
+              className="px-4 py-2 bg-cobalt text-onaccent font-mono2 text-[12px] uppercase tracking-wide"
+            >
+              Réessayer
+            </button>
+            <button onClick={logout} className="px-4 py-2 border border-line font-body text-[13px] text-slate2">
+              Se déconnecter
+            </button>
           </div>
         </div>
       </div>
@@ -1365,6 +1406,9 @@ export default function Dashboard() {
             {(view === "carriere" || view === "succes") && (
               <SubTabs value={view} onChange={setView} tabs={[{ id: "carriere", label: "Grades" }, { id: "succes", label: "Succès", count: achievements.filter((a) => a.unlocked).length }]} />
             )}
+            {/* 2.1.2 : les 200 pionniers */}
+            {view === "trains" && !onboarding && <PioneersBanner onOpen={() => setPioneersOpen(true)} />}
+            {view === "trains" && !onboarding && <Train200Card onShowMap={() => setView("carte")} />}
             {view === "trains" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
             {/* 2.1 : Premium d'essai en cours, puis la proposition de le garder */}
             {view === "trains" && company.premiumTrialUntil && (
@@ -1677,8 +1721,14 @@ export default function Dashboard() {
               <StaffSection staff={staff} gradeId={career?.currentRank.id ?? 0} onChange={loadAll} trains={trains} uniform={company.uniform ?? null} livery={company.liveryColor} />
             )}
             {view === "parametres" && (
-              <SettingsSection company={company} referral={referral} onChange={loadAll} onOpenShop={() => setView("boutique")} />
+              <>
+                <button onClick={() => setPioneersOpen(true)} className="mb-6 px-3 py-2 border border-amber/50 text-amber font-body text-[13px] hover:bg-amber/10">
+                  Les 200 pionniers : mon billet et la grande carte
+                </button>
+                <SettingsSection company={company} referral={referral} onChange={loadAll} onOpenShop={() => setView("boutique")} />
+              </>
             )}
+            {pioneersOpen && <PioneersModal onClose={closePioneers} />}
             {/* 1.7 : une bannière en pied de page, seulement sur les pages qu'on lit */}
             {adsEnabled && !company.isPremium && !company.adFree && !onboarding && BANNER_VIEWS.includes(view) && <AdBanner placement={view} />}
           </div>
@@ -1964,21 +2014,31 @@ function AssignDropdown({
   triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  // l'appui au doigt en cours sur une option (voir onPointerDown)
+  const press = useRef<{ id: string; x: number; y: number; scroll: number } | null>(null);
+
+  /* Place le menu sous son bouton, ou au-dessus près du bas de l'écran, et
+     ne le laisse jamais déborder : sur téléphone, la barre d'onglets du bas
+     et la barre de Safari mangent la fin de la liste. */
+  function place(rect: DOMRect, width: number) {
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 12));
+    const viewH = window.visualViewport?.height ?? window.innerHeight;
+    const wanted = Math.min(240, options.length * 33 + 4);
+    const below = viewH - rect.bottom - 4 - 8;
+    const above = rect.top - 4 - 8;
+    if (below >= wanted || below >= above) {
+      return { top: rect.bottom + 4, left, width, maxH: Math.max(120, Math.min(wanted, below)) };
+    }
+    const maxH = Math.max(120, Math.min(wanted, above));
+    return { top: Math.max(8, rect.top - 4 - maxH), left, width, maxH };
+  }
 
   function openMenu() {
     const rect = triggerRef.current?.getBoundingClientRect();
-    if (rect) {
-      const width = Math.max(rect.width, 200);
-      // évite de dépasser le bord droit de l'écran
-      const left = Math.min(rect.left, window.innerWidth - width - 12);
-      // près du bas de l'écran, le menu s'ouvre vers le haut au lieu de déborder
-      const menuH = Math.min(240, options.length * 33 + 4);
-      const top = rect.bottom + 4 + menuH > window.innerHeight - 8 ? Math.max(8, rect.top - 4 - menuH) : rect.bottom + 4;
-      setCoords({ top, left, width });
-    }
+    if (rect) setCoords(place(rect, Math.max(rect.width, 200)));
     setOpen(true);
   }
 
@@ -2002,7 +2062,7 @@ function AssignDropdown({
         setOpen(false);
         return;
       }
-      setCoords((c) => (c ? { ...c, top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - c.width - 12) } : c));
+      setCoords((c) => (c ? place(rect, c.width) : c));
     }
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -2036,8 +2096,8 @@ function AssignDropdown({
       {open && coords && createPortal(
         <div
           ref={menuRef}
-          className="fixed z-[70] bg-navy-900 border border-line shadow-[0_8px_20px_-6px_rgba(0,0,0,0.6)] max-h-60 overflow-y-auto dropdown-menu-enter"
-          style={{ top: coords.top, left: coords.left, width: coords.width }}
+          className="fixed z-[70] bg-navy-900 border border-line shadow-[0_8px_20px_-6px_rgba(0,0,0,0.6)] overflow-y-auto overscroll-contain touch-pan-y dropdown-menu-enter"
+          style={{ top: coords.top, left: coords.left, width: coords.width, maxHeight: coords.maxH, WebkitOverflowScrolling: "touch" }}
         >
           {options.length === 0 && (
             <div className="px-3 py-2 text-xs text-slate2 font-body">Aucune option disponible</div>
@@ -2046,11 +2106,29 @@ function AssignDropdown({
             <button
               key={opt.id}
               type="button"
-              // la sélection part dès l'appui : rien ne peut fermer le menu entre l'appui et le clic
               onPointerDown={(e) => {
-                e.preventDefault();
-                handlePick(opt.id);
+                // souris : la sélection part dès l'appui, rien ne peut fermer le menu entre l'appui et le clic
+                if (e.pointerType === "mouse") {
+                  e.preventDefault();
+                  handlePick(opt.id);
+                  return;
+                }
+                /* 2.1.x : au doigt, un appui peut être le début d'un défilement.
+                   Choisir dès l'appui rendait la liste impossible à faire
+                   défiler sur iPhone : le premier glissement affectait la
+                   rame à la ligne sous le doigt. On attend le relâché. */
+                press.current = { id: opt.id, x: e.clientX, y: e.clientY, scroll: menuRef.current?.scrollTop ?? 0 };
               }}
+              onPointerUp={(e) => {
+                const p = press.current;
+                press.current = null;
+                if (e.pointerType === "mouse" || !p || p.id !== opt.id) return;
+                const moved = Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10;
+                const scrolled = Math.abs((menuRef.current?.scrollTop ?? 0) - p.scroll) > 4;
+                if (!moved && !scrolled) handlePick(opt.id);
+              }}
+              // iOS annonce ainsi qu'il prend la main pour faire défiler
+              onPointerCancel={() => (press.current = null)}
               onClick={(e) => {
                 // clavier (Entrée, Espace) : pas d'appui de pointeur
                 if (e.detail === 0) handlePick(opt.id);
@@ -2195,8 +2273,8 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
   const [name, setName] = useState("");
   const [livery, setLivery] = useState(FOUNDING_LIVERIES[0]);
   const [ideas, setIdeas] = useState(pickIdeas);
-  const [referralCode, setReferralCode] = useState(() => new URLSearchParams(window.location.search).get("ref") ?? "");
-  const [showReferral, setShowReferral] = useState(() => !!new URLSearchParams(window.location.search).get("ref"));
+  const [referralCode, setReferralCode] = useState(pendingReferral);
+  const [showReferral, setShowReferral] = useState(() => !!pendingReferral());
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
@@ -2209,6 +2287,7 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
     setSubmitting(true);
     try {
       await api.post("/company", { name: clean, liveryColor: livery, referralCode: referralCode.trim() || undefined });
+      clearReferral();
       showToast(`Compagnie « ${clean} » fondée`);
       onCreated();
     } catch (err: any) {
@@ -4283,10 +4362,6 @@ function ThemePanel({
   );
 }
 
-function referralLink(code: string) {
-  return `${window.location.origin}/?ref=${code}`;
-}
-
 /* Le message tout prêt : le frein au parrainage n'est pas la motivation,
    c'est d'avoir à écrire soi-même le message. */
 function referralPitch(code: string) {
@@ -5856,6 +5931,9 @@ function NetworkMap({
               </g>
             );
           })}
+
+          {/* 2.1.2 : le Train des 200, en direct */}
+          <Train200MapLayer k={k} />
 
           {/* les rames : couleur de leur ligne, une traînée derrière elles */}
           {trains.map((t) => {

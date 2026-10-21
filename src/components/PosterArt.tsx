@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { STATION_COORDS, LINE_PALETTE } from "../geo";
 import { COUNTRIES } from "./europeMap";
 import { drawConsist } from "./trainArt";
+import { drawPosterVariant, PosterFormat, PosterShare, POSTER_FORMATS, posterFileName } from "./PosterShare";
 
 /* ============================================================
    2.1 : l'affiche du réseau.
@@ -28,10 +29,10 @@ export interface PosterData {
   lines: string[][]; // chaque ligne : ses gares dans l'ordre
 }
 
-const FRANCE = COUNTRIES.find((c) => c.id === "France")?.d ?? "";
-const NEIGHBOURS = COUNTRIES.filter((c) => c.id !== "France");
+export const FRANCE = COUNTRIES.find((c) => c.id === "France")?.d ?? "";
+export const NEIGHBOURS = COUNTRIES.filter((c) => c.id !== "France");
 
-function mapTransform(lines: string[][], box: { x: number; y: number; w: number; h: number }) {
+export function mapTransform(lines: string[][], box: { x: number; y: number; w: number; h: number }) {
   // la France entière, un peu élargie si le réseau déborde (Londres, Milan)
   let minX = -45, maxX = 390, minY = -5, maxY = 425;
   for (const st of lines.flat()) {
@@ -45,7 +46,7 @@ function mapTransform(lines: string[][], box: { x: number; y: number; w: number;
   return { k, ox, oy, pt: (s: string) => (STATION_COORDS[s] ? { x: ox + STATION_COORDS[s].x * k, y: oy + STATION_COORDS[s].y * k } : null) };
 }
 
-function grain(ctx: CanvasRenderingContext2D, W: number, H: number, alpha: number, seed = 7) {
+export function grain(ctx: CanvasRenderingContext2D, W: number, H: number, alpha: number, seed = 7) {
   let x = seed;
   const rnd = () => ((x = (x * 16807) % 2147483647) / 2147483647);
   ctx.save();
@@ -56,7 +57,7 @@ function grain(ctx: CanvasRenderingContext2D, W: number, H: number, alpha: numbe
   ctx.restore();
 }
 
-function spaced(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, spacing: number) {
+export function spaced(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, spacing: number) {
   const chars = [...text];
   const total = chars.reduce((s, c) => s + ctx.measureText(c).width, 0) + spacing * (chars.length - 1);
   let cx = x - total / 2;
@@ -67,7 +68,7 @@ function spaced(ctx: CanvasRenderingContext2D, text: string, x: number, y: numbe
   }
 }
 
-function fitFont(ctx: CanvasRenderingContext2D, text: string, family: string, weight: number, max: number, width: number) {
+export function fitFont(ctx: CanvasRenderingContext2D, text: string, family: string, weight: number, max: number, width: number) {
   let size = max;
   ctx.font = `${weight} ${size}px ${family}`;
   while (ctx.measureText(text).width > width && size > 20) {
@@ -78,7 +79,7 @@ function fitFont(ctx: CanvasRenderingContext2D, text: string, family: string, we
 }
 
 /* noms de gares : à droite, sinon à gauche, sinon au-dessus ; rien ne se chevauche */
-function labels(ctx: CanvasRenderingContext2D, stations: { name: string; x: number; y: number }[], font: string, color: string, halo: string | null, off: number) {
+export function labels(ctx: CanvasRenderingContext2D, stations: { name: string; x: number; y: number }[], font: string, color: string, halo: string | null, off: number) {
   ctx.font = font;
   const boxes: { x1: number; y1: number; x2: number; y2: number }[] = stations.map((s) => ({ x1: s.x - off, y1: s.y - off, x2: s.x + off, y2: s.y + off }));
   const hit = (b: { x1: number; y1: number; x2: number; y2: number }) => boxes.some((o) => b.x1 < o.x2 && b.x2 > o.x1 && b.y1 < o.y2 && b.y2 > o.y1);
@@ -105,7 +106,7 @@ function labels(ctx: CanvasRenderingContext2D, stations: { name: string; x: numb
   }
 }
 
-function countryPath(ctx: CanvasRenderingContext2D, d: string, t: { k: number; ox: number; oy: number }) {
+export function countryPath(ctx: CanvasRenderingContext2D, d: string, t: { k: number; ox: number; oy: number }) {
   const p = new Path2D(d);
   return (fill: string | null, stroke: string | null, lw: number) => {
     ctx.save();
@@ -371,21 +372,36 @@ export function drawPoster(ctx: CanvasRenderingContext2D, style: PosterStyle, da
 
 export interface PosterHandle {
   download: () => void;
+  /* 2.1.x : la feuille de partage du téléphone (Instagram, WhatsApp…) ; faux si l'appareil ne sait pas partager un fichier */
+  share: () => Promise<boolean>;
+}
+
+export function canShareFiles() {
+  try {
+    const probe = new File([new Blob()], "affiche.png", { type: "image/png" });
+    return typeof navigator !== "undefined" && !!navigator.canShare?.({ files: [probe] });
+  } catch {
+    return false;
+  }
 }
 
 /* l'affiche dans la page : dessinée en pleine définition, réduite à l'écran */
-export const PosterCanvas = forwardRef<PosterHandle, { style: PosterStyle; data: PosterData; className?: string; watermark?: boolean }>(function PosterCanvas({ style, data, className = "", watermark = false }, ref) {
+export const PosterCanvas = forwardRef<
+  PosterHandle,
+  { style: PosterStyle; data: PosterData; className?: string; watermark?: boolean; format?: PosterFormat; share?: PosterShare | null }
+>(function PosterCanvas({ style, data, className = "", watermark = false, format = "a3", share = null }, ref) {
   const cv = useRef<HTMLCanvasElement>(null);
-  const key = `${style}|${data.company}|${data.livery}|${data.lines.map((l) => l.join(">")).join("|")}|${watermark}`;
+  const { w, h } = POSTER_FORMATS[format];
+  const key = `${style}|${format}|${share?.url ?? ""}|${data.company}|${data.livery}|${data.lines.map((l) => l.join(">")).join("|")}|${watermark}`;
   useEffect(() => {
     const c = cv.current;
     const ctx = c?.getContext("2d");
     if (!c || !ctx) return;
     const paint = () => {
-      drawPoster(ctx, style, data);
+      drawPosterVariant(ctx, format, style, data, share);
       if (watermark) {
         ctx.save();
-        ctx.translate(POSTER_W / 2, POSTER_H / 2);
+        ctx.translate(w / 2, h / 2);
         ctx.rotate(-0.5);
         ctx.font = "700 90px 'Work Sans', sans-serif";
         ctx.fillStyle = "rgba(128,128,128,0.18)";
@@ -399,17 +415,48 @@ export const PosterCanvas = forwardRef<PosterHandle, { style: PosterStyle; data:
     document.fonts?.ready.then(paint).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+
+  const blob = () => new Promise<Blob | null>((res) => (cv.current ? cv.current.toBlob(res, "image/png") : res(null)));
+  const fileName = posterFileName(data.company, style, format);
+
   useImperativeHandle(ref, () => ({
     download: () => {
-      cv.current?.toBlob((b) => {
+      void blob().then((b) => {
         if (!b) return;
         const a = document.createElement("a");
         a.href = URL.createObjectURL(b);
-        a.download = `affiche-${data.company.toLowerCase().replace(/[^a-z0-9]+/gi, "-")}-${style}.png`;
+        a.download = fileName;
+        document.body.appendChild(a);
         a.click();
+        a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-      }, "image/png");
+      });
+    },
+    share: async () => {
+      const b = await blob();
+      if (!b) return false;
+      const file = new File([b], fileName, { type: "image/png" });
+      if (!navigator.canShare?.({ files: [file] })) return false;
+      try {
+        await navigator.share({
+          files: [file],
+          title: `Le réseau de ${data.company}`,
+          text: share ? `Rejoins ma compagnie sur Réseau avec le code ${share.code} : ${share.url}` : undefined,
+        });
+      } catch {
+        // partage annulé : rien à faire
+      }
+      return true;
     },
   }));
-  return <canvas ref={cv} width={POSTER_W} height={POSTER_H} className={`block w-full h-auto ${className}`} role="img" aria-label={`Affiche du réseau de ${data.company}, style ${POSTER_LABELS[style]}`} />;
+  return (
+    <canvas
+      ref={cv}
+      width={w}
+      height={h}
+      className={`block w-full h-auto ${className}`}
+      role="img"
+      aria-label={`Affiche du réseau de ${data.company}, style ${POSTER_LABELS[style]}, format ${POSTER_FORMATS[format].label}${share ? ", avec QR code de parrainage" : ""}`}
+    />
+  );
 });

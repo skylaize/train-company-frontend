@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.1.1";
+export const CURRENT_VERSION = "2.1.2";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.1.2",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Le Train des 200 : un train spécial fait le tour de France en 48 heures, par toutes les gares du réseau. Suivez-le en direct sur la carte ; quand il passe par une de vos gares, vous touchez 250 pi. et le nom de votre compagnie est peint sur ses voitures" },
+      { type: "nouveau", text: "200 compagnies sur le réseau, merci ! Les 200 premières reçoivent un billet de pionnier numéroté dans l'ordre de leur fondation, et tout le monde peut télécharger la grande carte : les réseaux des 200 sur une seule carte de France, avec tous les noms. Dans la flotte, ou dans Paramètres" },
+      { type: "nouveau", text: "L'affiche du réseau se décline : A3 à imprimer, story pour Instagram et TikTok, carré pour un post. Avec votre QR code et votre code de parrainage, et un bouton « Partager » sur téléphone (merci FredoDeThors)" },
+      { type: "corrige", text: "Sur iPhone, le menu « Affecter à une ligne » ne défilait pas : glisser le doigt choisissait la ligne sous le doigt. La liste défile de nouveau, et un appui franc choisit la ligne (merci FredoDeThors)" },
+      { type: "corrige", text: "La connexion pouvait charger sans fin quand le serveur peinait : le jeu abandonne au bout de 25 secondes et propose de réessayer, et le serveur répond toujours, même en cas d'erreur" },
+      { type: "corrige", text: "Un lien de parrainage perdait son code en route vers l'inscription : le code est maintenant gardé jusqu'à la fondation de la compagnie" },
+    ],
+  },
   {
     version: "2.1.1",
     date: "Octobre 2026",
