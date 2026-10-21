@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { STATION_COORDS, LINE_PALETTE } from "../geo";
 import { COUNTRIES } from "./europeMap";
 import { drawConsist } from "./trainArt";
+import { drawPosterVariant, PosterFormat, PosterShare, POSTER_FORMATS, posterFileName } from "./PosterShare";
 
 /* ============================================================
    2.1 : l'affiche du réseau.
@@ -371,21 +372,36 @@ export function drawPoster(ctx: CanvasRenderingContext2D, style: PosterStyle, da
 
 export interface PosterHandle {
   download: () => void;
+  /* 2.1.x : la feuille de partage du téléphone (Instagram, WhatsApp…) ; faux si l'appareil ne sait pas partager un fichier */
+  share: () => Promise<boolean>;
+}
+
+export function canShareFiles() {
+  try {
+    const probe = new File([new Blob()], "affiche.png", { type: "image/png" });
+    return typeof navigator !== "undefined" && !!navigator.canShare?.({ files: [probe] });
+  } catch {
+    return false;
+  }
 }
 
 /* l'affiche dans la page : dessinée en pleine définition, réduite à l'écran */
-export const PosterCanvas = forwardRef<PosterHandle, { style: PosterStyle; data: PosterData; className?: string; watermark?: boolean }>(function PosterCanvas({ style, data, className = "", watermark = false }, ref) {
+export const PosterCanvas = forwardRef<
+  PosterHandle,
+  { style: PosterStyle; data: PosterData; className?: string; watermark?: boolean; format?: PosterFormat; share?: PosterShare | null }
+>(function PosterCanvas({ style, data, className = "", watermark = false, format = "a3", share = null }, ref) {
   const cv = useRef<HTMLCanvasElement>(null);
-  const key = `${style}|${data.company}|${data.livery}|${data.lines.map((l) => l.join(">")).join("|")}|${watermark}`;
+  const { w, h } = POSTER_FORMATS[format];
+  const key = `${style}|${format}|${share?.url ?? ""}|${data.company}|${data.livery}|${data.lines.map((l) => l.join(">")).join("|")}|${watermark}`;
   useEffect(() => {
     const c = cv.current;
     const ctx = c?.getContext("2d");
     if (!c || !ctx) return;
     const paint = () => {
-      drawPoster(ctx, style, data);
+      drawPosterVariant(ctx, format, style, data, share);
       if (watermark) {
         ctx.save();
-        ctx.translate(POSTER_W / 2, POSTER_H / 2);
+        ctx.translate(w / 2, h / 2);
         ctx.rotate(-0.5);
         ctx.font = "700 90px 'Work Sans', sans-serif";
         ctx.fillStyle = "rgba(128,128,128,0.18)";
@@ -399,17 +415,48 @@ export const PosterCanvas = forwardRef<PosterHandle, { style: PosterStyle; data:
     document.fonts?.ready.then(paint).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+
+  const blob = () => new Promise<Blob | null>((res) => (cv.current ? cv.current.toBlob(res, "image/png") : res(null)));
+  const fileName = posterFileName(data.company, style, format);
+
   useImperativeHandle(ref, () => ({
     download: () => {
-      cv.current?.toBlob((b) => {
+      void blob().then((b) => {
         if (!b) return;
         const a = document.createElement("a");
         a.href = URL.createObjectURL(b);
-        a.download = `affiche-${data.company.toLowerCase().replace(/[^a-z0-9]+/gi, "-")}-${style}.png`;
+        a.download = fileName;
+        document.body.appendChild(a);
         a.click();
+        a.remove();
         setTimeout(() => URL.revokeObjectURL(a.href), 4000);
-      }, "image/png");
+      });
+    },
+    share: async () => {
+      const b = await blob();
+      if (!b) return false;
+      const file = new File([b], fileName, { type: "image/png" });
+      if (!navigator.canShare?.({ files: [file] })) return false;
+      try {
+        await navigator.share({
+          files: [file],
+          title: `Le réseau de ${data.company}`,
+          text: share ? `Rejoins ma compagnie sur Réseau avec le code ${share.code} : ${share.url}` : undefined,
+        });
+      } catch {
+        // partage annulé : rien à faire
+      }
+      return true;
     },
   }));
-  return <canvas ref={cv} width={POSTER_W} height={POSTER_H} className={`block w-full h-auto ${className}`} role="img" aria-label={`Affiche du réseau de ${data.company}, style ${POSTER_LABELS[style]}`} />;
+  return (
+    <canvas
+      ref={cv}
+      width={w}
+      height={h}
+      className={`block w-full h-auto ${className}`}
+      role="img"
+      aria-label={`Affiche du réseau de ${data.company}, style ${POSTER_LABELS[style]}, format ${POSTER_FORMATS[format].label}${share ? ", avec QR code de parrainage" : ""}`}
+    />
+  );
 });

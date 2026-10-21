@@ -4,6 +4,10 @@ import ReactDOM from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import { applyTheme, readLocalTheme } from "./theme";
+import { captureReferral } from "./referral";
+
+// un lien de parrainage : le code est gardé jusqu'à la fondation de la compagnie
+captureReferral();
 
 // avant le premier rendu : évite le flash de thème au chargement
 applyTheme(readLocalTheme());

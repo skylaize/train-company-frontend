@@ -18,6 +18,7 @@ import { DiscordPanel } from "../components/DiscordPanel";
 import { INSTAGRAM, DISCORD } from "../social";
 import { createPortal } from "react-dom";
 import { api } from "../api/client";
+import { clearReferral, pendingReferral, referralLink } from "../referral";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { JournalBell } from "../components/Journal";
@@ -1964,21 +1965,31 @@ function AssignDropdown({
   triggerClassName?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [coords, setCoords] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  // l'appui au doigt en cours sur une option (voir onPointerDown)
+  const press = useRef<{ id: string; x: number; y: number; scroll: number } | null>(null);
+
+  /* Place le menu sous son bouton, ou au-dessus près du bas de l'écran, et
+     ne le laisse jamais déborder : sur téléphone, la barre d'onglets du bas
+     et la barre de Safari mangent la fin de la liste. */
+  function place(rect: DOMRect, width: number) {
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - width - 12));
+    const viewH = window.visualViewport?.height ?? window.innerHeight;
+    const wanted = Math.min(240, options.length * 33 + 4);
+    const below = viewH - rect.bottom - 4 - 8;
+    const above = rect.top - 4 - 8;
+    if (below >= wanted || below >= above) {
+      return { top: rect.bottom + 4, left, width, maxH: Math.max(120, Math.min(wanted, below)) };
+    }
+    const maxH = Math.max(120, Math.min(wanted, above));
+    return { top: Math.max(8, rect.top - 4 - maxH), left, width, maxH };
+  }
 
   function openMenu() {
     const rect = triggerRef.current?.getBoundingClientRect();
-    if (rect) {
-      const width = Math.max(rect.width, 200);
-      // évite de dépasser le bord droit de l'écran
-      const left = Math.min(rect.left, window.innerWidth - width - 12);
-      // près du bas de l'écran, le menu s'ouvre vers le haut au lieu de déborder
-      const menuH = Math.min(240, options.length * 33 + 4);
-      const top = rect.bottom + 4 + menuH > window.innerHeight - 8 ? Math.max(8, rect.top - 4 - menuH) : rect.bottom + 4;
-      setCoords({ top, left, width });
-    }
+    if (rect) setCoords(place(rect, Math.max(rect.width, 200)));
     setOpen(true);
   }
 
@@ -2002,7 +2013,7 @@ function AssignDropdown({
         setOpen(false);
         return;
       }
-      setCoords((c) => (c ? { ...c, top: rect.bottom + 4, left: Math.min(rect.left, window.innerWidth - c.width - 12) } : c));
+      setCoords((c) => (c ? place(rect, c.width) : c));
     }
 
     document.addEventListener("mousedown", handlePointerDown);
@@ -2036,8 +2047,8 @@ function AssignDropdown({
       {open && coords && createPortal(
         <div
           ref={menuRef}
-          className="fixed z-[70] bg-navy-900 border border-line shadow-[0_8px_20px_-6px_rgba(0,0,0,0.6)] max-h-60 overflow-y-auto dropdown-menu-enter"
-          style={{ top: coords.top, left: coords.left, width: coords.width }}
+          className="fixed z-[70] bg-navy-900 border border-line shadow-[0_8px_20px_-6px_rgba(0,0,0,0.6)] overflow-y-auto overscroll-contain touch-pan-y dropdown-menu-enter"
+          style={{ top: coords.top, left: coords.left, width: coords.width, maxHeight: coords.maxH, WebkitOverflowScrolling: "touch" }}
         >
           {options.length === 0 && (
             <div className="px-3 py-2 text-xs text-slate2 font-body">Aucune option disponible</div>
@@ -2046,11 +2057,29 @@ function AssignDropdown({
             <button
               key={opt.id}
               type="button"
-              // la sélection part dès l'appui : rien ne peut fermer le menu entre l'appui et le clic
               onPointerDown={(e) => {
-                e.preventDefault();
-                handlePick(opt.id);
+                // souris : la sélection part dès l'appui, rien ne peut fermer le menu entre l'appui et le clic
+                if (e.pointerType === "mouse") {
+                  e.preventDefault();
+                  handlePick(opt.id);
+                  return;
+                }
+                /* 2.1.x : au doigt, un appui peut être le début d'un défilement.
+                   Choisir dès l'appui rendait la liste impossible à faire
+                   défiler sur iPhone : le premier glissement affectait la
+                   rame à la ligne sous le doigt. On attend le relâché. */
+                press.current = { id: opt.id, x: e.clientX, y: e.clientY, scroll: menuRef.current?.scrollTop ?? 0 };
               }}
+              onPointerUp={(e) => {
+                const p = press.current;
+                press.current = null;
+                if (e.pointerType === "mouse" || !p || p.id !== opt.id) return;
+                const moved = Math.hypot(e.clientX - p.x, e.clientY - p.y) > 10;
+                const scrolled = Math.abs((menuRef.current?.scrollTop ?? 0) - p.scroll) > 4;
+                if (!moved && !scrolled) handlePick(opt.id);
+              }}
+              // iOS annonce ainsi qu'il prend la main pour faire défiler
+              onPointerCancel={() => (press.current = null)}
               onClick={(e) => {
                 // clavier (Entrée, Espace) : pas d'appui de pointeur
                 if (e.detail === 0) handlePick(opt.id);
@@ -2195,8 +2224,8 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
   const [name, setName] = useState("");
   const [livery, setLivery] = useState(FOUNDING_LIVERIES[0]);
   const [ideas, setIdeas] = useState(pickIdeas);
-  const [referralCode, setReferralCode] = useState(() => new URLSearchParams(window.location.search).get("ref") ?? "");
-  const [showReferral, setShowReferral] = useState(() => !!new URLSearchParams(window.location.search).get("ref"));
+  const [referralCode, setReferralCode] = useState(pendingReferral);
+  const [showReferral, setShowReferral] = useState(() => !!pendingReferral());
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const { showToast } = useToast();
@@ -2209,6 +2238,7 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
     setSubmitting(true);
     try {
       await api.post("/company", { name: clean, liveryColor: livery, referralCode: referralCode.trim() || undefined });
+      clearReferral();
       showToast(`Compagnie « ${clean} » fondée`);
       onCreated();
     } catch (err: any) {
@@ -4281,10 +4311,6 @@ function ThemePanel({
       </div>
     </div>
   );
-}
-
-function referralLink(code: string) {
-  return `${window.location.origin}/?ref=${code}`;
 }
 
 /* Le message tout prêt : le frein au parrainage n'est pas la motivation,

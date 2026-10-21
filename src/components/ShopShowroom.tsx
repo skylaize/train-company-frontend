@@ -6,7 +6,10 @@ import { THEMES } from "../theme";
 import { Plate, PLATE_LABELS } from "./Plate";
 import { TrainPicture } from "./TrainPicture";
 import { PrestigeThumb, PRESTIGE_KINDS, NamePlate, MuseumHall, StationThumb, PLATE_STYLE_LABELS, SOUND_LABELS, STATION_SKIN_LABELS } from "./PrestigeArt";
-import { PosterCanvas, PosterHandle, PosterStyle, POSTER_LABELS } from "./PosterArt";
+import { canShareFiles, PosterCanvas, PosterHandle, PosterStyle, POSTER_LABELS } from "./PosterArt";
+import { PosterFormat, PosterShare, POSTER_FORMATS } from "./PosterShare";
+import { api } from "../api/client";
+import { referralLink } from "../referral";
 import { StaffFigure, UNIFORM_LABELS } from "./StaffFigure";
 import { playPack, SoundPack } from "../sfx";
 
@@ -123,6 +126,23 @@ export function ShopShowroom({
   const [uniform, setUniform] = useState<string | null>(item.uniforms?.[0] ?? null);
   const [poster, setPoster] = useState<PosterStyle>((item.posters?.[0] as PosterStyle) ?? "belle-epoque");
   const posterRef = useRef<PosterHandle>(null);
+  // 2.1.x : l'affiche à partager — format, QR de parrainage
+  const [posterFormat, setPosterFormat] = useState<PosterFormat>("a3");
+  const [withQr, setWithQr] = useState(true);
+  const [refCode, setRefCode] = useState<string | null>(null);
+  const [shareable] = useState(canShareFiles);
+  useEffect(() => {
+    if (item.kind !== "AFFICHE") return;
+    let alive = true;
+    api
+      .get("/referral/mine")
+      .then((r) => alive && setRefCode(r.data?.code ?? null))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [item.kind]);
+  const posterShare: PosterShare | null = withQr && refCode ? { code: refCode, url: referralLink(refCode) } : null;
   const stage = item.kind === "AFFICHE" || item.kind === "SONS" || item.kind === "MUSEE" || item.kind === "TENUES";
   const [emblem, setEmblem] = useState<string | null>(company.emblem ?? null);
   const [title, setTitle] = useState<string | null>(company.title ?? null);
@@ -252,6 +272,8 @@ export function ShopShowroom({
             company={company}
             poster={poster}
             posterRef={posterRef}
+            posterFormat={posterFormat}
+            posterShare={posterShare}
             sound={sound}
             uniform={uniform}
             onPlay={(s) => {
@@ -406,6 +428,28 @@ export function ShopShowroom({
         <Variants list={item.trainPlates} value={trainPlate} labels={PLATE_STYLE_LABELS} onPick={setTrainPlate} label="Plaques" />
         <Variants list={item.uniforms} value={uniform} labels={UNIFORM_LABELS} onPick={setUniform} label="Tenues" />
         <Variants list={item.posters} value={poster} labels={POSTER_LABELS} onPick={(p) => setPoster(p as PosterStyle)} label="Affiches" />
+        {item.kind === "AFFICHE" && (
+          <>
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Format de l'affiche">
+              {(Object.keys(POSTER_FORMATS) as PosterFormat[]).map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setPosterFormat(f)}
+                  aria-pressed={posterFormat === f}
+                  className={`px-2.5 py-1.5 border font-body text-[12.5px] ${posterFormat === f ? "border-white text-white" : "border-line text-slate2"}`}
+                >
+                  {POSTER_FORMATS[f].label} <span className="opacity-60">· {POSTER_FORMATS[f].hint}</span>
+                </button>
+              ))}
+            </div>
+            {refCode && (
+              <label className="flex items-center gap-2 font-body text-[12.5px] text-slate2 cursor-pointer select-none">
+                <input type="checkbox" checked={withQr} onChange={(e) => setWithQr(e.target.checked)} className="accent-amber" />
+                QR code et code de parrainage <span className="font-mono2 text-amber">{refCode}</span>
+              </label>
+            )}
+          </>
+        )}
         {item.sounds && item.sounds.length > 0 && (
           <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Sons">
             {item.sounds.map((s) => (
@@ -435,6 +479,14 @@ export function ShopShowroom({
         )}
 
         <div className="flex items-center gap-2 ml-auto">
+          {item.owned && item.kind === "AFFICHE" && shareable && (
+            <button
+              onClick={() => void posterRef.current?.share()}
+              className="px-4 py-2 border border-cobalt text-cobalt font-mono2 text-[11px] uppercase tracking-wide"
+            >
+              Partager
+            </button>
+          )}
           {item.owned ? (
             <button
               onClick={equipCurrent}
@@ -591,6 +643,8 @@ function PrestigeStage({
   company,
   poster,
   posterRef,
+  posterFormat,
+  posterShare,
   sound,
   uniform,
   onPlay,
@@ -599,6 +653,8 @@ function PrestigeStage({
   company: ShowroomCompany;
   poster: PosterStyle;
   posterRef: React.RefObject<PosterHandle>;
+  posterFormat: PosterFormat;
+  posterShare: PosterShare | null;
   sound: string | null;
   uniform: string | null;
   onPlay: (s: string) => void;
@@ -610,12 +666,12 @@ function PrestigeStage({
       <div className={box} style={{ background: "radial-gradient(ellipse at 50% 20%, #3b3326 0%, #1a1712 55%, #0c0b09 100%)" }}>
         {/* le mur carrelé du hall, et le cadre de l'affiche */}
         <div className="absolute inset-0 opacity-[0.07]" style={{ backgroundImage: "linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)", backgroundSize: "34px 18px" }} />
-        <div className="absolute left-1/2 top-[6%] bottom-[6%] -translate-x-1/2 p-[6px] bg-[#2a2219] shadow-[0_18px_40px_rgba(0,0,0,0.7)]" style={{ aspectRatio: "1200/1700" }}>
-          <PosterCanvas ref={posterRef} style={poster} data={{ company: company.name, livery: company.liveryColor, lines }} watermark={!item.owned} />
+        <div className="absolute left-1/2 top-[6%] bottom-[6%] -translate-x-1/2 p-[6px] bg-[#2a2219] shadow-[0_18px_40px_rgba(0,0,0,0.7)]" style={{ aspectRatio: `${POSTER_FORMATS[posterFormat].w}/${POSTER_FORMATS[posterFormat].h}` }}>
+          <PosterCanvas ref={posterRef} style={poster} format={posterFormat} share={posterShare} data={{ company: company.name, livery: company.liveryColor, lines }} watermark={!item.owned} />
         </div>
         <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at 50% 0%, rgba(255,226,160,.18), transparent 60%)" }} />
         <p className="absolute bottom-3 right-4 max-w-[30%] text-right text-[12px] font-body text-white/70 max-md:hidden">
-          Votre réseau, vos lignes et votre nom. Téléchargée en 1200 × 1700, à imprimer en A3.
+          Votre réseau, vos lignes et votre nom. En A3 à imprimer, en story ou en carré pour les réseaux, avec votre QR code de parrainage.
         </p>
       </div>
     );
