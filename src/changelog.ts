@@ -18,6 +18,7 @@ const ALL_ENTRIES: ChangelogEntry[] = [
     version: "2.1.2",
     date: "Octobre 2026",
     changes: [
+      { type: "nouveau", text: "200 compagnies sur le réseau, merci ! Les 200 premières reçoivent un billet de pionnier numéroté dans l'ordre de leur fondation, et tout le monde peut télécharger la grande carte : les réseaux des 200 sur une seule carte de France, avec tous les noms. Dans la flotte, ou dans Paramètres" },
       { type: "nouveau", text: "L'affiche du réseau se décline : A3 à imprimer, story pour Instagram et TikTok, carré pour un post. Avec votre QR code et votre code de parrainage, et un bouton « Partager » sur téléphone (merci FredoDeThors)" },
       { type: "corrige", text: "Sur iPhone, le menu « Affecter à une ligne » ne défilait pas : glisser le doigt choisissait la ligne sous le doigt. La liste défile de nouveau, et un appui franc choisit la ligne (merci FredoDeThors)" },
       { type: "corrige", text: "La connexion pouvait charger sans fin quand le serveur peinait : le jeu abandonne au bout de 25 secondes et propose de réessayer, et le serveur répond toujours, même en cas d'erreur" },
