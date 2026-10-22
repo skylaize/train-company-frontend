@@ -209,7 +209,7 @@ export function MarketSection({ onChange }: { onChange: () => void }) {
       {data.warehouse ? (
         <WarehouseBar w={data.warehouse} />
       ) : (
-        <div className="border border-line bg-navy-900/40 p-4 mb-5">
+        <div className="border border-line bg-navy-900/40 p-4 mb-5 rounded-card">
           <h3 className="font-display text-lg mb-1">Aucun entrepôt</h3>
           <p className="text-sm text-slate2 font-body max-w-[58ch]">
             Sans entrepôt, vous pouvez suivre les cours mais pas stocker de marchandise. La
@@ -218,7 +218,7 @@ export function MarketSection({ onChange }: { onChange: () => void }) {
         </div>
       )}
 
-      <div className="border border-line" data-tutorial="cours-table">
+      <div className="border border-line rounded-card" data-tutorial="cours-table">
         {data.cargos.map((c, idx) => (
           <CargoRowView
             key={c.cargoType}
@@ -250,10 +250,10 @@ function WarehouseBar({ w }: { w: WarehouseInfo }) {
   const feePerHour = Math.round(w.storedValue * w.storageFeeRatePerHour);
 
   return (
-    <div className="border border-line bg-navy-900/40 p-4 mb-5">
+    <div className="border border-line bg-navy-900/40 p-4 mb-5 rounded-card">
       <div className="flex flex-wrap items-baseline justify-between gap-3 mb-2">
         <h3 className="font-display text-lg">Entrepôt</h3>
-        <span className="font-mono2 text-[11px] text-slate2 uppercase tracking-wide">
+        <span className="font-body text-[12px] text-slate2 font-medium">
           niveau {w.level} · {w.stored}/{w.capacity} unités · {w.typesUsed}/{w.maxTypes} marchandises
         </span>
       </div>
@@ -304,7 +304,7 @@ function CargoRowView({
       <div className="flex flex-wrap items-start gap-x-6 gap-y-3 justify-between">
         <div className="flex-1 min-w-[210px]">
           <h4 className="font-display text-[17px] leading-tight">{c.cargoType}</h4>
-          <div className="font-mono2 text-[11px] text-slate2 uppercase tracking-wide mt-0.5">
+          <div className="font-body text-[12px] text-slate2 mt-0.5 font-medium">
             cours {pctIndex}{" "}
             <span className={rising ? "text-rail-green" : "text-rail-red"}>
               {rising ? "▲" : "▼"} {Math.abs(Math.round(c.trendHour * 1000) / 10)} % /h
@@ -330,7 +330,7 @@ function CargoRowView({
       </div>
 
       {held > 0 && c.held && (
-        <div className="mt-3 border-l-2 border-amber/50 pl-3 text-[12.5px] font-body">
+        <div className="mt-3 rounded-control bg-amber/[0.07] px-3 py-2 text-[12.5px] font-body">
           <span className="text-offwhite">
             {held} en stock, payé{held > 1 ? "s" : ""} {c.held.avgUnitPrice.toFixed(0)} pi. l'unité
           </span>{" "}
@@ -349,20 +349,20 @@ function CargoRowView({
             max={500}
             value={quantity}
             onChange={(e) => setQuantity(Math.max(1, Math.min(500, Number(e.target.value) || 1)))}
-            className="w-20 bg-navy-900 border border-line px-2 py-1.5 text-sm font-mono2 focus:border-amber outline-none"
+            className="w-20 bg-navy-900 border border-line px-2 py-1.5 text-sm font-mono2 focus:border-amber outline-none rounded-control"
             aria-label={`Quantité de ${c.cargoType}`}
           />
           <button
             onClick={() => onTrade(c.cargoType, "buy")}
             disabled={busy !== null || affordable < quantity}
-            className="px-3 py-1.5 bg-cobalt text-onaccent font-mono2 text-[11px] uppercase tracking-wide disabled:opacity-40"
+            className="px-3 py-1.5 bg-cobalt text-onaccent font-body text-[12px] disabled:opacity-40 font-medium rounded-control"
           >
             Acheter
           </button>
           <button
             onClick={() => onTrade(c.cargoType, "sell")}
             disabled={busy !== null || held < quantity}
-            className="px-3 py-1.5 border border-line font-mono2 text-[11px] uppercase tracking-wide hover:border-amber disabled:opacity-40"
+            className="px-3 py-1.5 border border-line font-body text-[12px] hover:border-amber disabled:opacity-40 font-medium rounded-control"
           >
             Vendre
           </button>
@@ -441,10 +441,10 @@ function PremiumMarketTools({
   }
 
   return (
-    <section className="border border-line bg-navy-900/40 mt-6 p-4">
+    <section className="border border-line bg-navy-900/40 mt-6 p-4 rounded-card">
       <div className="flex flex-wrap items-baseline justify-between gap-3 mb-1">
         <h3 className="font-display text-lg">Surveillance du marché</h3>
-        <span className="font-mono2 text-[10.5px] text-amber uppercase tracking-[0.16em]">Premium</span>
+        <span className="font-body text-[12px] text-amber font-medium">Premium</span>
       </div>
       <p className="text-[12.5px] text-slate2 font-body max-w-[60ch] mb-4">
         Alertes et ordres permanents. Ils ne donnent aucun meilleur prix : ils vous évitent de
@@ -461,11 +461,11 @@ function PremiumMarketTools({
         <>
           <div className="flex flex-wrap items-end gap-2 mb-4">
             <label className="flex flex-col gap-1">
-              <span className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-wide">Marchandise</span>
+              <span className="font-body text-[12px] text-slate2 font-medium">Marchandise</span>
               <select
                 value={cargoType}
                 onChange={(e) => setCargoType(e.target.value)}
-                className="bg-navy-900 border border-line px-2 py-1.5 text-sm font-body focus:border-amber outline-none"
+                className="bg-navy-900 border border-line px-2 py-1.5 text-sm font-body focus:border-amber outline-none rounded-control"
               >
                 {cargos.map((c) => (
                   <option key={c} value={c}>
@@ -475,22 +475,22 @@ function PremiumMarketTools({
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-wide">Seuil</span>
+              <span className="font-body text-[12px] text-slate2 font-medium">Seuil</span>
               <input
                 type="number"
                 min={62}
                 max={148}
                 value={threshold}
                 onChange={(e) => setThreshold(Number(e.target.value) || 100)}
-                className="w-24 bg-navy-900 border border-line px-2 py-1.5 text-sm font-mono2 focus:border-amber outline-none"
+                className="w-24 bg-navy-900 border border-line px-2 py-1.5 text-sm font-mono2 focus:border-amber outline-none rounded-control"
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-wide">Sens</span>
+              <span className="font-body text-[12px] text-slate2 font-medium">Sens</span>
               <select
                 value={direction}
                 onChange={(e) => setDirection(e.target.value as "DESSOUS" | "DESSUS")}
-                className="bg-navy-900 border border-line px-2 py-1.5 text-sm font-body focus:border-amber outline-none"
+                className="bg-navy-900 border border-line px-2 py-1.5 text-sm font-body focus:border-amber outline-none rounded-control"
               >
                 <option value="DESSOUS">passe sous</option>
                 <option value="DESSUS">passe au-dessus</option>
@@ -498,7 +498,7 @@ function PremiumMarketTools({
             </label>
             <button
               onClick={addAlert}
-              className="px-3 py-1.5 border border-line font-mono2 text-[11px] uppercase tracking-wide hover:border-amber"
+              className="px-3 py-1.5 border border-line font-body text-[12px] hover:border-amber font-medium rounded-control"
             >
               Me prévenir
             </button>
@@ -506,30 +506,30 @@ function PremiumMarketTools({
             <span className="w-px h-8 bg-line mx-1 hidden sm:block" />
 
             <label className="flex flex-col gap-1">
-              <span className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-wide">Ordre</span>
+              <span className="font-body text-[12px] text-slate2 font-medium">Ordre</span>
               <select
                 value={orderKind}
                 onChange={(e) => setOrderKind(e.target.value as "ACHAT" | "VENTE")}
-                className="bg-navy-900 border border-line px-2 py-1.5 text-sm font-body focus:border-amber outline-none"
+                className="bg-navy-900 border border-line px-2 py-1.5 text-sm font-body focus:border-amber outline-none rounded-control"
               >
                 <option value="ACHAT">acheter</option>
                 <option value="VENTE">vendre</option>
               </select>
             </label>
             <label className="flex flex-col gap-1">
-              <span className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-wide">Quantité</span>
+              <span className="font-body text-[12px] text-slate2 font-medium">Quantité</span>
               <input
                 type="number"
                 min={1}
                 max={100}
                 value={orderQty}
                 onChange={(e) => setOrderQty(Math.max(1, Math.min(100, Number(e.target.value) || 1)))}
-                className="w-20 bg-navy-900 border border-line px-2 py-1.5 text-sm font-mono2 focus:border-amber outline-none"
+                className="w-20 bg-navy-900 border border-line px-2 py-1.5 text-sm font-mono2 focus:border-amber outline-none rounded-control"
               />
             </label>
             <button
               onClick={addOrder}
-              className="px-3 py-1.5 bg-cobalt text-onaccent font-mono2 text-[11px] uppercase tracking-wide"
+              className="px-3 py-1.5 bg-cobalt text-onaccent font-body text-[12px] font-medium rounded-control"
             >
               Poser l'ordre
             </button>
@@ -546,7 +546,7 @@ function PremiumMarketTools({
                   </span>
                   <button
                     onClick={() => remove("alerts", a.id)}
-                    className="font-mono2 text-[10.5px] text-slate2 hover:text-rail-red uppercase tracking-wide"
+                    className="font-body text-[12px] text-slate2 hover:text-rail-red font-medium"
                   >
                     retirer
                   </button>
@@ -560,7 +560,7 @@ function PremiumMarketTools({
                   </span>
                   <button
                     onClick={() => remove("orders", o.id)}
-                    className="font-mono2 text-[10.5px] text-slate2 hover:text-rail-red uppercase tracking-wide"
+                    className="font-body text-[12px] text-slate2 hover:text-rail-red font-medium"
                   >
                     retirer
                   </button>
@@ -671,7 +671,7 @@ export function ConstructionPanel({ onChange }: { onChange: () => void }) {
   const progress = current ? Math.min(100, Math.max(0, ((total - remaining) / total) * 100)) : 0;
 
   return (
-    <section className="border border-line bg-navy-900/40 mt-6 p-4" data-tutorial="chantiers">
+    <section className="border border-line bg-navy-900/40 mt-6 p-4 rounded-card" data-tutorial="chantiers">
       <h3 className="font-display text-lg mb-1">Chantiers</h3>
       <p className="text-[12.5px] text-slate2 font-body max-w-[60ch] mb-4">
         Un chantier à la fois. On paie à la commande, la livraison vient plus tard — c'est le temps
@@ -679,10 +679,10 @@ export function ConstructionPanel({ onChange }: { onChange: () => void }) {
       </p>
 
       {current && (
-        <div className="border border-amber/40 p-3">
+        <div className="border border-amber/40 p-3 rounded-card bg-navy-900/40">
           <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
             <span className="font-body text-[14px] text-offwhite">{current.label}</span>
-            <span className="font-mono2 text-[11px] text-amber uppercase tracking-wide">
+            <span className="font-body text-[12px] text-amber font-medium">
               {/* « il reste 45 min » évite l'accord bancal de « restant(es) »
                   selon qu'on affiche des heures ou des minutes, et le cas où le
                   chantier est fini donnait « terminé restant ». */}
@@ -697,18 +697,18 @@ export function ConstructionPanel({ onChange }: { onChange: () => void }) {
 
       {/* chantier en file (Premium) : il attend, il n'avance pas */}
       {queued && (
-        <div className="border border-dashed border-line p-3 mt-2 flex flex-wrap items-center justify-between gap-3">
+        <div className="border border-dashed border-line p-3 mt-2 flex flex-wrap items-center justify-between gap-3 rounded-card bg-navy-900/40">
           <div>
-            <div className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-[0.14em] mb-0.5">Ensuite</div>
+            <div className="font-body text-[12px] text-slate2 mb-0.5 font-medium">Ensuite</div>
             <div className="font-body text-[14px]">{queued.label}</div>
-            <div className="font-mono2 text-[11px] text-slate2 uppercase tracking-wide">
+            <div className="font-body text-[12px] text-slate2 font-medium">
               démarre à la fin du chantier en cours · {formatDuration(queued.durationMs ?? 0)} de travaux
             </div>
           </div>
           <button
             onClick={cancelQueue}
             disabled={busy}
-            className="px-3 py-1.5 border border-line font-mono2 text-[11px] uppercase tracking-wide hover:border-rail-red hover:text-rail-red disabled:opacity-40"
+            className="px-3 py-1.5 border border-line font-body text-[12px] hover:border-rail-red hover:text-rail-red disabled:opacity-40 font-medium rounded-control"
           >
             Retirer · remboursé
           </button>
@@ -718,7 +718,7 @@ export function ConstructionPanel({ onChange }: { onChange: () => void }) {
       {(!current || canQueue) && (
         <>
           {current && (
-            <p className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-[0.14em] mt-5 mb-1">
+            <p className="font-body text-[12px] text-slate2 mt-5 mb-1 font-medium">
               Préparer le chantier suivant
             </p>
           )}
@@ -727,7 +727,7 @@ export function ConstructionPanel({ onChange }: { onChange: () => void }) {
               <li key={q.kind} className="flex flex-wrap items-center justify-between gap-3 py-3">
                 <div>
                   <div className="font-body text-[14px]">{q.label}</div>
-                  <div className="font-mono2 text-[11px] text-slate2 uppercase tracking-wide">
+                  <div className="font-body text-[12px] text-slate2 font-medium">
                     {q.cost.toLocaleString("fr-FR")} pi. · {formatHours(q.hours)} de travaux
                   </div>
                   {!q.available && q.reason && (
@@ -737,7 +737,7 @@ export function ConstructionPanel({ onChange }: { onChange: () => void }) {
                 <button
                   onClick={() => start(q.kind)}
                   disabled={busy || !q.available || balance < q.cost}
-                  className="px-3 py-1.5 border border-line font-mono2 text-[11px] uppercase tracking-wide hover:border-amber disabled:opacity-40"
+                  className="px-3 py-1.5 border border-line font-body text-[12px] hover:border-amber disabled:opacity-40 font-medium rounded-control"
                 >
                   {balance < q.cost ? "Trésorerie insuffisante" : current ? "Mettre en file" : "Lancer"}
                 </button>

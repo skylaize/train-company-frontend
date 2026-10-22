@@ -113,7 +113,7 @@ export function ProfitabilitySection({ company, onChange }: { company: PremiumIn
       </p>
 
       {/* ---- synthèse ---- */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-line border border-line mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-line border border-line mb-8 rounded-card">
         {[
           { label: "Recettes voyageurs", value: fmt(t.lineRevenue), tone: "text-offwhite" },
           { label: "Recettes fret", value: fmt(t.freightRevenue), tone: "text-offwhite" },
@@ -123,7 +123,7 @@ export function ProfitabilitySection({ company, onChange }: { company: PremiumIn
         ].map((c) => (
           <div key={c.label} className="px-4 py-3 bg-navy-950">
             <div className={`font-mono2 text-lg ${c.tone}`}>{c.value}</div>
-            <div className="text-[10.5px] text-slate2 font-body uppercase tracking-[0.1em] mt-0.5">{c.label}</div>
+            <div className="text-[12px] text-slate2 font-body mt-0.5">{c.label}</div>
           </div>
         ))}
       </div>
@@ -139,10 +139,10 @@ export function ProfitabilitySection({ company, onChange }: { company: PremiumIn
         {lines.length === 0 ? (
           <p className="text-[12.5px] text-slate2 font-body border border-dashed border-line px-4 py-3">Aucune ligne ouverte.</p>
         ) : (
-          <div className="overflow-x-auto border border-line">
+          <div className="overflow-x-auto border border-line rounded-card">
             <table className="w-full text-[12.5px] font-body min-w-[560px]">
               <thead>
-                <tr className="text-left text-slate2 font-mono2 text-[10.5px] uppercase tracking-[0.1em] border-b border-line">
+                <tr className="text-left text-slate2 font-body text-[12px] border-b border-line font-medium">
                   <th className="px-3 py-2 font-normal">Ligne</th>
                   <th className="px-3 py-2 font-normal text-right">Rames</th>
                   <th className="px-3 py-2 font-normal text-right">Trajets</th>
@@ -158,7 +158,7 @@ export function ProfitabilitySection({ company, onChange }: { company: PremiumIn
                     <td className="px-3 py-2">
                       <span className="text-offwhite">{l.label}</span>
                       {i === 0 && lines.length > 1 && l.net > 0 && (
-                        <span className="ml-2 font-mono2 text-[10px] uppercase text-rail-green border border-rail-green/40 px-1 py-px">
+                        <span className="ml-2 font-body text-[12px] text-rail-green border border-rail-green/40 px-1 py-px font-medium rounded-control">
                           la plus rentable
                         </span>
                       )}
@@ -188,10 +188,10 @@ export function ProfitabilitySection({ company, onChange }: { company: PremiumIn
         {trains.length === 0 ? (
           <p className="text-[12.5px] text-slate2 font-body border border-dashed border-line px-4 py-3">Aucune rame.</p>
         ) : (
-          <div className="overflow-x-auto border border-line">
+          <div className="overflow-x-auto border border-line rounded-card">
             <table className="w-full text-[12.5px] font-body min-w-[640px]">
               <thead>
-                <tr className="text-left text-slate2 font-mono2 text-[10.5px] uppercase tracking-[0.1em] border-b border-line">
+                <tr className="text-left text-slate2 font-body text-[12px] border-b border-line font-medium">
                   <th className="px-3 py-2 font-normal">Rame</th>
                   <th className="px-3 py-2 font-normal text-right">Recettes</th>
                   <th className="px-3 py-2 font-normal text-right">Réparations</th>
@@ -210,7 +210,7 @@ export function ProfitabilitySection({ company, onChange }: { company: PremiumIn
                         <span className="text-offwhite">{tr.name}</span>
                         {costly && (
                           <span
-                            className="ml-2 font-mono2 text-[10px] uppercase text-amber border border-amber/40 px-1 py-px"
+                            className="ml-2 font-body text-[12px] text-amber border border-amber/40 px-1 py-px font-medium rounded-control"
                             title="Plus de 60 % de ses recettes partent en réparations"
                           >
                             coûteuse
@@ -268,7 +268,7 @@ function DailyChart({ daily }: { daily: { day: string; revenue: number; repairs:
         </div>
       </div>
 
-      <div className="border border-line px-3 pt-4 pb-2" role="img" aria-label="Recettes et dépenses des sept derniers jours">
+      <div className="border border-line px-3 pt-4 pb-2 rounded-card bg-navy-900/40" role="img" aria-label="Recettes et dépenses des sept derniers jours">
         <div className="relative" style={{ height: H }}>
           {/* repère à mi-hauteur, discret */}
           <div className="absolute left-0 right-0 border-t border-line/60" style={{ top: H / 2 }} />
@@ -291,7 +291,7 @@ function DailyChart({ daily }: { daily: { day: string; revenue: number; repairs:
                     style={{ height: `${(cost / max) * 100}%`, minHeight: cost > 0 ? 2 : 0 }}
                   />
                   {hover === i && (
-                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-10 bg-navy-900 border border-line px-2.5 py-1.5 text-[11px] font-body whitespace-nowrap shadow-lg">
+                    <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-10 bg-navy-900 border border-line px-2.5 py-1.5 text-[11px] font-body whitespace-nowrap shadow-lg rounded-card">
                       <div className="text-offwhite mb-0.5">{DAY_LABEL(d.day)}</div>
                       <div className="text-slate2">Recettes <span className="font-mono2 text-offwhite">{fmt(d.revenue)}</span></div>
                       <div className="text-slate2">Réparations <span className="font-mono2 text-offwhite">{fmt(d.repairs)}</span></div>
@@ -332,7 +332,7 @@ function LockedPreview({ company, onChange }: { company: PremiumInfo; onChange: 
   return (
     <div className="relative">
       <div className="pointer-events-none select-none blur-[3px] opacity-60" aria-hidden>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-line border border-line mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-line border border-line mb-6 rounded-card">
           {["12 480", "6 920", "−4 310", "−2 150", "1 560/h"].map((v) => (
             <div key={v} className="px-4 py-3 bg-navy-950">
               <div className="font-mono2 text-lg">{v}</div>
@@ -340,7 +340,7 @@ function LockedPreview({ company, onChange }: { company: PremiumInfo; onChange: 
             </div>
           ))}
         </div>
-        <div className="border border-line h-36 mb-6 flex items-end gap-3 px-4 pb-3">
+        <div className="border border-line h-36 mb-6 flex items-end gap-3 px-4 pb-3 rounded-card bg-navy-900/40">
           {[60, 72, 48, 80, 66, 90, 74].map((h, i) => (
             <div key={i} className="flex-1 flex items-end justify-center gap-[2px] h-full">
               <div className="w-3 bg-cobalt rounded-t-[4px]" style={{ height: `${h}%` }} />
@@ -348,7 +348,7 @@ function LockedPreview({ company, onChange }: { company: PremiumInfo; onChange: 
             </div>
           ))}
         </div>
-        <div className="border border-line divide-y divide-line">
+        <div className="border border-line divide-y divide-line rounded-card">
           {fake.map(([l, v]) => (
             <div key={l} className="flex justify-between px-3 py-2 text-[12.5px]">
               <span>{l}</span>
@@ -359,7 +359,7 @@ function LockedPreview({ company, onChange }: { company: PremiumInfo; onChange: 
       </div>
 
       <div className="absolute inset-0 flex items-start justify-center pt-10 px-4">
-        <div className="bg-navy-900 border border-line border-t-[3px] border-t-cobalt max-w-md p-5 shadow-xl">
+        <div className="bg-navy-900 border border-line border-t-[3px] border-t-cobalt max-w-md p-5 shadow-xl rounded-card">
           <h2 className="font-display text-xl mb-1">Ce qui vous rapporte, ce qui vous coûte</h2>
           <p className="text-[13px] text-slate2 font-body mb-4">
             Recettes, réparations, pannes et bénéfice à l'heure pour chaque ligne et chaque rame, sur sept jours. Pour

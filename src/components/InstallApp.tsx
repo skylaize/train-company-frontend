@@ -30,7 +30,7 @@ export function InstallGuide({ onClose }: { onClose: () => void }) {
       ];
   return (
     <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-4" role="dialog" aria-modal="true" aria-labelledby="install-title">
-      <div className="w-full max-w-md bg-navy-900 border border-line border-t-[3px] border-t-amber tutorial-step-enter">
+      <div className="w-full max-w-md bg-navy-900 border border-line border-t-[3px] border-t-amber tutorial-step-enter rounded-card">
         <div className="px-6 py-5 border-b border-line flex items-center gap-3">
           <LogoMark size={40} />
           <div>
@@ -47,7 +47,7 @@ export function InstallGuide({ onClose }: { onClose: () => void }) {
           ))}
         </ol>
         <div className="px-6 py-4 border-t border-line flex justify-end">
-          <button onClick={onClose} className="bg-cobalt text-onaccent text-xs font-semibold uppercase tracking-wide px-5 py-2.5 hover:bg-cobalt/90">
+          <button onClick={onClose} className="bg-cobalt text-onaccent text-xs font-semibold px-5 py-2.5 hover:bg-cobalt/90 rounded-control">
             Compris
           </button>
         </div>
@@ -90,7 +90,7 @@ export function InstallButton({ onGuide, compact = false }: { onGuide: () => voi
   return (
     <button
       onClick={go}
-      className={`${compact ? "px-3 py-1.5" : "px-4 py-2"} text-[11px] bg-amber text-onaccent font-mono2 uppercase tracking-wide hover:bg-amber/90`}
+      className={`font-medium rounded-control${compact ? "px-3 py-1.5" : "px-4 py-2"} text-[12px] bg-amber text-onaccent font-body hover:bg-amber/90`}
     >
       Installer Réseau
     </button>

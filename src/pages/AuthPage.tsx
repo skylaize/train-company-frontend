@@ -208,7 +208,7 @@ export default function AuthPage() {
           <LogoMark size={40} />
           <div>
             <div className="font-display text-2xl leading-none">Réseau</div>
-            <div className="font-mono2 text-[9.5px] uppercase tracking-[0.24em] text-slate2 mt-1">Compagnie ferroviaire</div>
+            <div className="font-body text-[11.5px] text-slate2 mt-1 font-medium">Compagnie ferroviaire</div>
           </div>
         </Link>
 
@@ -230,7 +230,7 @@ export default function AuthPage() {
                   role="tab"
                   aria-selected={mode === m}
                   onClick={() => switchMode(m)}
-                  className={`relative py-4 font-mono2 text-[12.5px] uppercase tracking-[0.14em] transition-colors ${
+                  className={`relative py-4 font-body text-[12.5px] transition-colors font-medium ${
                     mode === m ? "text-amber" : "text-slate2 hover:text-offwhite"
                   }`}
                 >
@@ -263,7 +263,7 @@ export default function AuthPage() {
                   <input
                     id="auth-password"
                     type={showPwd ? "text" : "password"}
-                    className={`${input} pr-11`}
+                    className={`rounded-control${input} pr-11`}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder={mode === "login" ? "••••••••" : "8 caractères minimum"}
@@ -327,7 +327,7 @@ export default function AuthPage() {
             <button
               type="submit"
               disabled={submitting || captchaMissing || (mode === "forgot" && !!info)}
-              className="w-full h-11 mt-1 bg-amber text-onaccent rounded-md font-semibold text-[13.5px] uppercase tracking-[0.1em] hover:bg-amber/90 active:scale-[0.99] transition disabled:opacity-50 disabled:active:scale-100"
+              className="w-full h-11 mt-1 bg-amber text-onaccent rounded-md font-semibold text-[13.5px] hover:bg-amber/90 active:scale-[0.99] transition disabled:opacity-50 disabled:active:scale-100"
             >
               {submitting
                 ? "Un instant…"
@@ -351,17 +351,17 @@ export default function AuthPage() {
             <>
               <div className="flex items-center gap-3 my-5" aria-hidden="true">
                 <span className="flex-1 h-px bg-line" />
-                <span className="font-mono2 text-[10.5px] uppercase tracking-[0.2em] text-slate2">ou</span>
+                <span className="font-body text-[12px] text-slate2 font-medium">ou</span>
                 <span className="flex-1 h-px bg-line" />
               </div>
               <div className="flex flex-col gap-3">
                 {providers?.discord && (
-                  <button type="button" onClick={() => oauth("discord")} className="w-full h-11 rounded-md bg-[#5865F2] hover:bg-[#4f5ce0] text-white font-semibold text-[13.5px] uppercase tracking-[0.08em] flex items-center justify-center gap-2.5 transition-colors">
+                  <button type="button" onClick={() => oauth("discord")} className="w-full h-11 rounded-md bg-[#5865F2] hover:bg-[#4f5ce0] text-white font-semibold text-[13.5px] flex items-center justify-center gap-2.5 transition-colors">
                     <DiscordIcon /> Continuer avec Discord
                   </button>
                 )}
                 {providers?.google && (
-                  <button type="button" onClick={() => oauth("google")} className="w-full h-11 rounded-md bg-white hover:bg-[#f2f2f2] text-[#1f1f1f] font-semibold text-[13.5px] uppercase tracking-[0.08em] flex items-center justify-center gap-2.5 transition-colors">
+                  <button type="button" onClick={() => oauth("google")} className="w-full h-11 rounded-md bg-white hover:bg-[#f2f2f2] text-[#1f1f1f] font-semibold text-[13.5px] flex items-center justify-center gap-2.5 transition-colors">
                     <GoogleIcon /> Continuer avec Google
                   </button>
                 )}
@@ -379,7 +379,7 @@ export default function AuthPage() {
         {/* le réseau national, en direct : il vit pendant qu'on se connecte */}
         <section className="mt-6 rounded-lg border border-line bg-navy-900/70 backdrop-blur-md overflow-hidden" aria-label="Réseau national en direct">
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-line">
-            <span className="flex items-center gap-2 font-mono2 text-[10.5px] uppercase tracking-[0.18em] text-slate2">
+            <span className="flex items-center gap-2 font-body text-[12px] text-slate2 font-medium">
               <span className="relative flex w-2 h-2">
                 <span className="absolute inset-0 rounded-full bg-rail-green opacity-60 animate-ping" />
                 <span className="relative w-2 h-2 rounded-full bg-rail-green" />
@@ -395,7 +395,7 @@ export default function AuthPage() {
                 <div key={t.code} className="bg-navy-900 px-4 py-3.5 flex flex-col gap-1.5 min-w-0">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-mono2 text-[9.5px] tracking-[0.14em] text-slate2/60">{t.code}</span>
-                    <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-[1px] font-mono2 text-[9.5px] uppercase tracking-wide ${tone.chip}`}>
+                    <span className={`inline-flex items-center gap-1 rounded-full border px-1.5 py-[1px] font-body text-[11.5px] font-medium ${tone.chip}`}>
                       <span className={`w-1 h-1 rounded-full ${tone.dot} ${t.tone === "alert" ? "blink-dot" : ""}`} />
                       {t.state}
                     </span>

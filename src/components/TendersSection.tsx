@@ -89,7 +89,7 @@ export function TendersSection({ company, onChange, onOpenLines }: { company: Pr
 
       {mine.length > 0 && (
         <section>
-          <h2 className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-slate2 mb-3">Vos contrats en cours</h2>
+          <h2 className="font-body text-[12px] text-slate2 mb-3 font-medium">Vos contrats en cours</h2>
           <div className="grid gap-4 md:grid-cols-2">
             {mine.map((t) => <ContractCard key={t.id} t={t} onOpenLines={onOpenLines} />)}
           </div>
@@ -97,7 +97,7 @@ export function TendersSection({ company, onChange, onOpenLines }: { company: Pr
       )}
 
       <section>
-        <h2 className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-slate2 mb-3">Marchés ouverts</h2>
+        <h2 className="font-body text-[12px] text-slate2 mb-3 font-medium">Marchés ouverts</h2>
         {open.length === 0 ? (
           <p className="border border-line px-4 py-4 text-[13px] text-slate2 font-body">
             Aucun marché ouvert en ce moment. Les prochains ouvrent lundi à 0 h, et les offres restent possibles jusqu'au mercredi.
@@ -108,7 +108,7 @@ export function TendersSection({ company, onChange, onOpenLines }: { company: Pr
               {open.map((t) => <OpenCard key={t.id} t={t} premium={data.isPremium} company={company} onDone={refresh} onOpenLines={onOpenLines} />)}
             </div>
             {!data.isPremium && (
-              <div className="mt-3 border border-line px-4 py-3 flex flex-wrap items-center gap-3">
+              <div className="mt-3 border border-line px-4 py-3 flex flex-wrap items-center gap-3 rounded-card bg-navy-900/40">
                 <span className="text-[12.5px] font-body text-slate2 flex-1 min-w-[240px]">
                   Combien de concurrents ont déjà déposé une offre ? Les abonnés le voient sur chaque marché, sans jamais connaître les montants.
                 </span>
@@ -121,12 +121,12 @@ export function TendersSection({ company, onChange, onOpenLines }: { company: Pr
 
       {(announced.length > 0 || data.announcedCount > 0) && (
         <section>
-          <h2 className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-slate2 mb-3">Annoncés pour la semaine prochaine</h2>
+          <h2 className="font-body text-[12px] text-slate2 mb-3 font-medium">Annoncés pour la semaine prochaine</h2>
           {announced.length > 0 ? (
-            <div className="border border-cobalt/40 bg-cobalt/5 divide-y divide-line">
+            <div className="border border-cobalt/40 bg-cobalt/5 divide-y divide-line rounded-card">
               {announced.map((t) => (
                 <div key={t.id} className="px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-1">
-                  <span className="font-mono2 text-[10.5px] uppercase tracking-[0.12em] text-cobalt w-40">{t.region}</span>
+                  <span className="font-body text-[12px] text-cobalt w-40 font-medium">{t.region}</span>
                   <span className="font-display text-lg flex-1">{t.stationA} – {t.stationB}</span>
                   <span className="font-mono2 text-[12px] text-slate2">budget {fmt(t.budgetPerDay)} pi./jour · {fmt(t.tripsRequired)} trajets</span>
                   <span className="font-mono2 text-[11px] text-cobalt">ouvre {when(t.opensAt)}</span>
@@ -137,7 +137,7 @@ export function TendersSection({ company, onChange, onOpenLines }: { company: Pr
               </p>
             </div>
           ) : (
-            <div className="border border-line px-4 py-3 flex flex-wrap items-center gap-3">
+            <div className="border border-line px-4 py-3 flex flex-wrap items-center gap-3 rounded-card bg-navy-900/40">
               <span className="text-[13px] font-body text-slate2 flex-1 min-w-[240px]">
                 {data.announcedCount} marché{data.announcedCount > 1 ? "s sont déjà annoncés" : " est déjà annoncé"} pour lundi. Les abonnés savent déjà quelles liaisons préparer.
               </span>
@@ -149,14 +149,14 @@ export function TendersSection({ company, onChange, onOpenLines }: { company: Pr
 
       {awarded.length > 0 && (
         <section>
-          <h2 className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-slate2 mb-3">Attribués cette semaine</h2>
+          <h2 className="font-body text-[12px] text-slate2 mb-3 font-medium">Attribués cette semaine</h2>
           <ResultsTable rows={awarded} />
         </section>
       )}
 
       {past.length > 0 && (
         <section>
-          <h2 className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-slate2 mb-3">Semaines précédentes</h2>
+          <h2 className="font-body text-[12px] text-slate2 mb-3 font-medium">Semaines précédentes</h2>
           <ResultsTable rows={past} />
         </section>
       )}
@@ -172,10 +172,10 @@ function HowItWorks() {
     { d: "Jusqu'à lundi", t: "Contrat", b: "Subvention versée à chaque heure où une de vos rames roule sur la liaison." },
   ];
   return (
-    <ol className="grid grid-cols-2 md:grid-cols-4 gap-px bg-line border border-line">
+    <ol className="grid grid-cols-2 md:grid-cols-4 gap-px bg-line border border-line rounded-card">
       {steps.map((s, i) => (
         <li key={s.t} className="bg-navy-950 px-4 py-3">
-          <div className="font-mono2 text-[10.5px] uppercase tracking-[0.12em] text-slate2">{i + 1} · {s.d}</div>
+          <div className="font-body text-[12px] text-slate2 font-medium">{i + 1} · {s.d}</div>
           <div className="font-display text-base mt-0.5">{s.t}</div>
           <p className="text-[12px] font-body text-slate2 mt-1 leading-snug">{s.b}</p>
         </li>
@@ -228,10 +228,10 @@ function OpenCard({
   }
 
   return (
-    <article className="border border-line border-t-[3px] border-t-amber bg-navy-950/40 flex flex-col">
+    <article className="border border-line border-t-[3px] border-t-amber bg-navy-950/40 flex flex-col rounded-card">
       <div className="px-4 pt-3 pb-3 border-b border-line">
         <div className="flex items-baseline justify-between gap-2">
-          <span className="font-mono2 text-[10.5px] uppercase tracking-[0.12em] text-amber">{t.region}</span>
+          <span className="font-body text-[12px] text-amber font-medium">{t.region}</span>
           <span className="font-mono2 text-[11px] text-slate2">clôture dans {left(t.closesAt)}</span>
         </div>
         <h3 className="font-display text-xl leading-tight mt-1">{t.stationA} – {t.stationB}</h3>
@@ -242,11 +242,11 @@ function OpenCard({
 
       <dl className="grid grid-cols-2 gap-px bg-line">
         <div className="bg-navy-950 px-4 py-2.5">
-          <dt className="text-[10.5px] font-body uppercase tracking-[0.1em] text-slate2">Budget / jour</dt>
+          <dt className="text-[12px] font-body text-slate2">Budget / jour</dt>
           <dd className="font-mono2 text-lg text-offwhite tabular-nums">{fmt(t.budgetPerDay)} pi.</dd>
         </div>
         <div className="bg-navy-950 px-4 py-2.5">
-          <dt className="text-[10.5px] font-body uppercase tracking-[0.1em] text-slate2">Trajets demandés</dt>
+          <dt className="text-[12px] font-body text-slate2">Trajets demandés</dt>
           <dd className="font-mono2 text-lg text-offwhite tabular-nums">{fmt(t.tripsRequired)}</dd>
         </div>
       </dl>
@@ -264,7 +264,7 @@ function OpenCard({
             step={10}
             value={amount}
             onChange={(e) => setAmount(Number(e.target.value))}
-            className="w-28 bg-navy-900 border border-line px-2.5 py-1.5 font-mono2 text-sm text-offwhite focus:border-amber outline-none"
+            className="w-28 bg-navy-900 border border-line px-2.5 py-1.5 font-mono2 text-sm text-offwhite focus:border-amber outline-none rounded-control"
           />
           <span className="text-[12px] font-mono2 text-slate2">pi./jour · {Math.round(ratio * 100)} % du budget</span>
         </div>
@@ -293,12 +293,12 @@ function OpenCard({
           <button
             onClick={submit}
             disabled={busy || !t.hasLine || amount < t.minBid || amount > t.budgetPerDay}
-            className="px-4 py-2 text-[11px] bg-amber text-onaccent font-mono2 uppercase tracking-wide disabled:opacity-50"
+            className="px-4 py-2 text-[12px] bg-amber text-onaccent font-body disabled:opacity-50 font-medium rounded-control"
           >
             {t.myBid ? "Modifier l'offre" : "Déposer l'offre"}
           </button>
           {t.myBid !== null && (
-            <button onClick={withdraw} disabled={busy} className="px-3 py-2 text-[11px] border border-line text-slate2 font-mono2 uppercase hover:text-offwhite">
+            <button onClick={withdraw} disabled={busy} className="px-3 py-2 text-[12px] border border-line text-slate2 font-body hover:text-offwhite font-medium rounded-control">
               Retirer
             </button>
           )}
@@ -318,9 +318,9 @@ function ContractCard({ t, onOpenLines }: { t: Tender; onOpenLines: () => void }
   const elapsed = (Date.now() - new Date(t.closesAt).getTime()) / (new Date(t.endsAt).getTime() - new Date(t.closesAt).getTime());
   const onTrack = trips >= t.tripsRequired * Math.min(1, elapsed);
   return (
-    <article className="border border-line border-t-[3px] border-t-rail-green px-4 py-3">
+    <article className="border border-line border-t-[3px] border-t-rail-green px-4 py-3 rounded-card bg-navy-900/40">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="font-mono2 text-[10.5px] uppercase tracking-[0.12em] text-rail-green">{t.region} · marché remporté</span>
+        <span className="font-body text-[12px] text-rail-green font-medium">{t.region} · marché remporté</span>
         <span className="font-mono2 text-[11px] text-slate2">fin dans {left(t.endsAt)}</span>
       </div>
       <h3 className="font-display text-xl leading-tight mt-1">{t.stationA} – {t.stationB}</h3>
@@ -363,7 +363,7 @@ function ResultsTable({ rows }: { rows: Tender[] }) {
     <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
       <table className="w-full text-sm min-w-[640px]">
         <thead>
-          <tr className="text-left text-[11px] text-slate2 font-body uppercase tracking-[0.14em] border-b border-line">
+          <tr className="text-left text-[12px] text-slate2 font-body border-b border-line">
             <th className="py-2 font-normal">Liaison</th>
             <th className="py-2 font-normal">Titulaire</th>
             <th className="py-2 font-normal text-right">Subvention</th>

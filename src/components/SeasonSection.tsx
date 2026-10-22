@@ -75,7 +75,7 @@ export function SeasonSection({ data, world, onReload, companyName = "Votre comp
   return (
     <div className="flex flex-col gap-8">
       {last && last.finalRank && (
-        <div className="border-l-2 border-cobalt pl-3 py-1 font-body text-[14px]">
+        <div className="rounded-control bg-cobalt/[0.08] px-3.5 py-2.5 font-body text-[14px]">
           {last.name} : {last.finalRank}
           {last.finalRank === 1 ? "er" : "e"} de votre groupe
           {last.outcome === "MONTEE" ? ", vous êtes monté de division" : last.outcome === "DESCENTE" ? ", vous êtes redescendu d'une division" : ""}.
@@ -91,9 +91,9 @@ export function SeasonSection({ data, world, onReload, companyName = "Votre comp
         {divisions.map((d) => {
           const mine = d.id === me.division;
           return (
-            <div key={d.id} className={`flex-1 px-3.5 py-2.5 border ${mine ? "border-cobalt bg-navy-900" : "border-line"}`}>
+            <div key={d.id} className={`flex-1 px-3.5 py-2.5 border rounded-card ${mine ? "border-cobalt/60 bg-cobalt/[0.06]" : "border-line bg-navy-900/40"}`}>
               <div className="flex items-center gap-2">
-                <span className="w-3 h-3 rotate-45 shrink-0" style={{ background: DIVISION_COLORS[d.id] }} />
+                <span className="w-3 h-3 rounded-full shrink-0" style={{ background: DIVISION_COLORS[d.id] }} />
                 <span className="font-display text-[16px]">{d.name}</span>
                 {mine && <span className="ml-auto text-[12px] text-cobalt font-body">votre division</span>}
               </div>
@@ -124,11 +124,11 @@ export function SeasonSection({ data, world, onReload, companyName = "Votre comp
                 <div key={g.companyId}>
                   {movers > 0 && g.rank === movers + 1 && me.division < 3 && <Divider tone="text-rail-green" bar="bg-rail-green/40" text={`les ${movers} premiers montent en ${divisions[me.division + 1]?.name}`} />}
                   {movers > 0 && g.rank === group.length - movers + 1 && me.division > 0 && <Divider tone="text-rail-red" bar="bg-rail-red/40" text={`les ${movers} derniers redescendent en ${divisions[me.division - 1]?.name}`} />}
-                  <div className={`grid grid-cols-[4px_30px_minmax(0,1fr)_42px_72px] items-center gap-3 py-2 pr-3 ${g.isMe ? "bg-navy-900 shadow-[inset_0_0_0_1px_rgb(var(--c-cobalt))]" : ""}`}>
-                    <span className={`self-stretch ${up ? "bg-rail-green" : down ? "bg-rail-red" : ""}`} />
+                  <div className={`grid grid-cols-[4px_30px_minmax(0,1fr)_42px_72px] items-center gap-3 py-2 pl-1.5 pr-3 rounded-control ${g.isMe ? "bg-cobalt/[0.08] shadow-[inset_0_0_0_1px_rgb(var(--c-cobalt)/0.5)]" : ""}`}>
+                    <span className={`self-stretch my-1 rounded-full ${up ? "bg-rail-green" : down ? "bg-rail-red" : ""}`} />
                     <span className={`font-mono2 text-[14px] text-right ${g.isMe ? "text-offwhite" : "text-slate2"}`}>{g.rank}</span>
                     <span className="flex items-center gap-2.5 min-w-0">
-                      <span className="w-2.5 h-2.5 shrink-0" style={{ background: g.liveryColor }} />
+                      <span className="w-2.5 h-2.5 shrink-0 rounded-[3px]" style={{ background: g.liveryColor }} />
                       <span className={`text-[14.5px] font-body truncate ${g.isMe ? "font-semibold" : ""}`}>{g.name}</span>
                       {g.isMe && <span className="text-[12px] text-cobalt font-body">vous</span>}
                     </span>
@@ -173,7 +173,7 @@ export function SeasonSection({ data, world, onReload, companyName = "Votre comp
 
           <div className="grid gap-3.5 sm:grid-cols-2">
             {reward && (
-              <div className="border border-line px-4 py-3.5">
+              <div className="border border-line px-4 py-3.5 rounded-card bg-navy-900/40">
                 <div className="text-[14px] font-semibold font-body">En fin de saison</div>
                 <div className="flex items-center gap-3 mt-2.5">
                   <span className="w-10 h-5 shrink-0" style={{ background: `linear-gradient(90deg, ${reward.livery} 0 60%, #f8fafc 60% 66%, ${reward.livery} 66%)` }} />
@@ -184,7 +184,7 @@ export function SeasonSection({ data, world, onReload, companyName = "Votre comp
                 <p className="text-[12.5px] text-slate2 font-body mt-2">Pour les {reward.cut} premiers de chaque groupe. Jamais en boutique.</p>
               </div>
             )}
-            <div className="border border-line px-4 py-3.5">
+            <div className="border border-line px-4 py-3.5 rounded-card bg-navy-900/40">
               <div className="text-[14px] font-semibold font-body">Gagner des points</div>
               <div className="mt-1.5">
                 {scoring.map((s) => (

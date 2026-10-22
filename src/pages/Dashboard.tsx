@@ -260,7 +260,7 @@ interface Contract {
 function OrderTag({ o }: { o: NonNullable<Contract["forOrder"]> }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 text-[12px] font-body text-cobalt border border-cobalt/40 px-2 py-0.5 mt-1"
+      className="inline-flex items-center gap-1.5 text-[12px] font-body text-cobalt border border-cobalt/40 px-2 py-0.5 mt-1 rounded-control"
       title={o.more ? `Puis ${o.more} autre${o.more > 1 ? "s" : ""} ordre${o.more > 1 ? "s" : ""} de la même marchandise` : undefined}
     >
       Compte pour l'ordre nº {o.ref} · {o.client} · {o.progress}/{o.target}
@@ -944,11 +944,11 @@ export default function Dashboard() {
                 setLoading(true);
                 void loadAll();
               }}
-              className="px-4 py-2 bg-cobalt text-onaccent font-mono2 text-[12px] uppercase tracking-wide"
+              className="px-4 py-2 bg-cobalt text-onaccent font-body text-[12px] font-medium rounded-control"
             >
               Réessayer
             </button>
-            <button onClick={logout} className="px-4 py-2 border border-line font-body text-[13px] text-slate2">
+            <button onClick={logout} className="px-4 py-2 border border-line font-body text-[13px] text-slate2 rounded-control">
               Se déconnecter
             </button>
           </div>
@@ -1125,7 +1125,7 @@ export default function Dashboard() {
         <div className="flex items-center pr-4">
           <button
             onClick={() => setEditingCompany(true)}
-            className="flex-1 min-w-0 text-left pl-5 pr-2 pt-5 pb-4 hover:bg-navy-900/40 transition-colors flex items-center gap-3"
+            className="flex-1 min-w-0 text-left ml-2.5 pl-2.5 pr-2 py-2.5 mt-2.5 mb-1.5 rounded-control hover:bg-offwhite/[0.05] transition-colors flex items-center gap-3"
             title="Modifier la compagnie"
           >
             <CompanyBadge company={company} size={38} />
@@ -1137,8 +1137,8 @@ export default function Dashboard() {
           <JournalBell className="mt-1" />
         </div>
         {season?.season && season.me && navOpen.classement && (
-          <button onClick={() => setView("saison")} className="mx-5 mb-2 flex items-center gap-2 text-[12.5px] font-body text-slate2 hover:text-offwhite text-left">
-            <span className="w-2 h-2 rotate-45 shrink-0" style={{ background: DIVISION_COLORS[season.me.division] }} />
+          <button onClick={() => setView("saison")} className="mx-3 mb-2 px-3 py-2 rounded-control bg-offwhite/[0.04] hover:bg-offwhite/[0.07] flex items-center gap-2 text-[12.5px] font-body text-slate2 hover:text-offwhite text-left transition-colors">
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: DIVISION_COLORS[season.me.division] }} />
             <span className="truncate">
               {season.me.rank}
               {season.me.rank === 1 ? "er" : "e"} du groupe {season.me.divisionName}
@@ -1147,28 +1147,28 @@ export default function Dashboard() {
           </button>
         )}
         {onboarding && (
-          <button onClick={() => setView("trains")} className="text-left mx-5 mt-1 mb-1 border border-amber/40 bg-amber/[0.06] px-3 py-2 hover:bg-amber/10 transition-colors">
+          <button onClick={() => setView("trains")} className="text-left mx-3 mt-1 mb-1 bg-amber/[0.08] px-3 py-2.5 hover:bg-amber/[0.12] transition-colors rounded-control">
             <div className="flex items-center justify-between text-[12.5px] font-body text-amber">
               <span>Premiers pas</span>
               <span className="font-mono2">{onboardingProgress.done}/{onboardingProgress.total}</span>
             </div>
-            <div className="h-[2px] bg-line mt-1.5">
-              <div className="h-full bg-amber transition-all duration-700" style={{ width: `${(onboardingProgress.done / onboardingProgress.total) * 100}%` }} />
+            <div className="h-1 rounded-full bg-line mt-2 overflow-hidden">
+              <div className="h-full rounded-full bg-amber transition-all duration-700" style={{ width: `${(onboardingProgress.done / onboardingProgress.total) * 100}%` }} />
             </div>
           </button>
         )}
 
-        <nav className="flex-1 min-h-0 overflow-y-auto pb-3" aria-label="Rubriques">
+        <nav className="flex-1 min-h-0 overflow-y-auto px-2.5 pb-3" aria-label="Rubriques">
           {navGroups.map((g) => (
             <div key={g.label} className="pt-3">
-              <div className="px-5 pb-1 text-[12px] font-body text-slate2/70">{g.label}</div>
+              <div className="px-3 pb-1 text-[12px] font-body font-medium text-slate2/70">{g.label}</div>
               {g.items.map((it) => (
                 <NavRow key={it.id} item={it} />
               ))}
             </div>
           ))}
           {lockedNav.length > 0 && (
-            <div className="mx-5 mt-4 pt-3 border-t border-line/60">
+            <div className="mx-3 mt-4 pt-3 border-t border-line/60">
               <div className="text-[12px] font-body text-slate2/60 mb-1">Bientôt</div>
               {lockedNav.map((n) => (
                 <div key={n.label} className="flex items-start gap-2 py-1">
@@ -1186,7 +1186,7 @@ export default function Dashboard() {
         <div className="border-t border-line px-3 py-3 flex flex-col gap-1">
           <button
             onClick={() => setView("boutique")}
-            className={`flex items-center gap-2.5 px-2.5 py-2 text-[14px] font-body border transition-colors ${view === "boutique" ? "border-amber text-amber bg-amber/10" : "border-amber/40 text-amber hover:bg-amber/10"}`}
+            className={`flex items-center gap-2.5 px-3 py-2 text-[14px] font-body font-medium text-amber transition-colors rounded-control ${view === "boutique" ? "bg-amber/[0.2]" : "bg-amber/[0.1] hover:bg-amber/[0.16]"}`}
           >
             <ShopMark size={16} />
             Boutique
@@ -1197,13 +1197,13 @@ export default function Dashboard() {
                 if (install.canPrompt) await install.prompt();
                 else setShowInstallGuide(true);
               }}
-              className="flex items-center gap-2.5 px-2.5 py-1.5 text-[13.5px] font-body text-slate2 hover:text-offwhite"
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-control text-[13.5px] font-body text-slate2 hover:text-offwhite hover:bg-offwhite/[0.05]"
             >
               <InstallMark size={15} />
               Installer l'app
             </button>
           )}
-          <div className="flex items-center gap-x-3 gap-y-1 flex-wrap px-2.5 pt-1 text-[12.5px] font-body text-slate2">
+          <div className="flex items-center gap-x-3 gap-y-1 flex-wrap px-3 pt-1 text-[12.5px] font-body text-slate2">
             <button onClick={() => setView("parametres")} className={`hover:text-offwhite ${view === "parametres" ? "text-offwhite" : ""}`}>Paramètres</button>
             <button onClick={() => setShowTutorial(true)} className="hover:text-offwhite">Aide</button>
             <button onClick={() => setShowWhatsNew(true)} title="Voir les notes de version" className="font-mono2 text-[11.5px] hover:text-cobalt">v{CURRENT_VERSION}</button>
@@ -1333,7 +1333,7 @@ export default function Dashboard() {
 
       {/* Main */}
       <div className="relative min-w-0 bg-navy-950/30 backdrop-blur-[1px]">
-        <div className="flex items-center justify-between px-6 py-2 border-b border-line font-mono2 text-[11px] text-slate2 uppercase tracking-wide gap-3">
+        <div className="flex items-center justify-between px-6 py-2 border-b border-line font-body text-[12px] text-slate2 gap-3 font-medium">
           {news.length > 0 ? (
             <NewsTicker items={news} />
           ) : (
@@ -1439,11 +1439,11 @@ export default function Dashboard() {
             {view === "trains" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
             {/* 2.1 : Premium d'essai en cours, puis la proposition de le garder */}
             {view === "trains" && company.premiumTrialUntil && (
-              <div className="flex flex-wrap items-center justify-between gap-3 border border-amber/40 bg-amber/5 px-4 py-3 mb-6">
+              <div className="flex flex-wrap items-center justify-between gap-3 border border-amber/40 bg-amber/5 px-4 py-3 mb-6 rounded-card">
                 <span className="text-sm font-body text-offwhite">
                   <span className="text-amber">💎 Premium d'essai</span> · {trialLeft(company.premiumTrialUntil)}, jusqu'au {trialEnd(company.premiumTrialUntil)}
                 </span>
-                <button onClick={() => setView("parametres")} className="text-[11px] font-mono2 uppercase tracking-[0.14em] text-amber border border-amber/50 px-3 py-1.5 hover:bg-amber/10">
+                <button onClick={() => setView("parametres")} className="text-[12px] font-body text-amber border border-amber/50 px-3 py-1.5 hover:bg-amber/10 font-medium rounded-control">
                   Garder le Premium
                 </button>
               </div>
@@ -1516,7 +1516,7 @@ export default function Dashboard() {
               />
             )}
             {view === "trains" && company.construction && (
-              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 border-l-2 border-amber pl-3 py-1 mb-6 font-body">
+              <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-control bg-amber/[0.08] px-3.5 py-2.5 mb-6 font-body">
                 <span className="text-[14px] text-offwhite">
                   Chantier en cours : {company.construction.label.charAt(0).toLowerCase() + company.construction.label.slice(1)}, livré à{" "}
                   <span className="font-mono2 text-amber">{new Date(company.construction.endsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span>
@@ -1749,7 +1749,7 @@ export default function Dashboard() {
             )}
             {view === "parametres" && (
               <>
-                <button onClick={() => setPioneersOpen(true)} className="mb-6 px-3 py-2 border border-amber/50 text-amber font-body text-[13px] hover:bg-amber/10">
+                <button onClick={() => setPioneersOpen(true)} className="mb-6 px-3 py-2 border border-amber/50 text-amber font-body text-[13px] hover:bg-amber/10 rounded-control">
                   Les 200 pionniers : mon billet et la grande carte
                 </button>
                 <SettingsSection company={company} referral={referral} onChange={loadAll} onOpenShop={() => setView("boutique")} />
@@ -1831,7 +1831,7 @@ function PageHeader({ view, lead }: { view: DashboardView; lead?: string | null 
   const copy = PAGE_COPY[view];
   const Icon = PAGE_ICON[view] ?? TrainMark;
   return (
-    <header className="mb-7 pb-5 border-b border-line">
+    <header className="mb-7">
       <div className="flex items-center gap-2 text-cobalt">
         <Icon size={15} />
         <h1 className="text-[14px] font-semibold font-body text-offwhite">{copy.title}</h1>
@@ -1870,17 +1870,17 @@ function TodaySummaryCard({ summary }: { summary: TodaySummary }) {
   const netUp = summary.net >= 0;
 
   return (
-    <div className="border border-line mb-6 font-mono2">
-      <button onClick={toggle} aria-expanded={open} className="w-full flex items-center gap-x-4 gap-y-1 px-4 py-2 text-left hover:bg-navy-900/40 transition-colors">
+    <div className="border border-line mb-6 font-body rounded-card bg-navy-900/40 overflow-hidden">
+      <button onClick={toggle} aria-expanded={open} className="w-full flex items-center gap-x-4 gap-y-1 px-4 py-2.5 text-left hover:bg-offwhite/[0.03] transition-colors">
         <span className="flex items-center gap-2 shrink-0">
           <LedgerMark size={13} className="text-cobalt" />
-          <span className="text-[10.5px] uppercase tracking-[0.16em] text-slate2">Aujourd'hui</span>
+          <span className="text-[13px] text-slate2">Aujourd'hui</span>
         </span>
-        <span className={`text-sm tabular-nums shrink-0 ${netUp ? "text-rail-green" : "text-rail-red"}`}>
+        <span className={`font-mono2 text-sm tabular-nums shrink-0 ${netUp ? "text-rail-green" : "text-rail-red"}`}>
           {netUp ? "+" : "−"}
-          {fmt(summary.net)} pi. <span className="text-[10.5px] text-slate2">net</span>
+          {fmt(summary.net)} pi. <span className="font-body text-[12px] text-slate2">net</span>
         </span>
-        <span className="hidden sm:flex items-center gap-3 text-[12px] text-slate2 tabular-nums min-w-0 truncate">
+        <span className="hidden sm:flex items-center gap-3 text-[13px] text-slate2 tabular-nums min-w-0 truncate">
           <span>·</span>
           <span>{summary.lineTrips} trajet{summary.lineTrips > 1 ? "s" : ""}</span>
           <span>·</span>
@@ -1890,12 +1890,12 @@ function TodaySummaryCard({ summary }: { summary: TodaySummary }) {
             {summary.incidents} incident{summary.incidents > 1 ? "s" : ""}
           </span>
         </span>
-        <span className="ml-auto text-[10.5px] uppercase tracking-wide text-slate2 shrink-0">
+        <span className="ml-auto text-[13px] text-slate2 shrink-0">
           Détails <span className={`inline-block transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
         </span>
       </button>
       {open && (
-        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2 border-t border-line text-[12px] tabular-nums">
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 px-4 py-2.5 border-t border-line text-[13px] tabular-nums">
           <span>
             <span className="text-slate2">recettes </span>
             <span className="text-rail-green">+{fmt(summary.income)} pi.</span>
@@ -1974,7 +1974,7 @@ function AdWatchCard({ onChange, isPremium }: { onChange: () => void; isPremium:
     return status.remaining > 0 ? (
       <div className="mb-6 flex items-center justify-end gap-2 text-[11.5px] font-body text-slate2">
         <span>Envie de pièces en plus ? Une vidéo facultative rapporte {status.rewardPerAd} pi.</span>
-        <button onClick={watchAd} disabled={phase !== "idle"} className="font-mono2 uppercase text-[10.5px] text-cobalt hover:underline disabled:opacity-50">
+        <button onClick={watchAd} disabled={phase !== "idle"} className="font-body text-[12px] text-cobalt hover:underline disabled:opacity-50 font-medium">
           {phase === "idle" ? "Regarder" : "Chargement…"}
         </button>
       </div>
@@ -1982,11 +1982,11 @@ function AdWatchCard({ onChange, isPremium }: { onChange: () => void; isPremium:
   }
 
   return (
-    <div className="border border-line mb-6 p-4 flex items-center justify-between gap-4 flex-wrap">
+    <div className="border border-line mb-6 p-4 flex items-center justify-between gap-4 flex-wrap rounded-card bg-navy-900/40">
       <div>
         <div className="flex items-center gap-2 mb-1">
           <AnnounceMark size={15} className="text-cobalt shrink-0" />
-          <span className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em]">Vidéo récompensée</span>
+          <span className="text-[12px] font-body text-slate2 ">Vidéo récompensée</span>
         </div>
         <p className="text-xs text-slate2 font-body">
           +{status.rewardPerAd} pi. par vidéo regardée jusqu'au bout, jusqu'à {status.maxPerDay} par jour — {status.watchedToday}/{status.maxPerDay} aujourd'hui.
@@ -1996,7 +1996,7 @@ function AdWatchCard({ onChange, isPremium }: { onChange: () => void; isPremium:
       <button
         onClick={watchAd}
         disabled={phase !== "idle" || status.remaining === 0}
-        className="text-xs font-mono2 uppercase text-cobalt border border-cobalt/40 px-3 py-2 hover:bg-cobalt/10 transition-colors disabled:opacity-50 shrink-0"
+        className="text-xs font-body text-cobalt border border-cobalt/40 px-3 py-2 hover:bg-cobalt/10 transition-colors disabled:opacity-50 shrink-0 font-medium rounded-control"
       >
         {phase === "loading" ? "Chargement…" : phase === "playing" ? "Lecture…" : status.remaining === 0 ? "Revenez demain" : `Regarder (+${status.rewardPerAd} pi.)`}
       </button>
@@ -2115,7 +2115,7 @@ function AssignDropdown({
         ref={triggerRef}
         type="button"
         onClick={() => (open ? setOpen(false) : openMenu())}
-        className={`select-none flex items-center gap-1.5 text-xs font-mono2 uppercase border px-2.5 py-1.5 transition-colors ${
+        className={`select-none flex items-center gap-1.5 text-xs font-body border px-2.5 py-1.5 transition-colors font-medium rounded-control ${
           triggerClassName ?? "text-offwhite border-line bg-navy-800 hover:border-cobalt"
         }`}
       >
@@ -2200,23 +2200,21 @@ function WearGauge({ value }: { value: number }) {
 
 type SubTab<T extends string> = { id: T; label: string; count?: number };
 function SubTabs<T extends string>({ value, onChange, tabs }: { value: string; onChange: (v: T) => void; tabs: SubTab<T>[] }) {
-  // 1.7 : des onglets comme des voies de quai : l'onglet actif se détache du panneau
+  // 2.3 : un sélecteur segmenté ; l'onglet actif est une pastille pleine
   return (
-    <div role="tablist" className="flex border-b border-line mb-6 -mt-2 overflow-x-auto">
+    <div role="tablist" className="inline-flex max-w-full gap-1 p-1 mb-6 -mt-2 overflow-x-auto rounded-control bg-navy-900/70 border border-line">
       {tabs.map((t) => (
         <button
           key={t.id}
           role="tab"
           aria-selected={value === t.id}
           onClick={() => onChange(t.id)}
-          className={`shrink-0 px-4 py-2 text-[13.5px] font-body border -mb-px transition-colors ${
-            value === t.id
-              ? "border-line border-b-navy-950 bg-navy-950 text-offwhite shadow-[inset_0_2px_0_rgb(var(--c-cobalt))]"
-              : "border-transparent text-slate2 hover:text-offwhite"
+          className={`shrink-0 px-3.5 py-1.5 text-[13.5px] font-body transition-colors rounded-[calc(var(--r-control)-3px)] ${
+            value === t.id ? "bg-navy-700/70 text-offwhite font-medium shadow-sm" : "text-slate2 hover:text-offwhite"
           }`}
         >
           {t.label}
-          {t.count !== undefined && <span className="ml-2 font-mono2 text-[11px] text-slate2 tabular-nums">{t.count}</span>}
+          {t.count !== undefined && <span className="ml-2 text-[12px] text-slate2 tabular-nums">{t.count}</span>}
         </button>
       ))}
     </div>
@@ -2261,7 +2259,7 @@ function StatCell({
       ) : (
         <div key={value} className={`text-2xl md:text-4xl font-mono2 ${color} animate-flip-in`}>{value}</div>
       )}
-      <div className="text-[10px] md:text-[11px] text-slate2 font-body uppercase tracking-[0.1em] md:tracking-[0.14em] mt-1 md:mt-1.5">{label}</div>
+      <div className="text-[12px] md:text-[11px] text-slate2 font-body mt-1 md:mt-1.5">{label}</div>
     </div>
   );
 }
@@ -2328,19 +2326,19 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
     }
   }
 
-  const label = "block text-[10.5px] font-mono2 uppercase tracking-[0.18em] text-slate2 mb-2";
+  const label = "block text-[12.5px] font-body font-medium text-slate2 mb-2";
 
   return (
     <div className="min-h-screen relative flex items-center justify-center px-4 py-10 bg-navy-950 overflow-hidden">
       <RailSchematic className="absolute inset-0 w-full h-full opacity-[0.08] pointer-events-none" />
-      <div className="relative w-full max-w-4xl grid md:grid-cols-[1.05fr_1fr] border border-line bg-navy-900/80 backdrop-blur-sm view-transition">
+      <div className="relative w-full max-w-4xl grid md:grid-cols-[1.05fr_1fr] border border-line bg-navy-900/80 backdrop-blur-sm view-transition rounded-card">
         {/* ce qui vous attend */}
         <div className="p-6 md:p-9 border-b md:border-b-0 md:border-r border-line flex flex-col">
           <div className="flex items-center gap-3">
             <LogoMark size={34} />
             <div>
               <div className="font-display text-lg leading-none">Réseau</div>
-              <div className="font-mono2 text-[9.5px] uppercase tracking-[0.24em] text-slate2 mt-1">Compagnie ferroviaire</div>
+              <div className="font-body text-[11.5px] text-slate2 mt-1 font-medium">Compagnie ferroviaire</div>
             </div>
           </div>
           <h1 className="font-display text-3xl md:text-[40px] leading-[1.05] mt-8 md:mt-10">Fondez votre compagnie</h1>
@@ -2370,7 +2368,7 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
           <label htmlFor="co-name" className={label}>Nom de la compagnie</label>
           <input
             id="co-name"
-            className="w-full bg-navy-950/60 border border-line px-3.5 py-3 text-[15px] font-body focus:outline-none focus:border-cobalt"
+            className="w-full bg-navy-950/60 border border-line px-3.5 py-3 text-[15px] font-body focus:outline-none focus:border-cobalt rounded-control"
             placeholder="Ex. Compagnie du Nord"
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -2385,7 +2383,7 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
                 key={n}
                 type="button"
                 onClick={() => setName(n)}
-                className="font-body text-[11.5px] text-slate2 border border-line px-2 py-0.5 hover:text-offwhite hover:border-slate2 transition-colors"
+                className="font-body text-[11.5px] text-slate2 border border-line px-2 py-0.5 hover:text-offwhite hover:border-slate2 transition-colors rounded-control"
               >
                 {n}
               </button>
@@ -2405,7 +2403,7 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
                   onClick={() => setLivery(c)}
                   aria-label={`Livrée ${c}`}
                   aria-pressed={livery === c}
-                  className={`w-9 h-9 border-2 transition-transform ${livery === c ? "border-offwhite scale-105" : "border-transparent hover:scale-105"}`}
+                  className={`w-9 h-9 border-2 transition-transform rounded-control ${livery === c ? "border-offwhite scale-105" : "border-transparent hover:scale-105"}`}
                   style={{ background: c }}
                 />
               ))}
@@ -2414,10 +2412,10 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
           </div>
 
           {/* comme l'en-tête du jeu : c'est ce que verront les autres */}
-          <div className="mt-7 border border-line border-t-[3px] px-4 py-3 flex items-center gap-3" style={{ borderTopColor: livery }}>
+          <div className="mt-7 border border-line border-t-[3px] px-4 py-3 flex items-center gap-3 rounded-card bg-navy-900/40" style={{ borderTopColor: livery }}>
             <TrainMark size={20} style={{ color: livery }} className="shrink-0" />
             <div className="min-w-0">
-              <div className="font-mono2 text-[9.5px] uppercase tracking-[0.2em] text-slate2">Exploitant</div>
+              <div className="font-body text-[11.5px] text-slate2 font-medium">Exploitant</div>
               <div className="font-display text-lg leading-tight truncate" style={{ color: name.trim() ? livery : undefined }}>
                 {name.trim() || <span className="text-slate2/60">Votre compagnie</span>}
               </div>
@@ -2430,7 +2428,7 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
                 <label htmlFor="co-ref" className={label}>Code de parrainage</label>
                 <input
                   id="co-ref"
-                  className="w-full bg-navy-950/60 border border-line px-3 py-2.5 text-sm font-mono2 uppercase tracking-[0.2em] focus:outline-none focus:border-cobalt"
+                  className="w-full bg-navy-950/60 border border-line px-3 py-2.5 text-sm font-mono2 uppercase tracking-[0.2em] focus:outline-none focus:border-cobalt rounded-control"
                   placeholder="ABC123"
                   value={referralCode}
                   onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
@@ -2450,7 +2448,7 @@ function CreateCompanyForm({ onCreated, onLogout }: { onCreated: () => void; onL
           <div className="mt-auto pt-7">
             <button
               disabled={submitting || !name.trim()}
-              className="w-full bg-cobalt text-onaccent font-semibold py-3 text-sm uppercase tracking-wide hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100"
+              className="w-full bg-cobalt text-onaccent font-semibold py-3 text-sm hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-50 disabled:active:scale-100 rounded-control"
             >
               {submitting ? "Fondation…" : "Fonder la compagnie"}
             </button>
@@ -2505,13 +2503,13 @@ function StationPicker({
 
   return (
     <div className="flex-1">
-      {label && <label className="block text-[11px] uppercase tracking-wide text-slate2 mb-1.5 font-body">{label}</label>}
+      {label && <label className="block text-[12px] text-slate2 mb-1.5 font-body">{label}</label>}
       <details className="relative">
-        <summary className="cursor-pointer select-none list-none w-full flex items-center justify-between bg-transparent border border-line px-3 py-2 text-sm hover:border-cobalt transition-colors [&::-webkit-details-marker]:hidden">
+        <summary className="cursor-pointer select-none list-none w-full flex items-center justify-between bg-transparent border border-line px-3 py-2 text-sm hover:border-cobalt transition-colors [&::-webkit-details-marker]:hidden rounded-control">
           <span className={value ? "text-offwhite" : "text-slate2"}>{value || "Choisir une gare…"}</span>
           <span className="text-[10px] text-slate2">▾</span>
         </summary>
-        <div className="absolute z-30 mt-1 w-full max-h-52 overflow-y-auto bg-navy-900 border border-line shadow-[0_8px_20px_-6px_rgba(0,0,0,0.6)]">
+        <div className="absolute z-30 mt-1 w-full max-h-52 overflow-y-auto bg-navy-900 border border-line shadow-[0_8px_20px_-6px_rgba(0,0,0,0.6)] rounded-card">
           {STATIONS.filter((s) => !excluded.has(s)).map((s) => (
             <button
               key={s}
@@ -2522,7 +2520,7 @@ function StationPicker({
               {s}
             </button>
           ))}
-          <div className="px-3 py-1.5 bg-navy-950 border-b border-line font-mono2 text-[10px] uppercase tracking-[0.14em] text-slate2">
+          <div className="px-3 py-1.5 bg-navy-950 border-b border-line font-body text-[12px] text-slate2 font-medium">
             À l'étranger{intlLocked ? " · licence requise" : ""}
           </div>
           {INTL_STATIONS.filter((s) => !excluded.has(s) && stationVisible(s)).map((s) => (
@@ -2662,22 +2660,22 @@ function LinesSection({
         <button
           data-tutorial="btn-new-line"
           onClick={startCreate}
-          className={`text-[13.5px] font-semibold px-3.5 py-2 active:scale-[0.96] transition-transform font-body ${open ? "border border-line text-slate2 hover:text-offwhite" : "bg-cobalt text-onaccent hover:bg-cobalt/90"}`}
+          className={`text-[13.5px] font-semibold px-3.5 py-2 active:scale-[0.96] transition-transform font-body rounded-control ${open ? "border border-line text-slate2 hover:text-offwhite" : "bg-cobalt text-onaccent hover:bg-cobalt/90"}`}
         >
           {open ? "Annuler" : "Tracer une ligne"}
         </button>
       </div>
 
       {open && (
-        <form onSubmit={handleSubmit} className="border border-line border-t-2 border-t-cobalt p-5 mb-5 space-y-4">
+        <form onSubmit={handleSubmit} className="border border-line border-t-2 border-t-cobalt p-5 mb-5 space-y-4 rounded-card bg-navy-900/40">
           <div>
-            <label className="block text-[11px] uppercase tracking-wide text-slate2 mb-1.5 font-body">
+            <label className="block text-[12px] text-slate2 mb-1.5 font-body">
               Nom de la ligne <span className="normal-case tracking-normal text-slate2/70">(facultatif)</span>
             </label>
             {/* 1.6 : facultatif. Un champ obligatoire en tête du tout premier formulaire
                 bloquait le nouveau venu avant même qu'il ait choisi ses gares. */}
             <input
-              className="w-full bg-transparent border border-line px-3 py-2 text-sm focus:outline-none focus:border-cobalt"
+              className="w-full bg-navy-950/50 border border-line px-3 py-2 text-sm focus:outline-none focus:border-cobalt rounded-control"
               placeholder={departure && arrival ? `${departure} — ${arrival}` : "Ex. Ligne du Littoral"}
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -2691,7 +2689,7 @@ function LinesSection({
               type="button"
               onClick={() => { const tmp = departure; setDeparture(arrival); setArrival(tmp); setStops((st) => [...st].reverse()); }}
               title="Inverser départ et arrivée"
-              className="mb-0.5 p-2 border border-line text-slate2 hover:text-cobalt hover:border-cobalt transition-colors shrink-0"
+              className="mb-0.5 p-2 border border-line text-slate2 hover:text-cobalt hover:border-cobalt transition-colors shrink-0 rounded-control"
             >
               <SwapMark size={16} />
             </button>
@@ -2703,7 +2701,7 @@ function LinesSection({
           {departure && arrival && (
             <div>
               <div className="flex items-baseline justify-between mb-1.5">
-                <span className="text-[11px] uppercase tracking-wide text-slate2 font-body">
+                <span className="text-[12px] text-slate2 font-body">
                   Arrêts intermédiaires <span className="normal-case tracking-normal text-slate2/70">({stops.length}/{MAX_STOPS} · +20 % de voyageurs par arrêt, 1 min à quai)</span>
                 </span>
               </div>
@@ -2713,9 +2711,9 @@ function LinesSection({
                     <span className="absolute -left-[22px] w-2.5 h-2.5 rounded-full bg-navy-950 border-2 border-cobalt" />
                     <span className="text-offwhite">{st}</span>
                     <span className="ml-auto flex items-center gap-1">
-                      <button type="button" disabled={i === 0} onClick={() => setStops((a) => { const b = [...a]; [b[i - 1], b[i]] = [b[i], b[i - 1]]; return b; })} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label={`Avancer ${st}`}>↑</button>
-                      <button type="button" disabled={i === stops.length - 1} onClick={() => setStops((a) => { const b = [...a]; [b[i + 1], b[i]] = [b[i], b[i + 1]]; return b; })} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label={`Reculer ${st}`}>↓</button>
-                      <button type="button" onClick={() => setStops((a) => a.filter((x) => x !== st))} className="w-6 h-6 border border-line text-slate2 hover:text-rail-red hover:border-rail-red/50" aria-label={`Retirer ${st}`}>×</button>
+                      <button type="button" disabled={i === 0} onClick={() => setStops((a) => { const b = [...a]; [b[i - 1], b[i]] = [b[i], b[i - 1]]; return b; })} className="w-6 h-6 shrink-0 inline-flex items-center justify-center border border-line text-slate2 hover:text-offwhite disabled:opacity-30 rounded-control" aria-label={`Avancer ${st}`}>↑</button>
+                      <button type="button" disabled={i === stops.length - 1} onClick={() => setStops((a) => { const b = [...a]; [b[i + 1], b[i]] = [b[i], b[i + 1]]; return b; })} className="w-6 h-6 shrink-0 inline-flex items-center justify-center border border-line text-slate2 hover:text-offwhite disabled:opacity-30 rounded-control" aria-label={`Reculer ${st}`}>↓</button>
+                      <button type="button" onClick={() => setStops((a) => a.filter((x) => x !== st))} className="w-6 h-6 border border-line text-slate2 hover:text-rail-red hover:border-rail-red/50 rounded-control" aria-label={`Retirer ${st}`}>×</button>
                     </span>
                   </li>
                 ))}
@@ -2737,7 +2735,7 @@ function LinesSection({
           )}
 
           {(departure || arrival) && (
-            <div className="border border-dashed border-line px-3 py-2.5 text-sm font-mono2 text-slate2">
+            <div className="border border-dashed border-line px-3 py-2.5 text-sm font-mono2 text-slate2 rounded-card bg-navy-900/40">
               <div className="flex items-center gap-2 flex-wrap">
                 <TrainMark size={14} className="text-cobalt shrink-0" />
                 {(departure && arrival ? route : [departure || "?", arrival || "?"]).map((st, i, all) => (
@@ -2806,7 +2804,7 @@ function LinesSection({
 
           <button
             disabled={!departure || !arrival}
-            className="w-full bg-cobalt text-onaccent text-sm font-semibold uppercase py-2.5 hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-40 disabled:active:scale-100"
+            className="w-full bg-cobalt text-onaccent text-sm font-semibold py-2.5 hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-40 disabled:active:scale-100 rounded-control"
           >
             {editingId ? "Enregistrer les modifications" : "Créer la ligne"}
           </button>
@@ -2879,12 +2877,12 @@ function LinesSection({
                   {confirmDeleteId === l.id ? (
                     <span className="flex items-center gap-2">
                       <span className="text-[12px] text-slate2 font-body">{l.highSpeedAt ? "Supprimer la ligne et sa LGV, sans remboursement ?" : "Supprimer ?"}</span>
-                      <button onClick={() => confirmDelete(l.id)} className="text-[12.5px] text-rail-red border border-rail-red/40 px-2.5 py-1 hover:bg-rail-red/10 font-body">Oui</button>
-                      <button onClick={() => setConfirmDeleteId(null)} className="text-[12.5px] text-slate2 border border-line px-2.5 py-1 hover:text-offwhite font-body">Non</button>
+                      <button onClick={() => confirmDelete(l.id)} className="text-[12.5px] text-rail-red border border-rail-red/40 px-2.5 py-1 hover:bg-rail-red/10 font-body rounded-control">Oui</button>
+                      <button onClick={() => setConfirmDeleteId(null)} className="text-[12.5px] text-slate2 border border-line px-2.5 py-1 hover:text-offwhite font-body rounded-control">Non</button>
                     </span>
                   ) : (
                     <>
-                      <button onClick={() => startEdit(l)} className="text-[13px] text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 font-body">Modifier</button>
+                      <button onClick={() => startEdit(l)} className="text-[13px] text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 font-body rounded-control">Modifier</button>
                       <button onClick={() => setConfirmDeleteId(l.id)} className="text-[13px] text-slate2 hover:text-rail-red font-body">Supprimer</button>
                     </>
                   )}
@@ -2926,17 +2924,17 @@ function RouteCell({ line }: { line: Line }) {
         <div className="text-[11px] text-slate2 mt-0.5 flex items-center gap-1.5 flex-wrap">
           {stops.length > 0 && <span>via {stops.join(", ")}</span>}
           {line.electrified && (
-            <span className="font-mono2 text-[10px] uppercase text-amber" title="Ligne électrifiée : trajets 10 % plus rapides, usure réduite">
+            <span className="font-body text-[12px] text-amber font-medium" title="Ligne électrifiée : trajets 10 % plus rapides, usure réduite">
               ϟ électrifiée
             </span>
           )}
           {line.doubleTrack && (
-            <span className="font-mono2 text-[10px] uppercase text-offwhite" title="Double voie : trajets 7 % plus rapides, moins de retards, cadencement">
+            <span className="font-body text-[12px] text-offwhite font-medium" title="Double voie : trajets 7 % plus rapides, moins de retards, cadencement">
               ‖ double voie
             </span>
           )}
           {hslOpen(line) && (
-            <span className="font-mono2 text-[10px] uppercase text-cobalt" title="Ligne à grande vitesse : les rames TGV y roulent presque deux fois plus vite">
+            <span className="font-body text-[12px] text-cobalt font-medium" title="Ligne à grande vitesse : les rames TGV y roulent presque deux fois plus vite">
               » grande vitesse
             </span>
           )}
@@ -2971,7 +2969,7 @@ function FillCell({ ridership, onDetail, premium, quiet }: { ridership?: Ridersh
         ) : null}
       </div>
       {/* 1.7 — Premium : la courbe des 24 dernières heures */}
-      <button onClick={onDetail} className="mt-0.5 text-[10.5px] font-mono2 uppercase tracking-wide text-cobalt hover:underline flex items-center gap-1">
+      <button onClick={onDetail} className="mt-0.5 text-[12px] font-body text-cobalt hover:underline flex items-center gap-1 font-medium">
         {!premium && <LockMark size={9} />} 24 h
       </button>
     </div>
@@ -3044,7 +3042,7 @@ function PriceControl({ line, ridership, premium, onChange }: { line: Line; ride
   return (
     <div className="w-40">
       <div className="flex items-center gap-1">
-        <button type="button" disabled={saving || value <= 0.6} onClick={() => save(value - 0.05)} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label="Baisser le prix">−</button>
+        <button type="button" disabled={saving || value <= 0.6} onClick={() => save(value - 0.05)} className="w-6 h-6 shrink-0 inline-flex items-center justify-center border border-line text-slate2 hover:text-offwhite disabled:opacity-30 rounded-control" aria-label="Baisser le prix">−</button>
         <input
           type="range"
           min={0.6}
@@ -3058,7 +3056,7 @@ function PriceControl({ line, ridership, premium, onChange }: { line: Line; ride
           className="flex-1 accent-[rgb(var(--c-cobalt))] h-1"
           aria-label="Prix du billet"
         />
-        <button type="button" disabled={saving || value >= 2} onClick={() => save(value + 0.05)} className="w-6 h-6 border border-line text-slate2 hover:text-offwhite disabled:opacity-30" aria-label="Monter le prix">+</button>
+        <button type="button" disabled={saving || value >= 2} onClick={() => save(value + 0.05)} className="w-6 h-6 shrink-0 inline-flex items-center justify-center border border-line text-slate2 hover:text-offwhite disabled:opacity-30 rounded-control" aria-label="Monter le prix">+</button>
       </div>
       <div className="flex items-baseline justify-between font-mono2 text-xs mt-1">
         <span className={value > 1 ? "text-amber" : value < 1 ? "text-cobalt" : "text-offwhite"}>{fmtPrice(value)}</span>
@@ -3091,12 +3089,12 @@ function PriceControl({ line, ridership, premium, onChange }: { line: Line; ride
         onClick={toggleAuto}
         disabled={saving && premium}
         title={premium ? "Le billet se cale sur le prix conseillé, recalculé chaque minute. Régler le prix à la main coupe le mode automatique." : "Premium : le prix se règle tout seul, en continu"}
-        className={`group mt-2 w-full flex items-center gap-2 px-1.5 py-1 border text-[12px] font-body text-left transition-colors ${
+        className={`group mt-2 w-full flex items-center gap-2 px-1.5 py-1 border text-[12px] font-body text-left transition-colors rounded-control ${
           auto ? "border-rail-green/50 bg-rail-green/10 text-rail-green" : "border-line text-slate2 hover:text-offwhite hover:border-slate2"
         }`}
       >
-        <span className={`shrink-0 w-7 h-3.5 border relative transition-colors ${auto ? "border-rail-green bg-rail-green/30" : "border-slate2/60"}`}>
-          <span className={`absolute top-[2px] w-2 h-2 transition-all duration-150 ${auto ? "left-[15px] bg-rail-green" : "left-[2px] bg-slate2"}`} />
+        <span className={`shrink-0 w-7 h-3.5 border relative transition-colors rounded-full ${auto ? "border-rail-green bg-rail-green/30" : "border-slate2/60"}`}>
+          <span className={`absolute top-[2px] w-2 h-2 rounded-full transition-all duration-150 ${auto ? "left-[15px] bg-rail-green" : "left-[2px] bg-slate2"}`} />
         </span>
         <span className="flex-1">Prix auto</span>
         {!premium ? <LockMark size={10} /> : <span className="text-[10.5px] font-mono2">{auto ? "oui" : "non"}</span>}
@@ -3169,10 +3167,10 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
   /* dans <body> : la page est animée (transform), ce qui décalerait une fenêtre « fixed » */
   return createPortal(
     <div data-modal className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="w-full max-w-xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Composition de ${train.name}`}>
+      <div className="w-full max-w-xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt rounded-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Composition de ${train.name}`}>
         <div className="flex items-start justify-between px-5 pt-4 pb-3 border-b border-line">
           <div>
-            <div className="font-mono2 text-[10px] uppercase tracking-[0.18em] text-slate2">Composition · {modelName}</div>
+            <div className="font-body text-[12px] text-slate2 font-medium">Composition · {modelName}</div>
             <h3 className="font-display text-xl leading-tight">{train.name}</h3>
           </div>
           <button onClick={onClose} className="text-slate2 hover:text-offwhite text-lg leading-none px-1" aria-label="Fermer">×</button>
@@ -3190,7 +3188,7 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
                     key={i}
                     onClick={() => change(c, "remove")}
                     disabled={!!busy}
-                    className="text-[12.5px] font-body text-slate2 border border-line px-2 py-1 hover:text-rail-red hover:border-rail-red/60 disabled:opacity-40"
+                    className="text-[12.5px] font-body text-slate2 border border-line px-2 py-1 hover:text-rail-red hover:border-rail-red/60 disabled:opacity-40 rounded-control"
                     title={`Dételer (${Math.floor(def.price / 2)} pi. récupérées)`}
                   >
                     Dételer la {c === "BAR" ? "voiture-bar" : c === "PREMIERE" ? "1re classe" : "2de classe"} n° {i + 1}
@@ -3204,15 +3202,15 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
         <div className="grid grid-cols-3 border-b border-line text-center">
           <div className="py-3 border-r border-line">
             <div className="font-mono2 text-lg tabular-nums">{seats.total}</div>
-            <div className="text-[10.5px] uppercase tracking-wide text-slate2 font-body">places{seats.first ? ` · ${seats.first} en 1re` : ""}</div>
+            <div className="text-[12px] text-slate2 font-body">places{seats.first ? ` · ${seats.first} en 1re` : ""}</div>
           </div>
           <div className="py-3 border-r border-line">
             <div className="font-mono2 text-lg tabular-nums">{fill == null ? "—" : `${fill} %`}</div>
-            <div className="text-[10.5px] uppercase tracking-wide text-slate2 font-body">remplissage</div>
+            <div className="text-[12px] text-slate2 font-body">remplissage</div>
           </div>
           <div className="py-3">
             <div className="font-mono2 text-lg tabular-nums">{cars.length ? `−${Math.round(CAR_SLOWDOWN * cars.length * 100)} %` : "—"}</div>
-            <div className="text-[10.5px] uppercase tracking-wide text-slate2 font-body">vitesse</div>
+            <div className="text-[12px] text-slate2 font-body">vitesse</div>
           </div>
         </div>
 
@@ -3226,7 +3224,7 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
             const dup = c.unique && cars.includes(c.id);
             const poor = balance < c.price;
             return (
-              <div key={c.id} className="flex items-center gap-3 border border-line px-3 py-2.5">
+              <div key={c.id} className="flex items-center gap-3 border border-line px-3 py-2.5 rounded-card bg-navy-900/40">
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-body text-offwhite">{c.label}</div>
                   <div className="text-[11.5px] text-slate2 font-body">{c.blurb}</div>
@@ -3235,7 +3233,7 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
                   onClick={() => change(c.id, "add")}
                   disabled={!!busy || full || dup || poor}
                   title={full ? `${MAX_CARS} voitures au plus` : dup ? "Une seule par rame" : poor ? "Trésorerie insuffisante" : undefined}
-                  className="shrink-0 text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-2.5 py-1.5 hover:bg-cobalt/10 disabled:opacity-35 disabled:hover:bg-transparent"
+                  className="shrink-0 text-[12px] font-body text-cobalt border border-cobalt/40 px-2.5 py-1.5 hover:bg-cobalt/10 disabled:opacity-35 disabled:hover:bg-transparent font-medium rounded-control"
                 >
                   Atteler · {c.price} pi.
                 </button>
@@ -3460,7 +3458,7 @@ function TrainsSection({
               /* Un seul chantier à la fois : mieux vaut griser le bouton que
                  laisser le joueur découvrir la règle par un message d'erreur. */
               disabled={expanding || (Boolean(company.construction) && !company.canQueue)}
-              className="text-[13px] text-amber border border-amber/50 px-3 py-2 hover:bg-amber/10 transition-colors disabled:opacity-50 font-body"
+              className="text-[13px] text-amber border border-amber/50 px-3 py-2 hover:bg-amber/10 transition-colors disabled:opacity-50 font-body rounded-control"
             >
               {expanding
                 ? "Chantier…"
@@ -3476,7 +3474,7 @@ function TrainsSection({
           <button
             onClick={onOpenCatalog}
             disabled={atCapacity}
-            className="text-[13.5px] font-semibold font-body bg-cobalt text-onaccent px-3.5 py-2 hover:bg-cobalt/90 active:scale-[0.96] transition-transform disabled:opacity-40 disabled:active:scale-100"
+            className="text-[13.5px] font-semibold font-body bg-cobalt text-onaccent px-3.5 py-2 hover:bg-cobalt/90 active:scale-[0.96] transition-transform disabled:opacity-40 disabled:active:scale-100 rounded-control"
           >
             {atCapacity ? "Dépôt complet" : "Acheter une rame"}
           </button>
@@ -3505,7 +3503,7 @@ function TrainsSection({
                 {renamingId === t.id ? (
                   <input
                     autoFocus
-                    className="bg-transparent border border-cobalt px-2 py-1 text-sm w-36 focus:outline-none"
+                    className="bg-navy-950/50 border border-cobalt px-2 py-1 text-sm w-36 focus:outline-none rounded-control"
                     value={renameValue}
                     onChange={(e) => setRenameValue(e.target.value)}
                     onBlur={() => submitRename(t.id)}
@@ -3636,21 +3634,21 @@ function TrainsSection({
               <div className="flex items-center gap-2 lg:justify-end">
                 {inWorkshop ? null : broken ? (
                   t.partsEta ? (
-                    <button onClick={() => setSheetId(t.id)} className="text-[13px] font-body text-amber border border-amber/50 px-3 py-1.5 hover:bg-amber/10">
+                    <button onClick={() => setSheetId(t.id)} className="text-[13px] font-body text-amber border border-amber/50 px-3 py-1.5 hover:bg-amber/10 rounded-control">
                       Pièce en route
                     </button>
                   ) : t.brokenPart ? (
-                    <button onClick={() => setSheetId(t.id)} className="text-[13px] font-semibold font-body bg-rail-red text-white px-3 py-1.5 hover:bg-rail-red/90">
+                    <button onClick={() => setSheetId(t.id)} className="text-[13px] font-semibold font-body bg-rail-red text-white px-3 py-1.5 hover:bg-rail-red/90 rounded-control">
                       Réparer…
                     </button>
                   ) : (
-                    <button onClick={() => repair(t.id)} className="text-[13px] font-semibold font-body bg-rail-red text-white px-3 py-1.5 hover:bg-rail-red/90">
+                    <button onClick={() => repair(t.id)} className="text-[13px] font-semibold font-body bg-rail-red text-white px-3 py-1.5 hover:bg-rail-red/90 rounded-control">
                       Réparer, {cost} pi.
                     </button>
                   )
                 ) : t.line ? (
                   <>
-                    <button onClick={() => setCabId(t.id)} className="text-[13px] font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10" title="Suivre cette rame en direct">
+                    <button onClick={() => setCabId(t.id)} className="text-[13px] font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 rounded-control" title="Suivre cette rame en direct">
                       Vue cabine
                     </button>
                     <button onClick={() => release(t.id)} className="text-[13px] font-body text-slate2 hover:text-rail-red px-1">
@@ -3660,11 +3658,11 @@ function TrainsSection({
                 ) : t.status === "IDLE" && isFreightLoco(t.model) ? (
                   /* 2.1 : une locomotive de fret ne va pas sur une ligne voyageurs */
                   <span className="flex items-center gap-2">
-                    <button onClick={() => setCompoId(t.id)} className="text-[13px] font-body text-amber border border-amber/40 px-3 py-1.5 hover:bg-amber/10">
+                    <button onClick={() => setCompoId(t.id)} className="text-[13px] font-body text-amber border border-amber/40 px-3 py-1.5 hover:bg-amber/10 rounded-control">
                       Wagons
                     </button>
                     {onGoFreight && (
-                      <button onClick={onGoFreight} className="text-[13px] font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10">
+                      <button onClick={onGoFreight} className="text-[13px] font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 rounded-control">
                         Livrer du fret
                       </button>
                     )}
@@ -3703,7 +3701,7 @@ function TrainsSection({
       {incidents.length > 0 && (
         <div className="mt-6">
           <h2 className="font-display text-[20px] mb-3">Journal d'incidents</h2>
-          <div className="border border-line">
+          <div className="border border-line rounded-card">
             {incidents.slice(0, 5).map((inc) => (
               <div key={inc.id} className="flex justify-between px-3 py-2 border-b border-line last:border-0 text-xs">
                 <span className="font-body text-slate2">{inc.message}</span>
@@ -3809,7 +3807,7 @@ function FreightSection({
           )}
         </div>
         {locos.length === 0 ? (
-          <div className="border border-amber/40 bg-amber/[0.05] p-4 flex flex-wrap items-center gap-4">
+          <div className="border border-amber/40 bg-amber/[0.05] p-4 flex flex-wrap items-center gap-4 rounded-card">
             <div className="w-[200px] shrink-0">
               <TrainPicture model="LOCOTRACTEUR" cars={["W_TREMIE", "W_PLAT"]} livery={company.liveryColor} height={44} label="Un locotracteur et deux wagons" />
             </div>
@@ -3819,7 +3817,7 @@ function FreightSection({
                 Les rames voyageurs ne livrent plus de marchandises. Le Locotracteur coûte 300 pi. et tire deux wagons : de quoi prendre vos premiers contrats.
               </p>
             </div>
-            <button onClick={onOpenCatalog} className="bg-cobalt text-onaccent px-4 py-2 text-[14px] font-semibold font-body">
+            <button onClick={onOpenCatalog} className="bg-cobalt text-onaccent px-4 py-2 text-[14px] font-semibold font-body rounded-control">
               Voir les locomotives
             </button>
           </div>
@@ -3838,7 +3836,7 @@ function FreightSection({
                   tabIndex={0}
                   onClick={() => setLocoId(t.id)}
                   onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setLocoId(t.id)}
-                  className={`text-left border p-3 cursor-pointer transition-colors ${sel ? "border-cobalt bg-cobalt/[0.06]" : "border-line hover:border-slate2"}`}
+                  className={`text-left border p-3 cursor-pointer transition-colors rounded-card ${sel ? "border-cobalt bg-cobalt/[0.06]" : "border-line hover:border-slate2"}`}
                 >
                   <div className="h-[34px] -mx-1">
                     <TrainPicture model={t.model} cars={t.cars ?? []} livery={company.liveryColor} height={34} track={false} fit label={t.name} />
@@ -3903,7 +3901,7 @@ function FreightSection({
                       {viaYard(c) && <span className="text-rail-green">, par votre gare de triage (+12 %, plus court)</span>}
                     </div>
                     {w && (
-                      <span className={`inline-block mt-1 text-[11.5px] font-body px-1.5 py-0.5 border ${locoCars.includes(w.id) ? "border-amber/50 text-amber" : "border-line text-slate2"}`}>
+                      <span className={`inline-block mt-1 text-[11.5px] font-body px-1.5 py-0.5 border rounded-control ${locoCars.includes(w.id) ? "border-amber/50 text-amber" : "border-line text-slate2"}`}>
                         {w.label}
                       </span>
                     )}
@@ -3938,7 +3936,7 @@ function FreightSection({
                         <button
                           onClick={() => setPicked((p) => (on ? p.filter((x) => x !== c.id) : [...p, c.id]))}
                           aria-pressed={on}
-                          className={`text-[13px] font-body px-3 py-1.5 border ${on ? "bg-cobalt text-onaccent border-cobalt" : "text-cobalt border-cobalt/40 hover:bg-cobalt/10"}`}
+                          className={`text-[13px] font-body px-3 py-1.5 border rounded-control ${on ? "bg-cobalt text-onaccent border-cobalt" : "text-cobalt border-cobalt/40 hover:bg-cobalt/10"}`}
                         >
                           {on ? "Dans la tournée" : "Charger"}
                         </button>
@@ -3959,7 +3957,7 @@ function FreightSection({
 
       {/* la tournée en préparation */}
       {loco && pickedContracts.length > 0 && (
-        <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom,0px))] md:bottom-4 z-20 border border-cobalt bg-navy-900/95 backdrop-blur p-4 flex flex-wrap items-center gap-4 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)]">
+        <div className="sticky bottom-[calc(76px+env(safe-area-inset-bottom,0px))] md:bottom-4 z-20 border border-cobalt bg-navy-900/95 backdrop-blur p-4 flex flex-wrap items-center gap-4 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)] rounded-card">
           <div className="w-[180px] shrink-0 hidden sm:block">
             <TrainPicture model={loco.model} cars={loco.cars ?? []} livery={company.liveryColor} height={36} track={false} label={loco.name} />
           </div>
@@ -3979,7 +3977,7 @@ function FreightSection({
             <button onClick={() => setPicked([])} className="text-[13px] font-body text-slate2 hover:text-offwhite px-2">
               Vider
             </button>
-            <button onClick={send} disabled={sending} className="bg-cobalt text-onaccent px-4 py-2 text-[14px] font-semibold font-body disabled:opacity-50">
+            <button onClick={send} disabled={sending} className="bg-cobalt text-onaccent px-4 py-2 text-[14px] font-semibold font-body disabled:opacity-50 rounded-control">
               {sending ? "Départ…" : "Faire partir"}
             </button>
           </div>
@@ -3997,7 +3995,7 @@ function FreightSection({
               const t = trains.find((x) => x.id === c0.train?.id);
               const progress = c0.train?.progress ?? 0;
               return (
-                <div key={c0.id} className="border border-line p-3.5">
+                <div key={c0.id} className="border border-line p-3.5 rounded-card bg-navy-900/40">
                   <div className="flex items-start justify-between gap-3 mb-2.5 flex-wrap">
                     <div className="min-w-0">
                       <div className="text-[14px] font-semibold font-body">
@@ -4008,7 +4006,7 @@ function FreightSection({
                         {list.map((c) => (
                           <li key={c.id} className="text-[13px] font-body text-slate2">
                             <span className="text-offwhite">{c.cargoType}</span> <span className="font-mono2 text-xs">{c.originStation} → {c.destinationStation}</span>
-                            {c.insured && <span className="ml-1.5 text-[11px] text-cobalt border border-cobalt/40 px-1.5 py-0.5">assuré</span>}
+                            {c.insured && <span className="ml-1.5 text-[11px] text-cobalt border border-cobalt/40 px-1.5 py-0.5 rounded-control">assuré</span>}
                             {c.forOrder && <OrderTag o={c.forOrder} />}
                           </li>
                         ))}
@@ -4167,21 +4165,22 @@ function ClientCardView({
 
   return (
     <section
-      className={`client-accent relative border border-line bg-navy-900/40 mb-5 ${c.locked ? "opacity-60" : ""}`}
+      className={`client-accent relative border border-line bg-navy-900/40 mb-5 rounded-card ${c.locked ? "opacity-60" : ""}`}
       style={{ "--cd": c.color, "--cp": c.colorPaper } as React.CSSProperties}
     >
-      {/* filet de couleur : identifie le client d'un coup d'œil */}
-      <span className="absolute left-0 top-0 bottom-0 w-[3px]" style={{ background: "var(--c)" }} />
-
-      <div className="flex items-start gap-4 flex-wrap p-4 pl-6">
+      <div className="flex items-start gap-4 flex-wrap p-4 pl-5">
         <div className="min-w-[200px]">
-          <div className="font-display text-lg leading-tight">{c.name}</div>
-          <div className="text-[10px] font-mono2 uppercase tracking-[0.2em] text-slate2 mt-1">
+          {/* la pastille de couleur identifie le client d'un coup d'œil (2.3 : plus de filet à gauche) */}
+          <div className="font-display text-lg leading-tight flex items-center gap-2.5">
+            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: "var(--c)" }} aria-hidden="true" />
+            {c.name}
+          </div>
+          <div className="text-[12px] font-body text-slate2 mt-1 font-medium">
             {c.sector} — {c.city}
           </div>
           <div className="flex gap-1.5 flex-wrap mt-2">
             {c.cargoTypes.map((t) => (
-              <span key={t} className="text-[11px] font-body border border-line px-1.5 py-0.5 text-slate2">
+              <span key={t} className="text-[11px] font-body border border-line px-1.5 py-0.5 text-slate2 rounded-control">
                 {t}
               </span>
             ))}
@@ -4189,7 +4188,7 @@ function ClientCardView({
         </div>
 
         <div className="sm:ml-auto sm:text-right w-full sm:w-auto sm:min-w-[200px]">
-          <div className="text-[11px] font-mono2 uppercase tracking-[0.16em]" style={{ color: "var(--c)" }}>
+          <div className="text-[12px] font-body font-medium" style={{ color: "var(--c)" }}>
             {c.locked ? "Hors d'atteinte" : c.levelName}
           </div>
           <div className="font-display text-xl mt-0.5" style={{ color: "var(--c)" }}>
@@ -4225,7 +4224,7 @@ function ClientCardView({
         const due = accepted && m.dueAt ? untilLabel(m.dueAt) : null;
         const offer = m.status === "PROPOSEE" ? untilLabel(m.offerUntil) : null;
         return (
-        <div key={m.id} className="relative border border-line bg-navy-950/60 mx-4 mb-4 ml-6 overflow-hidden">
+        <div key={m.id} className="relative border border-line bg-navy-950/60 mx-4 mb-4 ml-6 overflow-hidden rounded-card">
           {/* liseré hachuré : vocabulaire du bordereau, pas de la carte d'application */}
           <span
             className="absolute inset-x-0 top-0 h-[3px] opacity-50"
@@ -4262,7 +4261,7 @@ function ClientCardView({
 
           <div className={`flex items-center gap-4 flex-wrap px-4 py-4 ${failed || accepted ? "pr-[150px]" : ""}`}>
             <div className="flex-1 min-w-[180px] max-w-[320px]">
-              <div className="flex justify-between text-[10px] font-mono2 uppercase tracking-[0.12em] text-slate2 mb-1.5">
+              <div className="flex justify-between text-[12px] font-body text-slate2 mb-1.5 font-medium">
                 <span>Livraisons</span>
                 <span>
                   {m.progress} / {m.target}
@@ -4292,14 +4291,14 @@ function ClientCardView({
                 <button
                   onClick={() => onAnswer(m.id, true)}
                   disabled={busy === m.id}
-                  className="bg-cobalt text-onaccent text-[11px] font-mono2 uppercase tracking-[0.16em] px-4 py-2 hover:bg-cobalt/90 active:scale-[0.97] transition-transform disabled:opacity-50"
+                  className="bg-cobalt text-onaccent text-[12px] font-body px-4 py-2 hover:bg-cobalt/90 active:scale-[0.97] transition-transform disabled:opacity-50 font-medium rounded-control"
                 >
                   Accepter l'ordre
                 </button>
                 <button
                   onClick={() => onAnswer(m.id, false)}
                   disabled={busy === m.id}
-                  className="text-[11px] font-mono2 uppercase tracking-[0.16em] px-4 py-2 border border-line text-slate2 hover:text-offwhite transition-colors disabled:opacity-50"
+                  className="text-[12px] font-body px-4 py-2 border border-line text-slate2 hover:text-offwhite transition-colors disabled:opacity-50 font-medium rounded-control"
                 >
                   Refuser
                 </button>
@@ -4310,7 +4309,7 @@ function ClientCardView({
           {/* tampon : posé de travers, jamais droit */}
           {(accepted || failed) && (
             <span
-              className={`absolute right-4 top-1/2 -translate-y-1/2 rotate-[-11deg] border-2 px-3 py-1 text-[13px] font-mono2 font-bold uppercase tracking-[0.18em] opacity-85 pointer-events-none ${
+              className={`absolute right-4 top-1/2 -translate-y-1/2 rotate-[-11deg] border-2 px-3 py-1 text-[13px] font-body font-bold opacity-85 pointer-events-none rounded-control ${
                 failed ? "border-rail-red text-rail-red" : "border-rail-green text-rail-green"
               }`}
             >
@@ -4370,7 +4369,7 @@ function ThemePanel({
             <button
               key={t.id}
               onClick={() => (locked ? onOpenShop() : pick(t.id))}
-              className={`text-left border p-4 transition-colors ${
+              className={`text-left border p-4 transition-colors rounded-control ${
                 on ? "border-cobalt bg-cobalt/10" : "border-line hover:border-slate2"
               } ${locked ? "opacity-70" : ""}`}
             >
@@ -4387,12 +4386,12 @@ function ThemePanel({
                 </span>
                 <span className={`font-display text-base ${on ? "text-cobalt" : ""}`}>{t.label}</span>
                 {on && (
-                  <span className="ml-auto text-[10px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-1.5">
+                  <span className="ml-auto text-[12px] font-body text-cobalt border border-cobalt/40 px-1.5 font-medium rounded-control">
                     Actif
                   </span>
                 )}
                 {locked && (
-                  <span className="ml-auto text-[10px] font-mono2 uppercase text-amber border border-amber/40 px-1.5">
+                  <span className="ml-auto text-[12px] font-body text-amber border border-amber/40 px-1.5 font-medium rounded-control">
                     Boutique
                   </span>
                 )}
@@ -4435,7 +4434,7 @@ function ReferralBanner({ referral }: { referral: ReferralInfo }) {
   const pct = next ? Math.min(100, Math.round((referral.qualified / next.count) * 100)) : 100;
 
   return (
-    <div className="border border-line bg-navy-900/40 p-4 mb-6">
+    <div className="border border-line bg-navy-900/40 p-4 mb-6 rounded-card">
       <div className="flex items-baseline gap-3 flex-wrap mb-3">
         <h2 className="font-display text-lg">Agrandissez le réseau</h2>
         <span className="text-[11px] font-body text-slate2">
@@ -4444,18 +4443,18 @@ function ReferralBanner({ referral }: { referral: ReferralInfo }) {
       </div>
 
       <div className="flex items-center gap-3 flex-wrap">
-        <span className="font-mono2 text-lg text-amber tracking-[0.2em] border border-amber/30 px-3 py-1.5">
+        <span className="font-mono2 text-lg text-amber tracking-[0.2em] border border-amber/30 px-3 py-1.5 rounded-control">
           {referral.code}
         </span>
         <button
           onClick={() => copy(referralPitch(referral.code), "msg")}
-          className="text-xs font-mono2 uppercase text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors"
+          className="text-xs font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors font-medium rounded-control"
         >
           {copied === "msg" ? "Message copié !" : "Copier un message tout prêt"}
         </button>
         <button
           onClick={() => copy(referralLink(referral.code), "lnk")}
-          className="text-xs font-mono2 uppercase text-slate2 border border-line px-3 py-1.5 hover:text-offwhite transition-colors"
+          className="text-xs font-body text-slate2 border border-line px-3 py-1.5 hover:text-offwhite transition-colors font-medium rounded-control"
         >
           {copied === "lnk" ? "Copié !" : "Lien seul"}
         </button>
@@ -4495,38 +4494,38 @@ function ReferralPanel({ referral }: { referral: ReferralInfo }) {
         filleuls ayant atteint le grade « Gestionnaire confirmé ».
       </p>
 
-      <div className="flex items-center gap-3 border border-line p-4 mb-4 flex-wrap">
+      <div className="flex items-center gap-3 border border-line p-4 mb-4 flex-wrap rounded-card bg-navy-900/40">
         <span className="font-mono2 text-lg text-amber tracking-[0.2em]">{referral.code}</span>
         <button
           onClick={() => copy(referralPitch(referral.code), "msg")}
-          className="ml-auto text-xs font-mono2 uppercase text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors"
+          className="ml-auto text-xs font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors font-medium rounded-control"
         >
           {copied === "msg" ? "Message copié !" : "Copier un message"}
         </button>
         <button
           onClick={() => copy(referralLink(referral.code), "lnk")}
-          className="text-xs font-mono2 uppercase text-slate2 border border-line px-3 py-1.5 hover:text-offwhite transition-colors"
+          className="text-xs font-body text-slate2 border border-line px-3 py-1.5 hover:text-offwhite transition-colors font-medium rounded-control"
         >
           {copied === "lnk" ? "Copié !" : "Copier le lien"}
         </button>
       </div>
 
-      <div className="grid grid-cols-3 divide-x divide-line border border-line mb-4">
+      <div className="grid grid-cols-3 divide-x divide-line border border-line mb-4 rounded-card">
         <div className="px-3 py-3 text-center">
           <div className="font-mono2 text-lg text-offwhite">{referral.totalReferred}</div>
-          <div className="text-[10px] text-slate2 font-body uppercase tracking-wide mt-1">Amis invités</div>
+          <div className="text-[12px] text-slate2 font-body mt-1">Amis invités</div>
         </div>
         <div className="px-3 py-3 text-center">
           <div className="font-mono2 text-lg text-rail-green">{referral.rewardsGranted}</div>
-          <div className="text-[10px] text-slate2 font-body uppercase tracking-wide mt-1">Primes reçues</div>
+          <div className="text-[12px] text-slate2 font-body mt-1">Primes reçues</div>
         </div>
         <div className="px-3 py-3 text-center">
           <div className="font-mono2 text-lg text-amber">{referral.qualified}</div>
-          <div className="text-[10px] text-slate2 font-body uppercase tracking-wide mt-1">Comptent aux paliers</div>
+          <div className="text-[12px] text-slate2 font-body mt-1">Comptent aux paliers</div>
         </div>
       </div>
 
-      <div className="border border-line divide-y divide-line mb-4">
+      <div className="border border-line divide-y divide-line mb-4 rounded-card">
         {referral.milestones.map((m) => (
           <div key={m.count} className="flex items-center gap-3 px-4 py-3">
             <span
@@ -4555,12 +4554,12 @@ function ReferralPanel({ referral }: { referral: ReferralInfo }) {
 
       {referral.referrals.length > 0 && (
         <div className="mb-3">
-          <div className="text-[10px] text-slate2 font-body uppercase tracking-[0.14em] mb-2">Vos filleuls</div>
+          <div className="text-[12px] text-slate2 font-body mb-2">Vos filleuls</div>
           <div className="flex flex-wrap gap-2">
             {referral.referrals.map((r, i) => (
               <span
                 key={`${r.name}-${i}`}
-                className={`text-[11px] font-body border px-2 py-1 ${
+                className={`text-[11px] font-body border px-2 py-1 rounded-control ${
                   r.rewarded ? "border-rail-green/40 text-rail-green" : "border-line text-slate2"
                 }`}
               >
@@ -4628,7 +4627,7 @@ function LeaderboardSection() {
           <button
             key={b.id}
             onClick={() => setBoard(b.id)}
-            className={`shrink-0 text-[11px] font-mono2 uppercase tracking-[0.12em] px-3 py-1.5 border transition-colors ${
+            className={`shrink-0 text-[12px] font-body px-3 py-1.5 border transition-colors font-medium rounded-control ${
               board === b.id
                 ? "border-cobalt text-cobalt bg-cobalt/10"
                 : "border-line text-slate2 hover:text-offwhite"
@@ -4645,7 +4644,7 @@ function LeaderboardSection() {
 
       {/* Bandeau de position : visible même hors du top */}
       {me && (
-        <div className="mt-3 border border-line bg-navy-900/40 px-4 py-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+        <div className="mt-3 border border-line bg-navy-900/40 px-4 py-3 flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-card">
           {me.eligible ? (
             <>
               <span className="font-display text-xl text-cobalt">#{me.rank}</span>
@@ -4682,7 +4681,7 @@ function LeaderboardSection() {
       <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 mt-3">
         <table className="w-full text-sm min-w-[620px]">
           <thead>
-            <tr className="text-left text-[11px] text-slate2 font-body uppercase tracking-[0.14em] border-b border-line">
+            <tr className="text-left text-[12px] text-slate2 font-body border-b border-line">
               <th className="py-2.5 font-normal w-10">Rang</th>
               <th className="py-2.5 font-normal">Compagnie</th>
               <th className="py-2.5 font-normal">Grade</th>
@@ -4742,18 +4741,18 @@ function LeaderRowView({ c, fmt }: { c: LeaderEntry; fmt: (v: number) => string 
       </td>
       <td className="py-3.5 font-body">
         <span className="flex items-center gap-2 flex-wrap">
-          <span className="w-2 h-2 shrink-0" style={{ background: c.liveryColor }} />
+          <span className="w-2 h-2 shrink-0 rounded-[3px]" style={{ background: c.liveryColor }} />
           <Plate plate={c.plate}>
             {c.emblem && <Emblem id={c.emblem} size={13} className={c.plate ? "" : "text-slate2"} />}
             {c.name}
           </Plate>
           {c.title && (
-            <span className="text-[10px] text-amber font-mono2 uppercase border border-amber/40 px-1.5">
+            <span className="text-[12px] text-amber font-body border border-amber/40 px-1.5 font-medium rounded-control">
               {c.title}
             </span>
           )}
           {c.isMe && (
-            <span className="text-[10px] text-cobalt font-mono2 uppercase border border-cobalt/40 px-1.5">
+            <span className="text-[12px] text-cobalt font-body border border-cobalt/40 px-1.5 font-medium rounded-control">
               Vous
             </span>
           )}
@@ -4804,27 +4803,27 @@ function EditCompanyModal({
 
   return (
     <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-6">
-      <div className="w-full max-w-sm bg-navy-900 border border-line border-t-[3px] tutorial-step-enter" style={{ borderTopColor: liveryColor }}>
+      <div className="w-full max-w-sm bg-navy-900 border border-line border-t-[3px] tutorial-step-enter rounded-card" style={{ borderTopColor: liveryColor }}>
         <div className="p-6 space-y-4">
           <h2 className="font-display text-2xl">Modifier la compagnie</h2>
 
           <div>
-            <label className="block text-xs uppercase tracking-wide text-slate2 mb-1.5 font-body">Nom</label>
+            <label className="block text-xs text-slate2 mb-1.5 font-body">Nom</label>
             <input
-              className="w-full bg-transparent border border-line px-3 py-2.5 text-sm focus:outline-none focus:border-cobalt"
+              className="w-full bg-navy-950/50 border border-line px-3 py-2.5 text-sm focus:outline-none focus:border-cobalt rounded-control"
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </div>
 
           <div>
-            <label className="block text-xs uppercase tracking-wide text-slate2 mb-2 font-body">Couleur de livrée</label>
+            <label className="block text-xs text-slate2 mb-2 font-body">Couleur de livrée</label>
             <div className="flex gap-2 flex-wrap">
               {LIVERY_COLORS.map((c) => (
                 <button
                   key={c}
                   onClick={() => setLiveryColor(c)}
-                  className={`w-8 h-8 border-2 transition-transform active:scale-95 ${
+                  className={`w-8 h-8 border-2 transition-transform active:scale-95 rounded-control ${
                     liveryColor === c ? "border-offwhite" : "border-transparent"
                   }`}
                   style={{ background: c }}
@@ -4835,7 +4834,7 @@ function EditCompanyModal({
 
             {(company.unlocked?.liveries?.length ?? 0) > 0 && (
               <div className="mt-3">
-                <div className="text-[10px] font-mono2 uppercase tracking-[0.16em] text-slate2 mb-2">
+                <div className="text-[12px] font-body text-slate2 mb-2 font-medium">
                   Livrées de la boutique
                 </div>
                 <div className="flex gap-2 flex-wrap">
@@ -4843,7 +4842,7 @@ function EditCompanyModal({
                     <button
                       key={c}
                       onClick={() => setLiveryColor(c)}
-                      className={`w-8 h-8 border-2 transition-transform active:scale-95 ${
+                      className={`w-8 h-8 border-2 transition-transform active:scale-95 rounded-control ${
                         liveryColor.toLowerCase() === c ? "border-offwhite" : "border-transparent"
                       }`}
                       style={{ background: c }}
@@ -4858,7 +4857,7 @@ function EditCompanyModal({
                 La montrer grisée vaut mieux que la cacher — un avantage qu'on
                 ignore ne vend rien. */}
             <div className="mt-3">
-              <div className="text-[10px] font-mono2 uppercase tracking-[0.16em] text-slate2 mb-2">
+              <div className="text-[12px] font-body text-slate2 mb-2 font-medium">
                 Livrées Premium {!company.isPremium && "— abonnement requis"}
               </div>
               <div className="flex gap-2 flex-wrap">
@@ -4867,7 +4866,7 @@ function EditCompanyModal({
                     key={c}
                     disabled={!company.isPremium}
                     onClick={() => setLiveryColor(c)}
-                    className={`w-8 h-8 border-2 transition-transform active:scale-95 disabled:cursor-not-allowed ${
+                    className={`w-8 h-8 border-2 transition-transform active:scale-95 disabled:cursor-not-allowed rounded-control ${
                       liveryColor === c ? "border-offwhite" : "border-transparent"
                     } ${!company.isPremium ? "opacity-35" : ""}`}
                     style={{ background: c }}
@@ -4880,13 +4879,13 @@ function EditCompanyModal({
         </div>
 
         <div className="flex items-center justify-end gap-4 px-6 py-4 border-t border-line">
-          <button onClick={onClose} className="text-xs text-slate2 hover:text-offwhite font-body uppercase tracking-wide">
+          <button onClick={onClose} className="text-xs text-slate2 hover:text-offwhite font-body ">
             Annuler
           </button>
           <button
             onClick={save}
             disabled={saving || !name.trim()}
-            className="bg-cobalt text-onaccent text-xs font-semibold uppercase tracking-wide px-4 py-2 hover:bg-cobalt/90 active:scale-[0.97] transition-transform disabled:opacity-50"
+            className="bg-cobalt text-onaccent text-xs font-semibold px-4 py-2 hover:bg-cobalt/90 active:scale-[0.97] transition-transform disabled:opacity-50 rounded-control"
           >
             {saving ? "Enregistrement…" : "Enregistrer"}
           </button>
@@ -5006,7 +5005,7 @@ function TrainCatalogModal({
   }, []);
   return (
     <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-6">
-      <div className="w-full max-w-6xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[92vh] overflow-y-auto">
+      <div className="w-full max-w-6xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[92vh] overflow-y-auto rounded-card">
         <div className="px-6 py-5 border-b border-line">
           <h2 className="font-display text-2xl">Catalogue du matériel roulant</h2>
           <p className="text-sm text-slate2 font-body mt-1">
@@ -5026,7 +5025,7 @@ function TrainCatalogModal({
             return (
               <div key={model.id} className={`relative p-5 flex flex-col ${locked ? "opacity-45" : ""}`}>
                 {locked && (
-                  <span className="absolute top-4 right-4 text-[10px] font-mono2 uppercase text-slate2 border border-line px-1.5 py-0.5">
+                  <span className="absolute top-4 right-4 text-[12px] font-body text-slate2 border border-line px-1.5 py-0.5 font-medium rounded-control">
                     {(model.minGradeId ?? 0) > gradeId ? GRADE_NAMES[model.minGradeId ?? 0] : "Licence internationale"}
                   </span>
                 )}
@@ -5040,31 +5039,31 @@ function TrainCatalogModal({
 
                 <div className="space-y-2 mb-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-slate2 font-mono2 uppercase tracking-wide">Vitesse</span>
+                    <span className="text-[12px] text-slate2 font-body font-medium">Vitesse</span>
                     <StatBars level={model.speedLevel} active={!locked} />
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] text-slate2 font-mono2 uppercase tracking-wide">Capacité</span>
+                    <span className="text-[12px] text-slate2 font-body font-medium">Capacité</span>
                     <StatBars level={model.capacityLevel} active={!locked} />
                   </div>
                 </div>
 
                 {!locked ? (
                   <>
-                    <div className="inline-flex self-start items-center gap-1 bg-amber/15 border border-amber/40 text-amber text-xs font-mono2 px-2 py-1 mb-3">
+                    <div className="inline-flex self-start items-center gap-1 bg-amber/15 border border-amber/40 text-amber text-xs font-mono2 px-2 py-1 mb-3 rounded-card">
                       {model.price} pi.
                     </div>
                     <button
                       data-tutorial={model.id === "STANDARD" ? "btn-commander" : undefined}
                       onClick={() => onBuy(model.id)}
                       disabled={buying}
-                      className="w-full bg-cobalt text-onaccent text-xs font-semibold uppercase tracking-wide py-2.5 hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-60"
+                      className="w-full bg-cobalt text-onaccent text-xs font-semibold py-2.5 hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-60 rounded-control"
                     >
                       {buying ? "Achat…" : "Commander"}
                     </button>
                   </>
                 ) : (
-                  <button disabled className="w-full border border-line text-slate2 text-xs font-mono2 uppercase py-2.5 cursor-not-allowed">
+                  <button disabled className="w-full border border-line text-slate2 text-xs font-body py-2.5 cursor-not-allowed font-medium rounded-control">
                     {(model.minGradeId ?? 0) > gradeId ? "Grade insuffisant" : "Licence requise"}
                   </button>
                 )}
@@ -5087,7 +5086,7 @@ function TrainCatalogModal({
               return (
                 <div key={m.id} className={`relative p-5 flex flex-col ${locked ? "opacity-45" : ""}`}>
                   {locked && (
-                    <span className="absolute top-4 right-4 text-[10px] font-mono2 uppercase text-slate2 border border-line px-1.5 py-0.5">{GRADE_NAMES[m.minGradeId]}</span>
+                    <span className="absolute top-4 right-4 text-[12px] font-body text-slate2 border border-line px-1.5 py-0.5 font-medium rounded-control">{GRADE_NAMES[m.minGradeId]}</span>
                   )}
                   <div className={`-mx-2 mb-3 ${locked ? "opacity-60 grayscale" : ""}`}>
                     <TrainPicture model={m.id} livery={liveryForCatalog} cars={m.sample} height={50} label={m.name} />
@@ -5096,23 +5095,23 @@ function TrainCatalogModal({
                   <p className="text-xs text-slate2 font-body mb-4 flex-1">{m.spec}</p>
                   <div className="space-y-2 mb-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate2 font-mono2 uppercase tracking-wide">Vitesse</span>
+                      <span className="text-[12px] text-slate2 font-body font-medium">Vitesse</span>
                       <StatBars level={m.speedLevel} active={!locked} />
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-slate2 font-mono2 uppercase tracking-wide">Wagons</span>
+                      <span className="text-[12px] text-slate2 font-body font-medium">Wagons</span>
                       <StatBars level={m.maxWagons} max={5} active={!locked} />
                     </div>
                   </div>
                   {!locked ? (
                     <>
-                      <div className="inline-flex self-start items-center gap-1 bg-amber/15 border border-amber/40 text-amber text-xs font-mono2 px-2 py-1 mb-3">{m.price} pi.</div>
-                      <button onClick={() => onBuy(m.id)} disabled={buying} className="w-full bg-cobalt text-onaccent text-xs font-semibold uppercase tracking-wide py-2.5 hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-60">
+                      <div className="inline-flex self-start items-center gap-1 bg-amber/15 border border-amber/40 text-amber text-xs font-mono2 px-2 py-1 mb-3 rounded-card">{m.price} pi.</div>
+                      <button onClick={() => onBuy(m.id)} disabled={buying} className="w-full bg-cobalt text-onaccent text-xs font-semibold py-2.5 hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-60 rounded-control">
                         {buying ? "Achat…" : "Commander"}
                       </button>
                     </>
                   ) : (
-                    <button disabled className="w-full border border-line text-slate2 text-xs font-mono2 uppercase py-2.5 cursor-not-allowed">Grade insuffisant</button>
+                    <button disabled className="w-full border border-line text-slate2 text-xs font-body py-2.5 cursor-not-allowed font-medium rounded-control">Grade insuffisant</button>
                   )}
                 </div>
               );
@@ -5145,15 +5144,15 @@ function TrainCatalogModal({
                       <p className="text-[13px] text-slate2 font-body mb-4 flex-1">{m.blurb}</p>
                       <div className="text-[13px] font-mono2 text-amber mb-3">{m.cost} pi. · {m.seats} places</div>
                       {!d.owned ? (
-                        <button onClick={() => onOpenShop?.(d.id)} className="w-full border border-amber/50 text-amber text-[13.5px] font-body py-2.5 hover:bg-amber/10">
+                        <button onClick={() => onOpenShop?.(d.id)} className="w-full border border-amber/50 text-amber text-[13.5px] font-body py-2.5 hover:bg-amber/10 rounded-control">
                           Voir l'extension, {(d.priceCents / 100).toFixed(2).replace(".", ",")} €
                         </button>
                       ) : gradeLocked ? (
-                        <button disabled className="w-full border border-line text-slate2 text-[13.5px] font-body py-2.5 cursor-not-allowed">
+                        <button disabled className="w-full border border-line text-slate2 text-[13.5px] font-body py-2.5 cursor-not-allowed rounded-control">
                           Grade « {GRADE_NAMES[m.minGradeId]} » requis
                         </button>
                       ) : (
-                        <button onClick={() => onBuy(m.id)} disabled={buying} className="w-full bg-cobalt text-onaccent text-[13.5px] font-semibold font-body py-2.5 hover:bg-cobalt/90 disabled:opacity-60">
+                        <button onClick={() => onBuy(m.id)} disabled={buying} className="w-full bg-cobalt text-onaccent text-[13.5px] font-semibold font-body py-2.5 hover:bg-cobalt/90 disabled:opacity-60 rounded-control">
                           {buying ? "Achat…" : "Commander"}
                         </button>
                       )}
@@ -5166,7 +5165,7 @@ function TrainCatalogModal({
         )}
 
         <div className="flex justify-end px-6 py-4 border-t border-line">
-          <button onClick={onClose} className="text-xs text-slate2 hover:text-offwhite font-body uppercase tracking-wide">
+          <button onClick={onClose} className="text-xs text-slate2 hover:text-offwhite font-body ">
             Fermer
           </button>
         </div>
@@ -5248,9 +5247,9 @@ function BalanceChart({ transactions, currentBalance }: { transactions: Transact
   const areaPath = `${linePath} L ${coords[coords.length - 1].x.toFixed(1)} ${height} L 0 ${height} Z`;
 
   return (
-    <div className="border border-line mb-6 p-4">
+    <div className="border border-line mb-6 p-4 rounded-card bg-navy-900/40">
       <div className="flex items-center justify-between mb-3">
-        <span className="text-[11px] font-body text-slate2 uppercase tracking-[0.14em]">Évolution de la trésorerie</span>
+        <span className="text-[12px] font-body text-slate2 ">Évolution de la trésorerie</span>
         <span className="text-xs font-mono2 text-amber">{currentBalance} pi.</span>
       </div>
       <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-32" preserveAspectRatio="none">
@@ -5282,7 +5281,7 @@ function TransactionsSection({ transactions, currentBalance }: { transactions: T
       <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
       <table className="w-full text-sm min-w-[560px]">
       <thead>
-        <tr className="text-left text-[11px] text-slate2 font-body uppercase tracking-[0.14em] border-b border-line">
+        <tr className="text-left text-[12px] text-slate2 font-body border-b border-line">
           <th className="py-2.5 font-normal w-32">Date</th>
           <th className="py-2.5 font-normal w-40">Type</th>
           <th className="py-2.5 font-normal">Détail</th>
@@ -5334,7 +5333,7 @@ function CareerSection({ career, onOpenShop }: { career: CareerStatus; onOpenSho
   return (
     <div>
       {/* grade actuel, en évidence, avec l'échelle complète */}
-      <div className="border border-line border-t-2 border-t-amber p-6 mb-8">
+      <div className="border border-line border-t-2 border-t-amber p-6 mb-8 rounded-card bg-navy-900/40">
         <div className="flex flex-wrap items-center gap-3 mb-1">
           <RankMark size={24} className="text-amber shrink-0" />
           <span className="font-display text-2xl">{career.currentRank.name}</span>
@@ -5365,21 +5364,21 @@ function CareerSection({ career, onOpenShop }: { career: CareerStatus; onOpenSho
           return (
             <div
               key={rank.id}
-              className={`border p-4 ${isCurrent ? "border-amber/50 bg-amber/5" : isNext ? "border-line" : isFuture ? "border-line opacity-70" : "border-line"}`}
+              className={`border p-4 rounded-card ${isCurrent ? "border-amber/50 bg-amber/5" : isNext ? "border-line" : isFuture ? "border-line opacity-70" : "border-line"}`}
             >
               <div className="flex items-center gap-2.5 mb-2">
                 <RankMark size={16} className={rank.achieved ? "text-amber" : "text-slate2"} />
                 <span className={`font-body text-sm font-semibold ${rank.achieved ? "text-offwhite" : "text-slate2"}`}>{rank.name}</span>
                 {isCurrent && (
-                  <span className="text-[10px] font-mono2 uppercase text-amber border border-amber/40 px-1.5 py-0.5 ml-auto shrink-0">
+                  <span className="text-[12px] font-body text-amber border border-amber/40 px-1.5 py-0.5 ml-auto shrink-0 font-medium rounded-control">
                     Grade actuel
                   </span>
                 )}
                 {rank.achieved && !isCurrent && (
-                  <span className="text-[10px] font-mono2 uppercase text-rail-green ml-auto shrink-0">Franchi</span>
+                  <span className="text-[12px] font-body text-rail-green ml-auto shrink-0 font-medium">Franchi</span>
                 )}
                 {isNext && !rank.achieved && (
-                  <span className="text-[10px] font-mono2 uppercase text-cobalt ml-auto shrink-0">Prochain</span>
+                  <span className="text-[12px] font-body text-cobalt ml-auto shrink-0 font-medium">Prochain</span>
                 )}
               </div>
               {rank.requirements.length === 0 ? (
@@ -5436,7 +5435,7 @@ function AchievementsSection({ achievements }: { achievements: Achievement[] }) 
 
   return (
     <div>
-      <div className="mb-5 text-[11px] font-mono2 text-slate2 border border-line inline-block px-2 py-1">
+      <div className="mb-5 text-[11px] font-mono2 text-slate2 border border-line inline-block px-2 py-1 rounded-card bg-navy-900/40">
         {unlockedCount}/{achievements.length} débloqués
       </div>
 
@@ -5444,7 +5443,7 @@ function AchievementsSection({ achievements }: { achievements: Achievement[] }) 
         {achievements.map((a, i) => (
           <div
             key={a.id}
-            className={`relative overflow-hidden flex items-start gap-3 p-4 border achievement-card-enter ${
+            className={`relative overflow-hidden flex items-start gap-3 p-4 border achievement-card-enter rounded-card ${
               a.unlocked ? "border-amber/40 bg-amber/5" : "border-line opacity-50"
             }`}
             style={{ animationDelay: `${Math.min(i * 0.04, 0.4)}s` }}
@@ -5455,7 +5454,7 @@ function AchievementsSection({ achievements }: { achievements: Achievement[] }) 
               <div className="font-body text-sm text-offwhite flex items-center gap-2">
                 {a.name}
                 {!a.unlocked && (
-                  <span className="text-[10px] font-mono2 uppercase text-slate2 border border-line px-1.5 py-0.5">
+                  <span className="text-[12px] font-body text-slate2 border border-line px-1.5 py-0.5 font-medium rounded-control">
                     Verrouillé
                   </span>
                 )}
@@ -5490,9 +5489,9 @@ const FIRST_LINE_IDEAS: [string, string][] = [["Paris", "Lille"], ["Paris", "Lyo
 
 function FirstLineIdeas({ network, onPick }: { network: NetworkData | null; onPick: (a: string, b: string) => void }) {
   return (
-    <section className="border border-line mb-6" data-tutorial="first-line-ideas">
+    <section className="border border-line mb-6 rounded-card" data-tutorial="first-line-ideas">
       <div className="px-5 pt-4 pb-3 border-b border-line">
-        <div className="text-[10px] font-mono2 uppercase tracking-[0.2em] text-amber mb-1">Pour commencer</div>
+        <div className="text-[12px] font-body text-amber mb-1 font-medium">Pour commencer</div>
         <h2 className="font-display text-xl leading-tight">Votre première ligne</h2>
         <p className="text-[13px] font-body text-slate2 mt-1 max-w-[62ch]">
           Une ligne relie deux gares ; vos rames y feront l'aller-retour. Les grandes villes attirent plus de voyageurs.
@@ -5522,7 +5521,7 @@ function FirstLineIdeas({ network, onPick }: { network: NetworkData | null; onPi
               <div className="font-body text-[11.5px] mt-1 text-slate2/80">
                 {pair && pair.companies > 0 ? `Déjà ${pair.companies} compagnie${pair.companies > 1 ? "s" : ""} dessus` : "Personne dessus pour l'instant"}
               </div>
-              <div className="font-mono2 text-[10.5px] uppercase tracking-wide text-cobalt mt-2.5 group-hover:underline">Tracer cette ligne</div>
+              <div className="font-body text-[12px] text-cobalt mt-2.5 group-hover:underline font-medium">Tracer cette ligne</div>
             </button>
           );
         })}
@@ -6044,7 +6043,7 @@ function NetworkMap({
 
       {/* en haut à gauche : l'état du réseau, et le tracé */}
       <div className="absolute top-3 left-3 right-3 md:right-auto flex flex-col gap-2 pointer-events-none">
-        <div className="pointer-events-auto flex flex-wrap items-center gap-x-4 gap-y-1 bg-navy-900/90 border border-line backdrop-blur-sm px-3 py-2 font-mono2 text-[10.5px] uppercase tracking-wide text-slate2">
+        <div className="pointer-events-auto flex flex-wrap items-center gap-x-4 gap-y-1 bg-navy-900/90 border border-line backdrop-blur-sm px-3 py-2 font-body text-[12px] text-slate2 font-medium rounded-card">
           <span className="text-cobalt whitespace-nowrap">{lines.length} ligne{lines.length !== 1 ? "s" : ""}</span>
           <span className="text-rail-green whitespace-nowrap">{enRouteCount} en circulation</span>
           {activeFreight.length > 0 && <span className="text-amber whitespace-nowrap">{activeFreight.length} fret{activeFreight.length !== 1 ? "s" : ""}</span>}
@@ -6055,13 +6054,13 @@ function NetworkMap({
               setSelected(null);
               setDrawing((d) => !d);
             }}
-            className={`font-mono2 text-[10.5px] uppercase tracking-[0.12em] px-2.5 py-1 border transition-colors ${drawing ? "border-cobalt text-cobalt bg-cobalt/10" : "border-line text-offwhite hover:border-slate2"}`}
+            className={`font-body text-[12px] px-2.5 py-1 border transition-colors font-medium rounded-control ${drawing ? "border-cobalt text-cobalt bg-cobalt/10" : "border-line text-offwhite hover:border-slate2"}`}
           >
             {drawing ? "Annuler le tracé" : "Tracer une ligne"}
           </button>
         </div>
         {drawing && (
-          <div className="pointer-events-auto bg-navy-900/95 border border-cobalt/50 backdrop-blur-sm px-3 py-2.5 max-w-[440px]">
+          <div className="pointer-events-auto bg-navy-900/95 border border-cobalt/50 backdrop-blur-sm px-3 py-2.5 max-w-[440px] rounded-card">
             {!from && <p className="text-xs font-body text-slate2">Touchez la gare de départ.</p>}
             {from && !to && (
               <p className="text-xs font-body text-slate2">
@@ -6084,11 +6083,11 @@ function NetworkMap({
                   <div className="text-[11px] text-slate2/80 mt-0.5">Touchez une autre gare pour prolonger ; retouchez la dernière pour l'enlever.</div>
                 </div>
                 <div className="flex gap-2">
-                  <input value={lineName} onChange={(e) => setLineName(e.target.value)} className="flex-1 min-w-0 bg-navy-950 border border-line px-2.5 py-1.5 text-sm font-body text-offwhite focus:border-cobalt outline-none" placeholder="Nom de la ligne (facultatif)" />
-                  <button onClick={createFromMap} disabled={saving} className="bg-cobalt text-onaccent font-mono2 text-[11px] uppercase tracking-[0.12em] px-3 py-1.5 hover:bg-cobalt/90 disabled:opacity-50">
+                  <input value={lineName} onChange={(e) => setLineName(e.target.value)} className="flex-1 min-w-0 bg-navy-950 border border-line px-2.5 py-1.5 text-sm font-body text-offwhite focus:border-cobalt outline-none rounded-control" placeholder="Nom de la ligne (facultatif)" />
+                  <button onClick={createFromMap} disabled={saving} className="bg-cobalt text-onaccent font-body text-[12px] px-3 py-1.5 hover:bg-cobalt/90 disabled:opacity-50 font-medium rounded-control">
                     Ouvrir
                   </button>
-                  <button onClick={resetDraw} className="font-mono2 text-[11px] uppercase px-2.5 py-1.5 border border-line text-slate2 hover:text-offwhite">
+                  <button onClick={resetDraw} className="font-body text-[12px] px-2.5 py-1.5 border border-line text-slate2 hover:text-offwhite font-medium rounded-control">
                     ↺
                   </button>
                 </div>
@@ -6100,11 +6099,11 @@ function NetworkMap({
 
       {/* à droite : vos lignes, repliable */}
       <div className="absolute top-3 right-3 hidden md:flex flex-col items-end gap-2 max-h-[calc(100%-110px)]">
-        <button onClick={() => setLinesOpen((o) => !o)} className="bg-navy-900/90 border border-line backdrop-blur-sm px-3 py-1.5 font-mono2 text-[10.5px] uppercase tracking-[0.14em] text-slate2 hover:text-offwhite">
+        <button onClick={() => setLinesOpen((o) => !o)} className="bg-navy-900/90 border border-line backdrop-blur-sm px-3 py-1.5 font-body text-[12px] text-slate2 hover:text-offwhite font-medium rounded-control">
           Vos lignes ({lines.length}) {linesOpen ? "▴" : "▾"}
         </button>
         {linesOpen && lines.length > 0 && (
-          <ul className="w-[230px] overflow-y-auto bg-navy-900/90 border border-line backdrop-blur-sm py-1.5">
+          <ul className="w-[230px] overflow-y-auto bg-navy-900/90 border border-line backdrop-blur-sm py-1.5 rounded-card">
             {lines.map((l, i) => {
               const running = trains.filter((t) => t.line?.id === l.id && t.status === "EN_ROUTE");
               const a = STATION_COORDS[l.departureStation];
@@ -6133,26 +6132,26 @@ function NetworkMap({
       {/* en bas à gauche : échelle et légende */}
       <div className="absolute bottom-3 left-3 flex flex-col items-start gap-2">
         {legendOpen && (
-          <div className="bg-navy-900/95 border border-line backdrop-blur-sm px-3 py-2.5 flex flex-col gap-1.5 text-[10.5px] font-mono2 text-slate2 uppercase tracking-wide">
+          <div className="bg-navy-900/95 border border-line backdrop-blur-sm px-3 py-2.5 flex flex-col gap-1.5 text-[12px] font-body text-slate2 font-medium rounded-card">
             <span className="flex items-center gap-2"><span className="w-4 h-[3px] rounded-full bg-cobalt shrink-0" /> Ligne en service</span>
             <span className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed border-slate2 shrink-0" /> Ligne sans rame</span>
             <span className="flex items-center gap-2"><span className="w-3 h-1.5 rounded-full bg-cobalt border border-offwhite shrink-0" /> Rame en circulation</span>
             <span className="flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-offwhite border border-cobalt shrink-0" /> Gare desservie</span>
             <span className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dashed border-amber shrink-0" /> Trajet de fret</span>
             <span className="flex items-center gap-2"><span className="w-4 h-0.5 border-t border-dotted border-slate2 shrink-0" /> Liaison d'un concurrent</span>
-            <span className="flex items-center gap-2"><span className="px-1 text-[9px] leading-[13px] border border-amber text-amber shrink-0">+35 %</span> Affluence en gare</span>
+            <span className="flex items-center gap-2"><span className="px-1 text-[9px] leading-[13px] border border-amber text-amber shrink-0 rounded-control">+35 %</span> Affluence en gare</span>
             <span className="flex items-center gap-2"><span className="w-2 h-2 rotate-45 border border-cobalt shrink-0 mx-0.5" /> Correspondance</span>
           </div>
         )}
         <div className="flex items-end gap-3">
-          <button onClick={() => setLegendOpen((o) => !o)} className="bg-navy-900/90 border border-line backdrop-blur-sm px-2.5 py-1.5 font-mono2 text-[10.5px] uppercase tracking-[0.14em] text-slate2 hover:text-offwhite">
+          <button onClick={() => setLegendOpen((o) => !o)} className="bg-navy-900/90 border border-line backdrop-blur-sm px-2.5 py-1.5 font-body text-[12px] text-slate2 hover:text-offwhite font-medium rounded-control">
             Légende
           </button>
           <button
             onClick={toggleRivals}
             aria-pressed={showRivals}
             title={showRivals ? "Masquer les liaisons des autres compagnies" : "Afficher les liaisons des autres compagnies"}
-            className={`bg-navy-900/90 border backdrop-blur-sm px-2.5 py-1.5 font-mono2 text-[10.5px] uppercase tracking-[0.14em] flex items-center gap-2 ${showRivals ? "border-slate2 text-offwhite" : "border-line text-slate2 hover:text-offwhite"}`}
+            className={`bg-navy-900/90 border backdrop-blur-sm px-2.5 py-1.5 font-body text-[12px] flex items-center gap-2 font-medium rounded-control ${showRivals ? "border-slate2 text-offwhite" : "border-line text-slate2 hover:text-offwhite"}`}
           >
             <span className={`w-4 h-0.5 border-t border-dotted shrink-0 ${showRivals ? "border-offwhite" : "border-slate2"}`} />
             Concurrents {showRivals ? "affichés" : "masqués"}
@@ -6190,7 +6189,7 @@ function NetworkMap({
             const rivals = (network?.pairs ?? []).filter((p) => (p.a === selStation || p.b === selStation) && !p.mine).length;
             return (
               <>
-                <div className="font-mono2 text-[10px] uppercase tracking-[0.18em] text-slate2">{st?.sizeLabel ?? "Gare"}{isIntl(selStation) ? " · à l'étranger" : ""}</div>
+                <div className="font-body text-[12px] text-slate2 font-medium">{st?.sizeLabel ?? "Gare"}{isIntl(selStation) ? " · à l'étranger" : ""}</div>
                 <div className="font-display text-xl leading-tight">{selStation}</div>
                 <div className="font-mono2 text-[11.5px] text-slate2 mt-1">
                   Demande <span className={st && st.demand > 1 ? "text-rail-green" : st && st.demand < 1 ? "text-rail-red" : "text-offwhite"}>×{(st?.demand ?? 1).toFixed(2).replace(".", ",")}</span>
@@ -6210,7 +6209,7 @@ function NetworkMap({
                     <div className="text-[12px] font-body" style={{ color: RARITY_COLOR[w.rarity] }}>Épave {w.rarityLabel.toLowerCase()} à l'abandon</div>
                     <div className="text-[13px] font-body text-offwhite">{w.label} {w.serial}</div>
                     {onOpenWrecks && (
-                      <button onClick={() => { setSelected(null); onOpenWrecks(); }} className="mt-1.5 w-full border border-amber/60 text-amber text-[12.5px] font-body py-1 hover:bg-amber/10">
+                      <button onClick={() => { setSelected(null); onOpenWrecks(); }} className="mt-1.5 w-full border border-amber/60 text-amber text-[12.5px] font-body py-1 hover:bg-amber/10 rounded-control">
                         Voir l'épave, {w.price} pi.
                       </button>
                     )}
@@ -6218,7 +6217,7 @@ function NetworkMap({
                 ))}
                 <button
                   onClick={() => { setSelected(null); resetDraw(); setDrawing(true); setPicks([selStation]); }}
-                  className="mt-2.5 w-full bg-cobalt text-onaccent font-mono2 text-[10.5px] uppercase tracking-[0.12em] py-1.5 hover:bg-cobalt/90"
+                  className="mt-2.5 w-full bg-cobalt text-onaccent font-body text-[12px] py-1.5 hover:bg-cobalt/90 font-medium rounded-control"
                 >
                   Tracer une ligne d'ici
                 </button>
@@ -6229,7 +6228,7 @@ function NetworkMap({
             const p = trainPos.get(selTrain.id);
             return (
               <>
-                <div className="font-mono2 text-[10px] uppercase tracking-[0.18em] text-slate2">{selTrain.model.replace("_", " ").toLowerCase()}</div>
+                <div className="font-body text-[12px] text-slate2 font-medium">{selTrain.model.replace("_", " ").toLowerCase()}</div>
                 <div className="font-display text-xl leading-tight">{selTrain.name}</div>
                 {selTrain.line && p && (
                   <div className="text-[12.5px] font-body text-offwhite mt-1">
@@ -6251,7 +6250,7 @@ function NetworkMap({
                 </div>
                 <button
                   onClick={() => setFollow((f) => (f === selTrain.id ? null : selTrain.id))}
-                  className={`mt-2.5 w-full font-mono2 text-[10.5px] uppercase tracking-[0.12em] py-1.5 border ${follow === selTrain.id ? "border-rail-green text-rail-green bg-rail-green/10" : "border-line text-offwhite hover:border-slate2"}`}
+                  className={`mt-2.5 w-full font-body text-[12px] py-1.5 border font-medium rounded-control ${follow === selTrain.id ? "border-rail-green text-rail-green bg-rail-green/10" : "border-line text-offwhite hover:border-slate2"}`}
                 >
                   {follow === selTrain.id ? "Suivi en cours" : "Suivre la rame"}
                 </button>
@@ -6262,7 +6261,7 @@ function NetworkMap({
       )}
 
       {lines.length === 0 && !drawing && (
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-16 bg-navy-900/95 border border-line px-4 py-2.5 text-[12.5px] font-body text-slate2 text-center max-w-[90%]">
+        <div className="absolute left-1/2 -translate-x-1/2 bottom-16 bg-navy-900/95 border border-line px-4 py-2.5 text-[12.5px] font-body text-slate2 text-center max-w-[90%] rounded-card">
           Aucune ligne pour l'instant : touchez une gare, puis « Tracer une ligne d'ici ».
         </div>
       )}
@@ -6276,7 +6275,7 @@ function MapCard({ anchor, frame, onClose, children }: { anchor: { x: number; y:
   const left = Math.min(Math.max(anchor.x + 16, 8), frame.w - W - 8);
   const top = Math.min(Math.max(anchor.y - 40, 60), frame.h - 230);
   return (
-    <div className="absolute z-10 bg-navy-900 border border-line border-t-2 border-t-cobalt shadow-2xl px-3.5 py-3 tutorial-step-enter" style={{ left, top, width: W }} onPointerDown={(e) => e.stopPropagation()}>
+    <div className="absolute z-10 bg-navy-900 border border-line border-t-2 border-t-cobalt shadow-2xl px-3.5 py-3 tutorial-step-enter rounded-card" style={{ left, top, width: W }} onPointerDown={(e) => e.stopPropagation()}>
       <button onClick={onClose} className="absolute top-1.5 right-2 text-slate2 hover:text-offwhite text-lg leading-none" aria-label="Fermer">×</button>
       {children}
     </div>
@@ -6309,17 +6308,17 @@ function DailyChallengeBanner({ challenge, onChange }: { challenge: DailyChallen
       </span>
       <span className="font-mono2 text-xs text-amber shrink-0">+{challenge.reward} pi.</span>
       {challenge.claimed ? (
-        <span className="text-[11px] font-mono2 uppercase text-slate2 shrink-0">Récupéré</span>
+        <span className="text-[12px] font-body text-slate2 shrink-0 font-medium">Récupéré</span>
       ) : challenge.completed ? (
         <button
           onClick={claim}
           disabled={claiming}
-          className="text-[11px] font-mono2 uppercase text-amber border border-amber/40 px-2 py-1 hover:bg-amber/10 transition-colors shrink-0 disabled:opacity-50 claim-ready-pulse"
+          className="text-[12px] font-body text-amber border border-amber/40 px-2 py-1 hover:bg-amber/10 transition-colors shrink-0 disabled:opacity-50 claim-ready-pulse font-medium rounded-control"
         >
           {claiming ? "…" : "Récupérer"}
         </button>
       ) : (
-        <span className="text-[11px] font-mono2 uppercase text-slate2 shrink-0">En cours</span>
+        <span className="text-[12px] font-body text-slate2 shrink-0 font-medium">En cours</span>
       )}
     </div>
   );
@@ -6487,8 +6486,8 @@ function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, l
     <div>
       {/* ---- demandes en attente ---- */}
       {requests.length > 0 && (
-        <section className="mb-8 border border-amber/40 bg-amber/5">
-          <h2 className="px-4 pt-3 pb-2 font-mono2 text-[11px] uppercase tracking-[0.14em] text-amber">
+        <section className="mb-8 border border-amber/40 bg-amber/5 rounded-card">
+          <h2 className="px-4 pt-3 pb-2 font-body text-[12px] text-amber font-medium">
             {requests.length === 1 ? "Une demande d'augmentation" : `${requests.length} demandes d'augmentation`}
           </h2>
           <ul className="divide-y divide-amber/20">
@@ -6506,14 +6505,14 @@ function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, l
                   <button
                     onClick={() => answer(m, true)}
                     disabled={busy !== null}
-                    className="text-[11px] font-mono2 uppercase text-onaccent bg-cobalt px-3 py-1.5 disabled:opacity-50"
+                    className="text-[12px] font-body text-onaccent bg-cobalt px-3 py-1.5 disabled:opacity-50 font-medium rounded-control"
                   >
                     Accorder · +{(m.raiseSalaryPerHour ?? m.salaryPerHour) - m.salaryPerHour} pi./h
                   </button>
                   <button
                     onClick={() => answer(m, false)}
                     disabled={busy !== null}
-                    className="text-[11px] font-mono2 uppercase text-slate2 border border-line px-3 py-1.5 hover:text-offwhite disabled:opacity-50"
+                    className="text-[12px] font-body text-slate2 border border-line px-3 py-1.5 hover:text-offwhite disabled:opacity-50 font-medium rounded-control"
                   >
                     Refuser
                   </button>
@@ -6528,7 +6527,7 @@ function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, l
       )}
 
       {/* ---- synthèse ---- */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-line border border-line mb-8">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-line border border-line mb-8 rounded-card">
         {[
           { label: "Usure réduite de", value: `${effects.wearReduction} %` },
           { label: "Réparations moins chères de", value: `${effects.repairReduction} %` },
@@ -6537,7 +6536,7 @@ function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, l
         ].map((c) => (
           <div key={c.label} className="px-4 py-3 bg-navy-950">
             <div className="font-mono2 text-lg text-offwhite">{c.value}</div>
-            <div className="text-[10.5px] text-slate2 font-body uppercase tracking-[0.1em] mt-0.5">{c.label}</div>
+            <div className="text-[12px] text-slate2 font-body mt-0.5">{c.label}</div>
           </div>
         ))}
       </div>
@@ -6559,7 +6558,7 @@ function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, l
                     <StaffMark size={16} className={team.length ? "text-cobalt" : "text-slate2"} />
                     {role.label}
                     {role.minGradeId > 0 && (
-                      <span className="text-[10px] font-mono2 uppercase text-amber border border-amber/40 px-1.5 py-0.5">
+                      <span className="text-[12px] font-body text-amber border border-amber/40 px-1.5 py-0.5 font-medium rounded-control">
                         {GRADE_NAMES[role.minGradeId]}
                       </span>
                     )}
@@ -6585,12 +6584,12 @@ function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, l
                   <button
                     onClick={() => hire(role.id, role.label)}
                     disabled={busy !== null}
-                    className="text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors disabled:opacity-50"
+                    className="text-[12px] font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors disabled:opacity-50 font-medium rounded-control"
                   >
                     {busy === `hire:${role.id}` ? "…" : `Embaucher · ${role.salaryPerHour} pi./h`}
                   </button>
                 ) : locked ? (
-                  <span className="text-[11px] font-mono2 uppercase text-slate2 border border-line px-3 py-1.5">Grade insuffisant</span>
+                  <span className="text-[12px] font-body text-slate2 border border-line px-3 py-1.5 font-medium rounded-control">Grade insuffisant</span>
                 ) : null}
               </div>
 
@@ -6613,7 +6612,7 @@ function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, l
                     const from = STAFF_LEVEL_XP[m.level - 1] ?? 0;
                     const pct = m.xpForNext ? Math.min(100, ((m.xp - from) / (m.xpForNext - from)) * 100) : 100;
                     return (
-                      <li key={m.id} className={`p-4 border ${m.raiseRequested ? "border-amber/50" : "border-line"} bg-navy-900/40`}>
+                      <li key={m.id} className={`p-4 border rounded-card ${m.raiseRequested ? "border-amber/50" : "border-line"} bg-navy-900/40`}>
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-2.5 min-w-0">
                             {/* 2.1 : le portrait, dans la tenue choisie en boutique */}
@@ -6630,7 +6629,7 @@ function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, l
                               value={m.trainId ?? ""}
                               onChange={(e) => assignTo(m, e.target.value || null)}
                               disabled={busy !== null}
-                              className="bg-navy-950 border border-line px-2 py-1 text-[13px] min-w-0 flex-1"
+                              className="bg-navy-950 border border-line px-2 py-1 text-[13px] min-w-0 flex-1 rounded-control"
                               aria-label={`Rame de ${m.name}`}
                             >
                               <option value="">Aucune rame</option>
@@ -6677,13 +6676,13 @@ function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, l
                               <button
                                 onClick={() => fire(m)}
                                 disabled={busy !== null}
-                                className="text-[11px] font-mono2 uppercase text-rail-red border border-rail-red/50 px-2 py-1 disabled:opacity-50"
+                                className="text-[12px] font-body text-rail-red border border-rail-red/50 px-2 py-1 disabled:opacity-50 font-medium rounded-control"
                               >
                                 Confirmer
                               </button>
                               <button
                                 onClick={() => setConfirmFire(null)}
-                                className="text-[11px] font-mono2 uppercase text-slate2 border border-line px-2 py-1"
+                                className="text-[12px] font-body text-slate2 border border-line px-2 py-1 font-medium rounded-control"
                               >
                                 Annuler
                               </button>
@@ -6691,7 +6690,7 @@ function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, l
                           ) : (
                             <button
                               onClick={() => setConfirmFire(m.id)}
-                              className="text-[11px] font-mono2 uppercase text-slate2 hover:text-rail-red border border-line px-2 py-1 transition-colors"
+                              className="text-[12px] font-body text-slate2 hover:text-rail-red border border-line px-2 py-1 transition-colors font-medium rounded-control"
                             >
                               Licencier
                             </button>
@@ -6751,9 +6750,9 @@ function LegacyStaffSection({ staff, gradeId, onChange }: { staff: Staff[]; grad
         const hired = staff.find((s) => s.role === role);
         const locked = def.minGradeId > gradeId;
         return (
-          <div key={role} className={`relative p-4 border ${hired ? "border-cobalt/40 bg-cobalt/5" : "border-line"} ${locked ? "opacity-60" : ""}`}>
+          <div key={role} className={`relative p-4 border rounded-card ${hired ? "border-cobalt/40 bg-cobalt/5" : "border-line"} ${locked ? "opacity-60" : ""}`}>
             {def.minGradeId > 0 && (
-              <span className="absolute top-3 right-3 text-[10px] font-mono2 uppercase text-amber border border-amber/40 px-1.5 py-0.5">
+              <span className="absolute top-3 right-3 text-[12px] font-body text-amber border border-amber/40 px-1.5 py-0.5 font-medium rounded-control">
                 {GRADE_NAMES[def.minGradeId]}
               </span>
             )}
@@ -6769,19 +6768,19 @@ function LegacyStaffSection({ staff, gradeId, onChange }: { staff: Staff[]; grad
               {hired ? (
                 <button
                   onClick={() => fire(hired.id, def.label)}
-                  className="text-[11px] font-mono2 uppercase text-slate2 hover:text-rail-red border border-line px-2 py-1 transition-colors"
+                  className="text-[12px] font-body text-slate2 hover:text-rail-red border border-line px-2 py-1 transition-colors font-medium rounded-control"
                 >
                   Licencier
                 </button>
               ) : locked ? (
-                <button disabled className="text-[11px] font-mono2 uppercase text-slate2 border border-line px-2 py-1 cursor-not-allowed">
+                <button disabled className="text-[12px] font-body text-slate2 border border-line px-2 py-1 cursor-not-allowed font-medium rounded-control">
                   Grade insuffisant
                 </button>
               ) : (
                 <button
                   onClick={() => hire(role)}
                   disabled={busyRole === role}
-                  className="text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 transition-colors disabled:opacity-50"
+                  className="text-[12px] font-body text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 transition-colors disabled:opacity-50 font-medium rounded-control"
                 >
                   {busyRole === role ? "…" : "Embaucher"}
                 </button>
@@ -6876,32 +6875,32 @@ function SettingsSection({
         </h2>
         <form onSubmit={submitPasswordChange} className="space-y-3">
           <div>
-            <label className="block text-[11px] uppercase tracking-wide text-slate2 mb-1.5 font-body">Mot de passe actuel</label>
+            <label className="block text-[12px] text-slate2 mb-1.5 font-body">Mot de passe actuel</label>
             <input
               type="password"
-              className="w-full bg-transparent border border-line px-3 py-2 text-sm focus:outline-none focus:border-cobalt"
+              className="w-full bg-navy-950/50 border border-line px-3 py-2 text-sm focus:outline-none focus:border-cobalt rounded-control"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
               required
             />
           </div>
           <div>
-            <label className="block text-[11px] uppercase tracking-wide text-slate2 mb-1.5 font-body">Nouveau mot de passe</label>
+            <label className="block text-[12px] text-slate2 mb-1.5 font-body">Nouveau mot de passe</label>
             <input
               type="password"
               minLength={6}
-              className="w-full bg-transparent border border-line px-3 py-2 text-sm focus:outline-none focus:border-cobalt"
+              className="w-full bg-navy-950/50 border border-line px-3 py-2 text-sm focus:outline-none focus:border-cobalt rounded-control"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               required
             />
           </div>
           <div>
-            <label className="block text-[11px] uppercase tracking-wide text-slate2 mb-1.5 font-body">Confirmer le nouveau mot de passe</label>
+            <label className="block text-[12px] text-slate2 mb-1.5 font-body">Confirmer le nouveau mot de passe</label>
             <input
               type="password"
               minLength={6}
-              className="w-full bg-transparent border border-line px-3 py-2 text-sm focus:outline-none focus:border-cobalt"
+              className="w-full bg-navy-950/50 border border-line px-3 py-2 text-sm focus:outline-none focus:border-cobalt rounded-control"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
@@ -6909,7 +6908,7 @@ function SettingsSection({
           </div>
           <button
             disabled={saving}
-            className="bg-cobalt text-onaccent text-sm font-semibold uppercase py-2.5 px-4 hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-50"
+            className="bg-cobalt text-onaccent text-sm font-semibold py-2.5 px-4 hover:bg-cobalt/90 active:scale-[0.98] transition-transform disabled:opacity-50 rounded-control"
           >
             {saving ? "Enregistrement…" : "Mettre à jour"}
           </button>
@@ -6943,7 +6942,7 @@ function SettingsSection({
           de carrière — pas par l'abonnement.
         </p>
 
-        <ul className="border border-line divide-y divide-line mb-4">
+        <ul className="border border-line divide-y divide-line mb-4 rounded-card">
           {[
             ["Vue cabine", "Suivez chacune de vos rames en direct, de profil, avec la météo du réseau et votre livrée"],
             ["Veille concurrentielle", "Le détail de chaque concurrent sur vos lignes, et une notification quand l'un d'eux arrive ou vous passe devant"],
@@ -6970,8 +6969,8 @@ function SettingsSection({
           ))}
         </ul>
 
-        <div className="flex items-center justify-between border border-line p-4 gap-3 flex-wrap">
-          <span className={`text-xs font-mono2 uppercase tracking-wide ${company.isPremium ? "text-amber" : "text-slate2"}`}>
+        <div className="flex items-center justify-between border border-line p-4 gap-3 flex-wrap rounded-card bg-navy-900/40">
+          <span className={`text-xs font-body font-medium ${company.isPremium ? "text-amber" : "text-slate2"}`}>
             {company.premiumTrialUntil
               ? `Premium d'essai · jusqu'au ${trialEnd(company.premiumTrialUntil)}`
               : company.isPremium
@@ -6983,7 +6982,7 @@ function SettingsSection({
             (billingOpen ? (
               <PremiumCTA company={company} onChange={onChange} />
             ) : (
-              <span className="text-[11px] font-mono2 uppercase text-slate2 border border-line px-2 py-1">
+              <span className="text-[12px] font-body text-slate2 border border-line px-2 py-1 font-medium rounded-control">
                 Bientôt disponible
               </span>
             ))}
@@ -6997,19 +6996,19 @@ function SettingsSection({
           Supprimer votre compte efface définitivement votre compagnie, vos trains, lignes, et tout votre historique. Cette action est irréversible.
         </p>
         {confirmDelete ? (
-          <div className="border border-rail-red/40 bg-rail-red/5 p-4 space-y-3 tutorial-step-enter">
+          <div className="border border-rail-red/40 bg-rail-red/5 p-4 space-y-3 tutorial-step-enter rounded-card">
             <p className="text-sm text-offwhite font-body">Confirmez-vous la suppression définitive de votre compte ?</p>
             <div className="flex gap-3">
               <button
                 onClick={handleDeleteAccount}
                 disabled={deleting}
-                className="bg-rail-red text-onaccent text-xs font-semibold uppercase px-3 py-2 hover:bg-rail-red/90 transition-colors disabled:opacity-50"
+                className="bg-rail-red text-white text-xs font-semibold px-3 py-2 hover:bg-rail-red/90 transition-colors disabled:opacity-50 rounded-control"
               >
                 {deleting ? "Suppression…" : "Oui, supprimer définitivement"}
               </button>
               <button
                 onClick={() => setConfirmDelete(false)}
-                className="text-xs text-slate2 hover:text-offwhite uppercase font-body px-3 py-2 border border-line"
+                className="text-xs text-slate2 hover:text-offwhite font-body px-3 py-2 border border-line rounded-control"
               >
                 Annuler
               </button>
@@ -7018,7 +7017,7 @@ function SettingsSection({
         ) : (
           <button
             onClick={() => setConfirmDelete(true)}
-            className="text-xs font-mono2 uppercase text-rail-red border border-rail-red/40 px-3 py-2 hover:bg-rail-red/10 transition-colors"
+            className="text-xs font-body text-rail-red border border-rail-red/40 px-3 py-2 hover:bg-rail-red/10 transition-colors font-medium rounded-control"
           >
             Supprimer mon compte
           </button>
@@ -7032,7 +7031,7 @@ function SettingsSection({
 function SoundsPanel() {
   const [on, setOn] = useState(soundsOn());
   return (
-    <section className="border border-line p-5 mb-6">
+    <section className="border border-line p-5 mb-6 rounded-card bg-navy-900/40">
       <div className="flex items-center justify-between gap-4">
         <div>
           <h2 className="font-display text-lg">Sons et vibrations</h2>
@@ -7046,9 +7045,9 @@ function SoundsPanel() {
             setOn(!on);
             if (!on) playChime();
           }}
-          className={`shrink-0 w-12 h-7 border relative transition-colors ${on ? "bg-cobalt/30 border-cobalt" : "bg-navy-950 border-line"}`}
+          className={`shrink-0 w-12 h-7 border relative transition-colors rounded-full ${on ? "bg-cobalt/30 border-cobalt" : "bg-navy-950 border-line"}`}
         >
-          <span className={`absolute top-[3px] w-5 h-5 transition-all ${on ? "left-[24px] bg-cobalt" : "left-[3px] bg-slate2"}`} />
+          <span className={`absolute top-[3px] w-5 h-5 rounded-full transition-all ${on ? "left-[24px] bg-cobalt" : "left-[3px] bg-slate2"}`} />
           <span className="sr-only">{on ? "Désactiver" : "Activer"} les sons</span>
         </button>
       </div>

@@ -64,7 +64,7 @@ export function FreightComposition({ train, balance, livery, onClose, onChange }
   return createPortal(
     <div data-modal className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-navy-900 border border-line border-t-[3px] border-t-amber"
+        className="w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-navy-900 border border-line border-t-[3px] border-t-amber rounded-card"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label={`Composition de ${train.name}`}
@@ -88,7 +88,7 @@ export function FreightComposition({ train, balance, livery, onClose, onChange }
                   key={i}
                   onClick={() => change(c, "remove")}
                   disabled={!!busy || !atDepot}
-                  className="text-[12.5px] font-body text-slate2 border border-line px-2 py-1 hover:text-rail-red hover:border-rail-red/60 disabled:opacity-40"
+                  className="text-[12.5px] font-body text-slate2 border border-line px-2 py-1 hover:text-rail-red hover:border-rail-red/60 disabled:opacity-40 rounded-control"
                   title={`Dételer (${Math.floor((wagonById(c)?.price ?? 0) / 2)} pi. récupérées)`}
                 >
                   Dételer : {wagonById(c)?.short.toLowerCase()} n° {i + 1}
@@ -163,7 +163,7 @@ export function FreightComposition({ train, balance, livery, onClose, onChange }
             const poor = balance < w.price;
             const n = cars.filter((c) => c === w.id).length;
             return (
-              <div key={w.id} className={`border px-3 pt-2 pb-3 flex flex-col gap-1.5 ${n > 0 ? "border-amber/50" : "border-line"}`}>
+              <div key={w.id} className={`border px-3 pt-2 pb-3 flex flex-col gap-1.5 rounded-card bg-navy-900/40 ${n > 0 ? "border-amber/50" : "border-line"}`}>
                 <div className="-mx-1 h-[46px]">
                   <TrainPicture model="WAGONS" cars={[w.id]} livery={livery ?? "#38bdf8"} height={46} label={w.label} />
                 </div>
@@ -176,7 +176,7 @@ export function FreightComposition({ train, balance, livery, onClose, onChange }
                   onClick={() => change(w.id, "add")}
                   disabled={!!busy || full || poor || !atDepot}
                   title={full ? `${max} wagons au plus` : poor ? "Trésorerie insuffisante" : !atDepot ? "Au dépôt seulement" : undefined}
-                  className="self-start text-[13px] font-body text-cobalt border border-cobalt/40 px-2.5 py-1 hover:bg-cobalt/10 disabled:opacity-35 disabled:hover:bg-transparent"
+                  className="self-start text-[13px] font-body text-cobalt border border-cobalt/40 px-2.5 py-1 hover:bg-cobalt/10 disabled:opacity-35 disabled:hover:bg-transparent rounded-control"
                 >
                   Atteler, {w.price} pi.
                 </button>

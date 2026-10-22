@@ -37,7 +37,7 @@ function FlapChar({ char, size }: { char: string; size: FlapSize }) {
 
   return (
     <span
-      className={`inline-flex items-center justify-center ${dims} bg-navy-950 border border-line font-mono2 shrink-0`}
+      className={`inline-flex items-center justify-center ${dims} bg-navy-950 border border-line rounded-[3px] font-mono2 split-flap shrink-0`}
       style={{ perspective: "200px" }}
     >
       <span

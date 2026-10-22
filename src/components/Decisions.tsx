@@ -107,7 +107,7 @@ export function DecisionBanner({ decisions, onOpen }: { decisions: Decision[]; o
   return (
     <button
       onClick={() => onOpen(first)}
-      className="decision-banner w-full text-left flex items-center gap-3 px-4 md:px-6 py-2.5 border-b border-amber/40 bg-amber/[0.08] hover:bg-amber/[0.14] transition-colors"
+      className="decision-banner w-full text-left flex items-center gap-3 px-4 md:px-6 py-2.5 border-b border-amber/40 bg-amber/[0.08] hover:bg-amber/[0.14] transition-colors rounded-control"
     >
       <span className="relative flex w-2 h-2 shrink-0">
         <span className="absolute inline-flex w-full h-full rounded-full bg-amber opacity-70 animate-ping" />
@@ -116,14 +116,14 @@ export function DecisionBanner({ decisions, onOpen }: { decisions: Decision[]; o
       <span className="text-amber shrink-0 hidden sm:inline-flex">
         <DecisionGlyph kind={first.kind} size={16} />
       </span>
-      <span className="font-mono2 text-[10.5px] uppercase tracking-[0.16em] text-amber shrink-0">
+      <span className="font-body text-[12px] text-amber shrink-0 font-medium">
         {open.length > 1 ? `${open.length} décisions` : "Décision"}
       </span>
       <span className="font-body text-[13.5px] text-offwhite truncate">{first.title}</span>
       <span className={`ml-auto shrink-0 font-mono2 text-[11px] ${urgent ? "text-rail-red" : "text-slate2"}`}>
         {remaining(first.expiresAt, now)}
       </span>
-      <span className="shrink-0 font-mono2 text-[10.5px] uppercase tracking-wide bg-amber text-onaccent px-2.5 py-1">Trancher</span>
+      <span className="shrink-0 font-body text-[12px] bg-amber text-onaccent px-2.5 py-1 font-medium rounded-control">Trancher</span>
     </button>
   );
 }
@@ -166,7 +166,7 @@ export function DecisionModal({
   return createPortal(
     <div data-modal className="fixed inset-0 z-[55] flex items-end sm:items-center justify-center bg-navy-950/80 px-0 sm:px-4" role="dialog" aria-modal="true" aria-labelledby="decision-title" onClick={onClose}>
       <div
-        className="w-full sm:max-w-xl bg-navy-900 border border-line border-t-[3px] border-t-amber tutorial-step-enter max-h-[92vh] overflow-y-auto"
+        className="w-full sm:max-w-xl bg-navy-900 border border-line border-t-[3px] border-t-amber tutorial-step-enter max-h-[92vh] overflow-y-auto rounded-card"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="px-6 pt-5 pb-4 border-b border-line flex items-start gap-4">
@@ -174,7 +174,7 @@ export function DecisionModal({
             <DecisionGlyph kind={decision.kind} />
           </span>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 font-mono2 text-[10px] uppercase tracking-[0.18em] text-slate2">
+            <div className="flex items-center gap-2 font-body text-[12px] text-slate2 font-medium">
               <span className="text-amber">{KIND_LABEL[decision.kind]}</span>
               {decision.place && <span>· {decision.place}</span>}
             </div>
@@ -189,12 +189,12 @@ export function DecisionModal({
 
         {result ? (
           <div className="px-6 py-5">
-            <div className="border border-line bg-navy-950/40 px-4 py-3.5">
-              <div className="font-mono2 text-[10px] uppercase tracking-[0.18em] text-cobalt mb-1">Ce qui s'est passé</div>
+            <div className="border border-line bg-navy-950/40 px-4 py-3.5 rounded-card">
+              <div className="font-body text-[12px] text-cobalt mb-1 font-medium">Ce qui s'est passé</div>
               <p className="font-body text-[14px] text-offwhite leading-relaxed">{result.outcome}</p>
             </div>
             <div className="flex justify-end mt-4">
-              <button onClick={onClose} className="bg-cobalt text-onaccent text-xs font-semibold uppercase tracking-wide px-5 py-2.5 hover:bg-cobalt/90">
+              <button onClick={onClose} className="bg-cobalt text-onaccent text-xs font-semibold px-5 py-2.5 hover:bg-cobalt/90 rounded-control">
                 Retour au réseau
               </button>
             </div>
@@ -209,19 +209,19 @@ export function DecisionModal({
                     key={c.id}
                     disabled={disabled}
                     onClick={() => choose(c.id)}
-                    className={`group text-left border px-4 py-3 transition-colors ${
+                    className={`group text-left border px-4 py-3 transition-colors rounded-control ${
                       picked === c.id ? "border-amber bg-amber/10" : "border-line hover:border-amber/60 hover:bg-navy-950/50"
                     } disabled:opacity-50 disabled:hover:border-line disabled:hover:bg-transparent`}
                   >
                     <div className="flex items-center justify-between gap-3">
                       <span className="font-body text-[14.5px] text-offwhite">{c.label}</span>
                       {c.id === decision.defaultChoiceId && (
-                        <span className="shrink-0 font-mono2 text-[9.5px] uppercase tracking-wide text-slate2">Si vous ne faites rien</span>
+                        <span className="shrink-0 font-body text-[11.5px] text-slate2 font-medium">Si vous ne faites rien</span>
                       )}
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {c.effects.map((e, i) => (
-                        <span key={i} className={`font-mono2 text-[10.5px] border px-1.5 py-0.5 ${TONE_CLASS[e.tone]}`}>
+                        <span key={i} className={`font-mono2 text-[10.5px] border px-1.5 py-0.5 rounded-control ${TONE_CLASS[e.tone]}`}>
                           {e.text}
                         </span>
                       ))}
@@ -234,7 +234,7 @@ export function DecisionModal({
             {error && <p className="px-6 text-rail-red text-sm">{error}</p>}
             <div className="px-6 pb-5 pt-1 flex items-center justify-between font-mono2 text-[11px] text-slate2">
               <span>Réponse attendue dans {left}</span>
-              <button onClick={onClose} className="uppercase tracking-wide hover:text-offwhite">Plus tard</button>
+              <button onClick={onClose} className=" hover:text-offwhite">Plus tard</button>
             </div>
           </>
         )}

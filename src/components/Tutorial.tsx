@@ -256,7 +256,7 @@ export function Tutorial({
       <div className="fixed inset-0 z-[60] pointer-events-none">
         {rect && (
           <div
-            className="absolute border-2 border-cobalt spotlight-glow transition-all duration-300 ease-out"
+            className="absolute border-2 border-cobalt spotlight-glow transition-all duration-300 ease-out rounded-card"
             style={{
               top: rect.top - 6,
               left: rect.left - 6,
@@ -310,7 +310,7 @@ export function Tutorial({
     <div className="fixed inset-0 z-[60] pointer-events-none">
       {/* voile sombre avec découpe lumineuse autour de la cible (sauf si déjà dans une modale) */}
       <div
-        className="absolute border-2 border-cobalt transition-all duration-300 ease-out pointer-events-none"
+        className="absolute border-2 border-cobalt transition-all duration-300 ease-out pointer-events-none rounded-card"
         style={{
           top: rect.top - padding,
           left: rect.left - padding,
@@ -373,7 +373,7 @@ function TutorialCard({
   const gareNo = GARES.findIndex((g) => g.id === step.id) + 1;
   const first = stepIndex === 0;
   return (
-    <div className={`bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter ${compact ? "w-[340px] max-w-[calc(100vw-32px)]" : "w-full max-w-md"}`}>
+    <div className={`bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter rounded-control ${compact ? "w-[340px] max-w-[calc(100vw-32px)]" : "w-full max-w-md"}`}>
       {/* 2.0.3 : la petite ligne du stage, une gare par geste */}
       <div className="px-5 pt-4 pb-1">
         <GareTrack stepIndex={stepIndex} doneNow={justDone} />
@@ -419,7 +419,7 @@ function TutorialCard({
       )}
       <div className={`flex items-center gap-3 ${waiting ? "" : "border-t border-line"} ${compact ? "px-5" : "px-6"} py-3`}>
         {step.reward ? (
-          <span className={`font-mono2 text-[12px] px-1.5 py-0.5 border whitespace-nowrap tabular-nums ${justDone ? "text-rail-green border-rail-green/50" : "text-amber border-amber/50"}`}>
+          <span className={`font-mono2 text-[12px] px-1.5 py-0.5 border whitespace-nowrap tabular-nums rounded-control ${justDone ? "text-rail-green border-rail-green/50" : "text-amber border-amber/50"}`}>
             {justDone ? "✓ " : ""}+{step.reward} pi.
           </span>
         ) : gareNo > 0 ? (
@@ -434,7 +434,7 @@ function TutorialCard({
           {!waiting && !justDone && (
             <button
               onClick={onNext}
-              className="bg-cobalt text-onaccent text-[13px] font-semibold font-body px-4 py-2 hover:bg-cobalt/90 active:scale-[0.97] transition-transform"
+              className="bg-cobalt text-onaccent text-[13px] font-semibold font-body px-4 py-2 hover:bg-cobalt/90 active:scale-[0.97] transition-transform rounded-control"
             >
               {first ? "C'est parti" : isLast ? "Prendre les commandes" : "Suivant"}
             </button>

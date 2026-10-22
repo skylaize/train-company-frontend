@@ -37,10 +37,10 @@ export function LineLoadModal({ lineId, title, isPremium, onClose }: { lineId: s
   const H = 140;
   return createPortal(
     <div data-modal className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="w-full max-w-2xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Remplissage de ${title}`}>
+      <div className="w-full max-w-2xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt rounded-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Remplissage de ${title}`}>
         <div className="flex items-start justify-between px-5 pt-4 pb-3 border-b border-line">
           <div>
-            <div className="font-mono2 text-[10px] uppercase tracking-[0.18em] text-slate2">Remplissage · 24 dernières heures</div>
+            <div className="font-body text-[12px] text-slate2 font-medium">Remplissage · 24 dernières heures</div>
             <h3 className="font-display text-xl leading-tight">{title}</h3>
           </div>
           <button onClick={onClose} className="text-slate2 hover:text-offwhite text-lg leading-none px-1" aria-label="Fermer">×</button>
@@ -65,18 +65,18 @@ export function LineLoadModal({ lineId, title, isPremium, onClose }: { lineId: s
           <div className="m-5 h-40 bg-navy-950 animate-skeleton" />
         ) : (
           <div className="p-5">
-            <div className="grid grid-cols-3 border border-line divide-x divide-line text-center mb-5">
+            <div className="grid grid-cols-3 border border-line divide-x divide-line text-center mb-5 rounded-card">
               <div className="py-2.5">
                 <div className="font-mono2 text-lg tabular-nums">{data.totals.trips}</div>
-                <div className="text-[10.5px] uppercase tracking-wide text-slate2 font-body">trajets</div>
+                <div className="text-[12px] text-slate2 font-body">trajets</div>
               </div>
               <div className="py-2.5">
                 <div className="font-mono2 text-lg tabular-nums">{data.totals.passengers.toLocaleString("fr-FR")}</div>
-                <div className="text-[10.5px] uppercase tracking-wide text-slate2 font-body">voyageurs</div>
+                <div className="text-[12px] text-slate2 font-body">voyageurs</div>
               </div>
               <div className="py-2.5">
                 <div className={`font-mono2 text-lg tabular-nums ${data.totals.left ? "text-rail-red" : ""}`}>{data.totals.left.toLocaleString("fr-FR")}</div>
-                <div className="text-[10.5px] uppercase tracking-wide text-slate2 font-body">restés à quai</div>
+                <div className="text-[12px] text-slate2 font-body">restés à quai</div>
               </div>
             </div>
             <div className="relative" style={{ height: H + 22 }}>

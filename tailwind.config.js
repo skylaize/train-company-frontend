@@ -35,6 +35,13 @@ export default {
           green: c("rail-green"),
         },
       },
+      /* 2.3 : deux rayons, réglés par thème dans index.css. « control » pour ce
+         qu'on touche (boutons, champs, pastilles), « card » pour ce qui contient.
+         Nuit arrondit franchement, Papier reste un bordereau, Plan un calque. */
+      borderRadius: {
+        control: "var(--r-control)",
+        card: "var(--r-card)",
+      },
       fontFamily: {
         display: ["var(--font-display)", "serif"],
         body: ["var(--font-body)", "sans-serif"],

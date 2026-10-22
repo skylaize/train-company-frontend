@@ -248,7 +248,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {overflow > 0 && (
           <button
             onClick={() => openJournal(true)}
-            className="self-end text-[12px] font-body text-slate2 hover:text-offwhite border border-line bg-navy-900 px-2.5 py-1"
+            className="self-end text-[12px] font-body text-slate2 hover:text-offwhite border border-line bg-navy-900 px-2.5 py-1 rounded-control"
           >
             +{overflow} dans le journal
           </button>

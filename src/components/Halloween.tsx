@@ -131,7 +131,7 @@ export function HalloweenCard({ onShowMap }: { onShowMap?: () => void }) {
   const minsLeft = haunt ? Math.max(1, Math.ceil((new Date(haunt.until).getTime() - now) / 60_000)) : 0;
 
   return (
-    <section className="border border-violet/45 bg-violet/[0.05] mb-6 overflow-hidden" aria-label="Halloween sur le réseau">
+    <section className="border border-violet/45 bg-violet/[0.05] mb-6 overflow-hidden rounded-card" aria-label="Halloween sur le réseau">
       <div className="relative h-[86px] border-b border-violet/30 bg-gradient-to-b from-[#120d1f] to-navy-950" aria-hidden="true">
         <div className="absolute inset-x-0 bottom-0 opacity-75 halloween-drift">
           {/* une vieille vapeur passée au violet pâle : le Train fantôme */}
@@ -181,7 +181,7 @@ export function HalloweenCard({ onShowMap }: { onShowMap?: () => void }) {
                     {next.slice(0, 4).map((h) => (
                       <li
                         key={h.at}
-                        className={`inline-flex items-baseline gap-1.5 border px-2 py-0.5 font-body text-[12.5px] ${served.has(h.station) ? "border-rail-green/60 text-offwhite" : "border-line text-slate2"}`}
+                        className={`inline-flex items-baseline gap-1.5 border px-2 py-0.5 font-body text-[12.5px] rounded-card bg-navy-900/40 ${served.has(h.station) ? "border-rail-green/60 text-offwhite" : "border-line text-slate2"}`}
                         title={served.has(h.station) ? "Une de vos lignes y passe" : undefined}
                       >
                         <span className="font-mono2 text-[11px] tabular-nums">{hm(h.at)}</span>
@@ -211,7 +211,7 @@ export function HalloweenCard({ onShowMap }: { onShowMap?: () => void }) {
           )}
           {data.phase === "pendant" && nextTier && (
             <div className="mt-2">
-              <div className="h-[4px] bg-navy-950 border border-line" role="progressbar" aria-valuenow={mine.best} aria-valuemin={0} aria-valuemax={nextTier.souls} aria-label="Prochain palier">
+              <div className="h-[4px] bg-navy-950 border border-line rounded-control" role="progressbar" aria-valuenow={mine.best} aria-valuemin={0} aria-valuemax={nextTier.souls} aria-label="Prochain palier">
                 <div className="h-full bg-violet" style={{ width: `${Math.min(100, (mine.best / nextTier.souls) * 100)}%` }} />
               </div>
               <p className="font-body text-[12px] text-slate2 mt-1">

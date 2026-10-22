@@ -26,7 +26,7 @@ export function ComposterOverlay({ label, onDone }: { label: string; onDone: () 
           </text>
         </g>
       </svg>
-      <div className="bg-navy-900 border border-line px-3 py-2 -mt-2 text-[11px] font-body text-offwhite composter-label max-w-[190px] text-center leading-snug">
+      <div className="bg-navy-900 border border-line px-3 py-2 -mt-2 text-[11px] font-body text-offwhite composter-label max-w-[190px] text-center leading-snug rounded-card">
         {label}
       </div>
     </div>

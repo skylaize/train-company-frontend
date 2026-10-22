@@ -36,7 +36,7 @@ export function WhatsNewModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-4 py-6">
-      <div className="w-full max-w-3xl bg-navy-900 border border-line tutorial-step-enter flex flex-col max-h-[88vh]">
+      <div className="w-full max-w-3xl bg-navy-900 border border-line tutorial-step-enter flex flex-col max-h-[88vh] rounded-card">
         {/* bande perforée : le bulletin reste un imprimé détachable */}
         <div
           className="h-2 bg-cobalt shrink-0"
@@ -48,7 +48,7 @@ export function WhatsNewModal({ onClose }: { onClose: () => void }) {
         />
 
         <div className="px-6 pt-4 pb-3 border-b border-line shrink-0">
-          <span className="font-mono2 text-[11px] text-slate2 uppercase tracking-[0.14em]">
+          <span className="font-body text-[12px] text-slate2 font-medium">
             Réseau national — bulletin de service
           </span>
           <div className="flex items-baseline justify-between gap-4 mt-2">
@@ -68,14 +68,14 @@ export function WhatsNewModal({ onClose }: { onClose: () => void }) {
                 <button
                   key={v.version}
                   onClick={() => setVersionIndex(i)}
-                  className={`text-left whitespace-nowrap px-3 py-2 font-mono2 text-[11px] uppercase tracking-wide transition-colors ${
+                  className={`text-left whitespace-nowrap px-3 py-2 font-body text-[12px] transition-colors font-medium rounded-control ${
                     active
-                      ? "bg-cobalt/15 text-cobalt border-l-2 border-cobalt md:border-l-2"
-                      : "text-slate2 hover:text-offwhite border-l-2 border-transparent"
+                      ? "bg-cobalt/15 text-cobalt"
+                      : "text-slate2 hover:text-offwhite hover:bg-offwhite/[0.05]"
                   }`}
                 >
                   v{v.version}
-                  {i === 0 && <span className="block text-[9.5px] tracking-[0.16em] opacity-70">actuelle</span>}
+                  {i === 0 && <span className="block text-[11px] opacity-70">actuelle</span>}
                 </button>
               );
             })}
@@ -85,7 +85,7 @@ export function WhatsNewModal({ onClose }: { onClose: () => void }) {
             {groups.map((g) => (
               <section key={g.type} className="mb-6 last:mb-1">
                 <h3
-                  className={`font-mono2 text-[11px] uppercase tracking-[0.18em] ${g.accent} pb-2 mb-3 border-b border-line`}
+                  className={`font-body text-[12px] font-medium ${g.accent} pb-2 mb-3 border-b border-line`}
                 >
                   {g.title}
                   <span className="text-slate2 ml-2">{g.items.length}</span>
@@ -104,7 +104,7 @@ export function WhatsNewModal({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex items-center justify-between gap-4 px-6 py-4 border-t border-line shrink-0">
-          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono2 text-[10.5px] text-slate2 uppercase tracking-[0.14em]">
+          <span className="flex flex-wrap items-center gap-x-3 gap-y-1 font-body text-[12px] text-slate2 font-medium">
             <span>{CHANGELOG.length} bulletin{CHANGELOG.length > 1 ? "s" : ""} au registre</span>
             <a href={INSTAGRAM.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 normal-case tracking-normal hover:text-offwhite">
               <InstagramMark size={13} /> Les nouveautés en avant-première sur Instagram
@@ -115,7 +115,7 @@ export function WhatsNewModal({ onClose }: { onClose: () => void }) {
           </span>
           <button
             onClick={onClose}
-            className="bg-cobalt text-onaccent text-xs font-semibold uppercase tracking-wide px-5 py-2.5 hover:bg-cobalt/90 active:scale-[0.97] transition-transform shrink-0"
+            className="bg-cobalt text-onaccent text-xs font-semibold px-5 py-2.5 hover:bg-cobalt/90 active:scale-[0.97] transition-transform shrink-0 rounded-control"
           >
             Pris connaissance
           </button>

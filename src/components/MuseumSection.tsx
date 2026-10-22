@@ -63,11 +63,11 @@ export function MuseumSection({ onGoShop }: { onGoShop: () => void }) {
     <div className="space-y-6">
       {others.length > 0 && (
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Musées de l'alliance">
-          <button onClick={() => setTarget(null)} aria-pressed={mine} className={`px-3 py-1.5 border font-body text-[13px] ${mine ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}>
+          <button onClick={() => setTarget(null)} aria-pressed={mine} className={`px-3 py-1.5 border font-body text-[13px] rounded-control ${mine ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}>
             Mon musée
           </button>
           {others.map((a) => (
-            <button key={a.companyId} onClick={() => setTarget(a.companyId)} aria-pressed={target === a.companyId} className={`px-3 py-1.5 border font-body text-[13px] ${target === a.companyId ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}>
+            <button key={a.companyId} onClick={() => setTarget(a.companyId)} aria-pressed={target === a.companyId} className={`px-3 py-1.5 border font-body text-[13px] rounded-control ${target === a.companyId ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}>
               {a.name}
             </button>
           ))}
@@ -78,10 +78,10 @@ export function MuseumSection({ onGoShop }: { onGoShop: () => void }) {
       {!m && !error && <div className="h-64 bg-navy-900 animate-skeleton" />}
 
       {m && !m.open && (
-        <div className="border border-line p-5">
+        <div className="border border-line p-5 rounded-card bg-navy-900/40">
           <p className="font-body text-[14.5px]">{mine ? "Votre compagnie n'a pas encore de musée." : `${m.owner?.name ?? "Cette compagnie"} n'a pas encore de musée.`}</p>
           {mine && (
-            <button onClick={onGoShop} className="mt-3 text-[13.5px] font-body text-amber border border-amber/40 px-3.5 py-2 hover:bg-amber/10">
+            <button onClick={onGoShop} className="mt-3 text-[13.5px] font-body text-amber border border-amber/40 px-3.5 py-2 hover:bg-amber/10 rounded-control">
               Voir le Musée en boutique
             </button>
           )}
@@ -90,7 +90,7 @@ export function MuseumSection({ onGoShop }: { onGoShop: () => void }) {
 
       {m && m.open && (
         <>
-          <div className="border border-line aspect-[16/6] max-md:aspect-[4/3]">
+          <div className="border border-line aspect-[16/6] max-md:aspect-[4/3] rounded-card">
             <MuseumHall
               pieces={
                 m.pieces.length
@@ -108,7 +108,7 @@ export function MuseumSection({ onGoShop }: { onGoShop: () => void }) {
               {m.pieces.map((p) => {
                 const def = PIECES[p.kind];
                 return (
-                  <li key={p.id} className="border border-line bg-[#efe6d2] text-[#2a2119] p-4">
+                  <li key={p.id} className="border border-line bg-[#efe6d2] text-[#2a2119] p-4 rounded-card">
                     <div className="-mx-1 h-[44px]">
                       <TrainPicture skin={def?.skin ?? null} livery={def?.livery ?? "#333"} height={44} label={def?.label ?? p.kind} />
                     </div>

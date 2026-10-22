@@ -117,7 +117,7 @@ export function JournalBell({ className = "" }: { className?: string }) {
       aria-expanded={journalOpen}
       aria-label={unread ? `Journal de bord, ${unread} nouvelle${unread > 1 ? "s" : ""} non lue${unread > 1 ? "s" : ""}` : "Journal de bord"}
       title="Journal de bord"
-      className={`relative w-9 h-9 grid place-items-center border border-line text-offwhite hover:border-slate2 shrink-0 ${ring ? "bell-ring" : ""} ${className}`}
+      className={`relative w-9 h-9 grid place-items-center border border-line text-offwhite hover:border-slate2 shrink-0 rounded-control ${ring ? "bell-ring" : ""} ${className}`}
     >
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <path d="M12 3v2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -125,7 +125,7 @@ export function JournalBell({ className = "" }: { className?: string }) {
         <path d="M10 20.5a2 2 0 0 0 4 0" stroke="currentColor" strokeWidth="1.6" />
       </svg>
       {unread > 0 && (
-        <span className="absolute -top-[7px] -right-[7px] min-w-[19px] h-[19px] px-1 bg-amber text-navy-950 font-mono2 text-[11px] leading-[19px] text-center tabular-nums">
+        <span className="absolute -top-[7px] -right-[7px] min-w-[19px] h-[19px] px-1 bg-amber text-navy-950 font-mono2 text-[11px] leading-[19px] text-center tabular-nums rounded-control">
           {unread > 99 ? "99+" : unread}
         </span>
       )}
@@ -200,7 +200,7 @@ export function JournalDrawer({ onLink }: { onLink: (l: NotifLink) => void }) {
                     key={k}
                     aria-pressed={on}
                     onClick={() => setFilter(k)}
-                    className={`inline-flex items-center gap-1.5 px-2 py-1 border text-[12.5px] font-body ${on ? "border-offwhite text-offwhite" : "border-line text-slate2 hover:text-offwhite"}`}
+                    className={`inline-flex items-center gap-1.5 px-2 py-1 border text-[12.5px] font-body rounded-control ${on ? "border-offwhite text-offwhite" : "border-line text-slate2 hover:text-offwhite"}`}
                   >
                     {k === "tout" ? "Tout" : KINDS[k].label}
                     <span className="font-mono2 text-[11px]">{n}</span>

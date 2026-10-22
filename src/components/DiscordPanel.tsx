@@ -47,7 +47,7 @@ export function DiscordPanel() {
   if (!status?.enabled) return null;
 
   return (
-    <div className="border border-line p-4 mb-6">
+    <div className="border border-line p-4 mb-6 rounded-card bg-navy-900/40">
       <h3 className="font-display text-lg mb-1">Discord</h3>
       <p className="text-[12.5px] text-slate2 font-body max-w-[62ch] mb-3">
         Liez votre compte pour rejoindre le serveur Discord de Réseau et y recevoir vos rôles : Joueur, Premium,
@@ -56,13 +56,13 @@ export function DiscordPanel() {
       <div className="flex flex-wrap items-center gap-2">
         {status.linked ? (
           <>
-            <span className="font-mono2 text-[11px] text-rail-green uppercase tracking-wide border border-line px-2 py-1">
+            <span className="font-body text-[12px] text-rail-green border border-line px-2 py-1 font-medium rounded-control">
               Lié{status.name ? ` à ${status.name}` : ""}
             </span>
             <button
               onClick={unlink}
               disabled={busy}
-              className="px-3 py-1.5 border border-line font-mono2 text-[11px] uppercase tracking-wide hover:border-rail-red disabled:opacity-40"
+              className="px-3 py-1.5 border border-line font-body text-[12px] hover:border-rail-red disabled:opacity-40 font-medium rounded-control"
             >
               Délier
             </button>
@@ -71,7 +71,7 @@ export function DiscordPanel() {
           <button
             onClick={link}
             disabled={busy}
-            className="px-3 py-1.5 bg-[#5865F2] text-white font-mono2 text-[11px] uppercase tracking-wide hover:bg-[#4752c4] disabled:opacity-40"
+            className="px-3 py-1.5 bg-[#5865F2] text-white font-body text-[12px] hover:bg-[#4752c4] disabled:opacity-40 font-medium"
           >
             {busy ? "Ouverture…" : "Lier mon Discord"}
           </button>

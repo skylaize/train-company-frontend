@@ -99,7 +99,7 @@ export function SeasonBanner({ network, onOpenShop }: { network: NetworkData; on
   if (!active && !next) return null;
   if (!active && next) {
     return (
-      <div className="border border-line px-4 py-2.5 mb-4 text-[12.5px] font-body text-slate2">
+      <div className="border border-line px-4 py-2.5 mb-4 text-[12.5px] font-body text-slate2 rounded-card bg-navy-900/40">
         Prochain temps fort : <span className="text-offwhite">{next.name}</span>, à partir du {dayMonth(next.startsAt)}.
       </div>
     );
@@ -108,14 +108,14 @@ export function SeasonBanner({ network, onOpenShop }: { network: NetworkData; on
   // la date de fin est exclusive (minuit le lendemain) : on affiche le dernier jour
   const lastDay = new Date(new Date(a.endsAt).getTime() - 3600_000).toISOString();
   return (
-    <section className="border border-amber/40 bg-amber/5 mb-6 px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
+    <section className="border border-amber/40 bg-amber/5 mb-6 px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-card">
       <div className="flex-1 min-w-[240px]">
-        <div className="font-mono2 text-[10.5px] uppercase tracking-[0.14em] text-amber">Temps fort · jusqu'au {dayMonth(lastDay)}</div>
+        <div className="font-body text-[12px] text-amber font-medium">Temps fort · jusqu'au {dayMonth(lastDay)}</div>
         <div className="font-display text-lg leading-tight mt-0.5">{a.name}</div>
         <p className="text-[12.5px] font-body text-slate2 mt-1">{a.blurb}</p>
         <div className="flex flex-wrap gap-1.5 mt-2">
           {a.stations.map((st) => (
-            <span key={st} className="text-[11px] font-mono2 border border-amber/40 text-amber px-1.5 py-0.5">
+            <span key={st} className="text-[11px] font-mono2 border border-amber/40 text-amber px-1.5 py-0.5 rounded-control">
               {st} {pct(a.multiplier)}
             </span>
           ))}
@@ -123,9 +123,9 @@ export function SeasonBanner({ network, onOpenShop }: { network: NetworkData; on
       </div>
       <div className="text-right">
         <div className="font-mono2 text-2xl text-amber tabular-nums">{daysLeft(a.endsAt)} j</div>
-        <div className="text-[10.5px] font-body text-slate2 uppercase tracking-[0.1em]">restants</div>
+        <div className="text-[12px] font-body text-slate2 ">restants</div>
         {onOpenShop && (
-          <button onClick={onOpenShop} className="mt-2 text-[11px] font-mono2 uppercase text-amber underline underline-offset-2 hover:text-offwhite">
+          <button onClick={onOpenShop} className="mt-2 text-[12px] font-body text-amber underline underline-offset-2 hover:text-offwhite font-medium">
             Édition limitée en boutique
           </button>
         )}
@@ -201,9 +201,9 @@ export function RushPanel({ network, premium }: { network: NetworkData; premium:
   const max = Math.max(...p.curve);
   const W = 240, H = 44, bw = W / 24;
   return (
-    <section className="border border-line mb-6">
+    <section className="border border-line mb-6 rounded-card">
       <div className="px-4 py-2.5 border-b border-line flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-slate2">Affluence de la journée</h2>
+        <h2 className="font-body text-[12px] text-slate2 font-medium">Affluence de la journée</h2>
         <span className="text-[11px] font-body text-slate2">Pointe de 7 h à 9 h et de 17 h à 19 h, creux de 14 h à 16 h.</span>
       </div>
       <div className="px-4 py-3 flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -256,9 +256,9 @@ export function StationEventsPanel({
   const upcoming = network.upcoming ?? [];
 
   return (
-    <section className="border border-line mb-6">
+    <section className="border border-line mb-6 rounded-card">
       <div className="px-4 py-2.5 border-b border-line flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-slate2">Gares du moment</h2>
+        <h2 className="font-body text-[12px] text-slate2 font-medium">Gares du moment</h2>
         <span className="text-[11px] font-body text-slate2">
           Une ligne rapporte selon la taille de ses deux gares et ce qui s'y passe.
         </span>
@@ -351,14 +351,14 @@ export function RivalsDetail({
 
   return (
     <div className="mt-2">
-      <button onClick={() => setOpen((v) => !v)} className="text-[11px] font-mono2 uppercase text-cobalt hover:underline">
+      <button onClick={() => setOpen((v) => !v)} className="text-[12px] font-body text-cobalt hover:underline font-medium">
         {open ? "Masquer la concurrence" : "Voir la concurrence"}
       </button>
       {open && (
-        <div className="mt-2 border border-line bg-navy-900/40">
+        <div className="mt-2 border border-line bg-navy-900/40 rounded-card">
           <table className="w-full text-[12px] font-body">
             <thead>
-              <tr className="text-left text-slate2 font-mono2 text-[10px] uppercase tracking-[0.1em] border-b border-line">
+              <tr className="text-left text-slate2 font-body text-[12px] border-b border-line font-medium">
                 <th className="px-3 py-1.5 font-normal">Compagnie</th>
                 <th className="px-3 py-1.5 font-normal text-right">Rames</th>
                 <th className="px-3 py-1.5 font-normal text-right">Voyageurs</th>
@@ -454,8 +454,8 @@ export function LicencePanel({ network, onChange }: { network: NetworkData; onCh
 
   if (licence.owned) {
     return (
-      <div className="border border-line px-4 py-2.5 mb-4 text-[12.5px] font-body text-slate2 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-cobalt">Licence internationale</span>
+      <div className="border border-line px-4 py-2.5 mb-4 text-[12.5px] font-body text-slate2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-card bg-navy-900/40">
+        <span className="font-body text-[12px] text-cobalt font-medium">Licence internationale</span>
         <span>{places} : recette ×{bonus}, dont {toll} % de péage de sillon.</span>
       </div>
     );
@@ -466,8 +466,8 @@ export function LicencePanel({ network, onChange }: { network: NetworkData; onCh
      avant des jours : c'était du bruit. */
   if (!licence.gradeOk) {
     return (
-      <div className="border border-line px-4 py-2.5 mb-4 text-[12.5px] font-body text-slate2 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <span className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-slate2">Licence internationale</span>
+      <div className="border border-line px-4 py-2.5 mb-4 text-[12.5px] font-body text-slate2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-card bg-navy-900/40">
+        <span className="font-body text-[12px] text-slate2 font-medium">Licence internationale</span>
         <span>{places} : ouvertes à vos lignes dès le grade « Baron du rail ».</span>
       </div>
     );
@@ -475,10 +475,10 @@ export function LicencePanel({ network, onChange }: { network: NetworkData; onCh
 
   const lockedForFree = licence.openToAllAt !== null && !licence.earlyAccess;
   return (
-    <section className="border border-line mb-6">
+    <section className="border border-line mb-6 rounded-card">
       <div className="px-4 py-3 border-b border-line flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-cobalt">Nouveau · Licence internationale</h2>
-        {licence.earlyAccess && <span className="font-mono2 text-[10px] uppercase tracking-wide px-1.5 py-0.5 bg-amber/15 text-amber">Accès anticipé Premium</span>}
+        <h2 className="font-body text-[12px] text-cobalt font-medium">Nouveau · Licence internationale</h2>
+        {licence.earlyAccess && <span className="font-body text-[12px] px-1.5 py-0.5 bg-amber/15 text-amber font-medium rounded-control">Accès anticipé Premium</span>}
       </div>
       <div className="px-4 py-4 grid md:grid-cols-[1fr_auto] gap-4 items-center">
         <div className="font-body">
@@ -502,7 +502,7 @@ export function LicencePanel({ network, onChange }: { network: NetworkData; onCh
             <button
               onClick={buy}
               disabled={busy || !licence.canBuy}
-              className="px-4 py-2 text-[11px] bg-cobalt text-onaccent font-mono2 uppercase tracking-wide disabled:opacity-40"
+              className="px-4 py-2 text-[12px] bg-cobalt text-onaccent font-body disabled:opacity-40 font-medium rounded-control"
             >
               {busy ? "Achat…" : `Acheter la licence · ${fmtPi(licence.cost)} pi.`}
             </button>

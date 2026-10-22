@@ -265,7 +265,7 @@ export function ShopShowroom({
 
   return (
     <section className="mb-8">
-      <div ref={wrapRef} className="relative border border-line bg-black overflow-hidden">
+      <div ref={wrapRef} className="relative border border-line bg-black overflow-hidden rounded-card">
         {stage ? (
           <PrestigeStage
             item={item}
@@ -320,8 +320,8 @@ export function ShopShowroom({
             className="absolute pointer-events-none"
             style={{ left: box.w * 0.46, top: box.h * 0.74 + 20, transform: "translateX(-50%)" }}
           >
-            <div className="bg-[#0b2a4a] border-2 border-[#e8edf5] px-3 py-1 text-center shadow-lg">
-              <div className="font-mono2 text-[11px] uppercase tracking-[0.14em] text-[#f4d06f] whitespace-nowrap">{title}</div>
+            <div className="bg-[#0b2a4a] border-2 border-[#e8edf5] px-3 py-1 text-center shadow-lg rounded-card">
+              <div className="font-body text-[12px] text-[#f4d06f] whitespace-nowrap font-medium">{title}</div>
             </div>
           </div>
         ) : null}
@@ -329,7 +329,7 @@ export function ShopShowroom({
         {/* titre de l'article */}
         <div className="absolute top-3 left-4 right-4 flex items-start justify-between gap-3 pointer-events-none">
           <div>
-            <div className="font-mono2 text-[10.5px] uppercase tracking-[0.16em] text-amber">
+            <div className="font-body text-[12px] text-amber font-medium">
               {KIND_LABEL[item.kind] ?? item.kind}
               {item.isNew && !item.owned && " · Nouveau"}
               {item.seasonName && ` · ${item.seasonName}`}
@@ -349,7 +349,7 @@ export function ShopShowroom({
       </div>
 
       {/* variantes et actions, sous la scène */}
-      <div className="border border-t-0 border-line bg-navy-900 px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-3">
+      <div className="border border-t-0 border-line bg-navy-900 px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-3 rounded-card">
         <p className="text-[12.5px] text-slate2 font-body basis-full md:basis-auto md:flex-1 min-w-[220px]">{item.description}</p>
 
         {liveries && liveries.length > 0 && (
@@ -360,7 +360,7 @@ export function ShopShowroom({
                 onClick={() => setLivery(c)}
                 aria-label={`Essayer la livrée ${c}`}
                 aria-pressed={livery === c}
-                className={`w-8 h-8 border-2 transition-transform ${livery === c ? "border-white scale-110" : "border-line"}`}
+                className={`w-8 h-8 border-2 transition-transform rounded-control ${livery === c ? "border-white scale-110" : "border-line"}`}
                 style={{ background: c }}
               />
             ))}
@@ -374,7 +374,7 @@ export function ShopShowroom({
                 onClick={() => setEmblem(e)}
                 title={EMBLEM_LABELS[e] ?? e}
                 aria-pressed={emblem === e}
-                className={`w-9 h-9 border flex items-center justify-center ${emblem === e ? "border-white text-white bg-navy-800" : "border-line text-slate2"}`}
+                className={`w-9 h-9 border flex items-center justify-center rounded-control ${emblem === e ? "border-white text-white bg-navy-800" : "border-line text-slate2"}`}
               >
                 <Emblem id={e} size={17} />
               </button>
@@ -388,7 +388,7 @@ export function ShopShowroom({
                 key={t}
                 onClick={() => setTitle(t)}
                 aria-pressed={title === t}
-                className={`px-2 py-1.5 border font-mono2 text-[10px] uppercase tracking-wide ${title === t ? "border-amber text-amber" : "border-line text-slate2"}`}
+                className={`px-2 py-1.5 border font-body text-[12px] font-medium rounded-control ${title === t ? "border-amber text-amber" : "border-line text-slate2"}`}
               >
                 {t}
               </button>
@@ -402,7 +402,7 @@ export function ShopShowroom({
                 key={c}
                 onClick={() => setCab(c)}
                 aria-pressed={cab === c}
-                className={`px-2.5 py-1.5 border font-mono2 text-[10.5px] uppercase ${cab === c ? "border-white text-white" : "border-line text-slate2"}`}
+                className={`px-2.5 py-1.5 border font-body text-[12px] font-medium rounded-control ${cab === c ? "border-white text-white" : "border-line text-slate2"}`}
               >
                 {cabLabels[c] ?? c}
               </button>
@@ -416,7 +416,7 @@ export function ShopShowroom({
                 key={p}
                 onClick={() => setPlate(p)}
                 aria-pressed={plate === p}
-                className={`px-2.5 py-1.5 border font-mono2 text-[10.5px] uppercase ${plate === p ? "border-white text-white" : "border-line text-slate2"}`}
+                className={`px-2.5 py-1.5 border font-body text-[12px] font-medium rounded-control ${plate === p ? "border-white text-white" : "border-line text-slate2"}`}
               >
                 {PLATE_LABELS[p] ?? p}
               </button>
@@ -436,7 +436,7 @@ export function ShopShowroom({
                   key={f}
                   onClick={() => setPosterFormat(f)}
                   aria-pressed={posterFormat === f}
-                  className={`px-2.5 py-1.5 border font-body text-[12.5px] ${posterFormat === f ? "border-white text-white" : "border-line text-slate2"}`}
+                  className={`px-2.5 py-1.5 border font-body text-[12.5px] rounded-control ${posterFormat === f ? "border-white text-white" : "border-line text-slate2"}`}
                 >
                   {POSTER_FORMATS[f].label} <span className="opacity-60">· {POSTER_FORMATS[f].hint}</span>
                 </button>
@@ -460,7 +460,7 @@ export function ShopShowroom({
                   playPack(s as SoundPack);
                 }}
                 aria-pressed={sound === s}
-                className={`px-2.5 py-1.5 border font-body text-[12.5px] ${sound === s ? "border-white text-white" : "border-line text-slate2"}`}
+                className={`px-2.5 py-1.5 border font-body text-[12.5px] rounded-control ${sound === s ? "border-white text-white" : "border-line text-slate2"}`}
               >
                 ▶ {SOUND_LABELS[s] ?? s}
               </button>
@@ -472,7 +472,7 @@ export function ShopShowroom({
             <span className="flex">
               {themeInfo.swatch.map((c) => <span key={c} className="w-7 h-7 border border-line -ml-px first:ml-0" style={{ background: c }} />)}
             </span>
-            <button onClick={() => onTryTheme(item.theme!)} className="px-3 py-2 border border-cobalt text-cobalt font-mono2 text-[11px] uppercase">
+            <button onClick={() => onTryTheme(item.theme!)} className="px-3 py-2 border border-cobalt text-cobalt font-body text-[12px] font-medium rounded-control">
               Essayer sur la console
             </button>
           </div>
@@ -482,7 +482,7 @@ export function ShopShowroom({
           {item.owned && item.kind === "AFFICHE" && shareable && (
             <button
               onClick={() => void posterRef.current?.share()}
-              className="px-4 py-2 border border-cobalt text-cobalt font-mono2 text-[11px] uppercase tracking-wide"
+              className="px-4 py-2 border border-cobalt text-cobalt font-body text-[12px] font-medium rounded-control"
             >
               Partager
             </button>
@@ -491,7 +491,7 @@ export function ShopShowroom({
             <button
               onClick={equipCurrent}
               disabled={Boolean(isCurrent) && !["AFFICHE", "MUSEE", "PLAQUE_RAME"].includes(item.kind) && !allianceKit}
-              className="px-4 py-2 bg-cobalt text-onaccent font-mono2 text-[11px] uppercase tracking-wide disabled:opacity-40"
+              className="px-4 py-2 bg-cobalt text-onaccent font-body text-[12px] disabled:opacity-40 font-medium rounded-control"
             >
               {item.kind === "AFFICHE"
                 ? "Télécharger l'affiche"
@@ -511,7 +511,7 @@ export function ShopShowroom({
             <button
               onClick={onBuy}
               disabled={!enabled || busy}
-              className="px-5 py-2.5 bg-amber text-onaccent font-mono2 text-[12px] uppercase tracking-wide disabled:opacity-50"
+              className="px-5 py-2.5 bg-amber text-onaccent font-body text-[12px] disabled:opacity-50 font-medium rounded-control"
             >
               {!enabled ? "Bientôt disponible" : busy ? "Ouverture…" : `Acheter · ${euros(item.priceCents)}`}
             </button>
@@ -540,7 +540,7 @@ export function ShopTile({
     <button
       onClick={onSelect}
       aria-pressed={selected}
-      className={`text-left border bg-navy-900/40 flex flex-col transition-colors ${
+      className={`text-left border bg-navy-900/40 flex flex-col transition-colors rounded-control ${
         selected ? "border-amber ring-1 ring-amber" : item.kind === "SAISON" ? "border-amber/50 hover:border-amber" : "border-line hover:border-slate2"
       }`}
     >
@@ -548,15 +548,15 @@ export function ShopTile({
         {/* 2.1 : l'atelier de prestige a ses propres visuels */}
         {PRESTIGE_KINDS.has(item.kind) && <PrestigeThumb item={item} />}
         {item.kind === "SAISON" && (
-          <span className="absolute z-10 top-1.5 left-1.5 font-mono2 text-[9px] uppercase tracking-wide bg-amber text-onaccent px-1.5 py-0.5">
+          <span className="absolute z-10 top-1.5 left-1.5 font-body text-[11.5px] bg-amber text-onaccent px-1.5 py-0.5 font-medium rounded-control">
             Limité{item.availableUntil ? ` · ${daysLeft(item.availableUntil)} j` : ""}
           </span>
         )}
         {item.isNew && !item.owned && item.kind !== "SAISON" && (
-          <span className="absolute z-10 top-1.5 left-1.5 font-mono2 text-[9px] uppercase tracking-wide bg-cobalt text-onaccent px-1.5 py-0.5">Nouveau</span>
+          <span className="absolute z-10 top-1.5 left-1.5 font-body text-[11.5px] bg-cobalt text-onaccent px-1.5 py-0.5 font-medium rounded-control">Nouveau</span>
         )}
         {item.worthCents && item.worthCents > item.priceCents && !item.owned && (
-          <span className="absolute z-10 bottom-1.5 right-1.5 font-mono2 text-[9px] uppercase tracking-wide text-amber border border-amber/50 px-1.5 py-0.5">
+          <span className="absolute z-10 bottom-1.5 right-1.5 font-body text-[11.5px] text-amber border border-amber/50 px-1.5 py-0.5 font-medium rounded-control">
             −{Math.round((1 - item.priceCents / item.worthCents) * 100)} %
           </span>
         )}
@@ -570,7 +570,7 @@ export function ShopTile({
           </div>
         )}
         {item.owned && (
-          <span className="absolute z-10 top-1.5 right-1.5 font-mono2 text-[9px] uppercase tracking-wide text-rail-green border border-rail-green/50 px-1.5 py-0.5">Possédé</span>
+          <span className="absolute z-10 top-1.5 right-1.5 font-body text-[11.5px] text-rail-green border border-rail-green/50 px-1.5 py-0.5 font-medium rounded-control">Possédé</span>
         )}
         {/* 2.0 : la vraie rame, dessinée comme en vue cabine, à la livrée ou au matériel de l'article */}
         {(item.liveries?.length || item.cabSkins?.length) ? (
@@ -599,7 +599,7 @@ export function ShopTile({
         {item.titles && item.kind !== "COFFRET" && (
           <div className="flex flex-col items-center gap-1">
             {item.titles.slice(0, 2).map((t) => (
-              <span key={t} className="bg-[#0b2a4a] border border-[#e8edf5] px-2 py-0.5 font-mono2 text-[9.5px] uppercase tracking-wide text-[#f4d06f] whitespace-nowrap">{t}</span>
+              <span key={t} className="bg-[#0b2a4a] border border-[#e8edf5] px-2 py-0.5 font-body text-[11.5px] text-[#f4d06f] whitespace-nowrap font-medium rounded-control">{t}</span>
             ))}
             {item.titles.length > 2 && <span className="font-mono2 text-[10px] text-slate2">+ {item.titles.length - 2}</span>}
           </div>
@@ -628,7 +628,7 @@ function Variants({ list, value, labels, onPick, label }: { list?: string[]; val
           key={v}
           onClick={() => onPick(v)}
           aria-pressed={value === v}
-          className={`px-2.5 py-1.5 border font-body text-[12.5px] ${value === v ? "border-white text-white" : "border-line text-slate2"}`}
+          className={`px-2.5 py-1.5 border font-body text-[12.5px] rounded-control ${value === v ? "border-white text-white" : "border-line text-slate2"}`}
         >
           {labels[v] ?? v}
         </button>
@@ -688,7 +688,7 @@ function PrestigeStage({
       <div className={box}>
         <StationThumb skin={company.stationSkin ?? null} livery={company.liveryColor} name={company.name} />
         <div className="absolute inset-0 bg-black/45" />
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(520px,88%)] bg-[#0b1220] border border-[#2b3443] px-4 py-3 shadow-2xl">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-[min(520px,88%)] bg-[#0b1220] border border-[#2b3443] px-4 py-3 shadow-2xl rounded-card">
           <div className="font-mono2 text-[11px] text-[#ffd36b] mb-2">ANNONCES EN GARE</div>
           {(item.sounds ?? []).map((s) => (
             <button key={s} onClick={() => onPlay(s)} className="w-full flex items-center gap-3 py-2 border-t border-[#1d2636] first:border-t-0 text-left group">

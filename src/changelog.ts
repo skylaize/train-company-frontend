@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.2.0";
+export const CURRENT_VERSION = "2.2.1";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,18 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.2.1",
+    date: "Octobre 2026",
+    changes: [
+      { type: "ameliore", text: "La carte de l'alliance se lit enfin : une couleur par membre, les gares communes en points dorés qui grossissent avec le bonus, et seulement les noms qui ont la place. Survolez (ou touchez) une gare pour voir qui la dessert et ce qu'elle rapporte" },
+      { type: "nouveau", text: "Trois vues sur la carte de l'alliance : tout le réseau, vos gares communes, et « À conquérir », les gares où vos alliés vous attendent, avec le bonus que vous y débloqueriez. La liste à côté suit la carte" },
+      { type: "ameliore", text: "La page Alliance est réorganisée : l'alliance en tête, la carte au centre, puis les membres, le tableau d'affichage et le classement. Les réglages du fondateur ont leur propre bloc" },
+      { type: "ameliore", text: "L'interface s'adoucit : coins arrondis (francs en Nuit, discrets en Papier et Plan 1935), blocs posés sur un fond, onglets en pastilles, menu plus aéré. Les petites étiquettes en capitales laissent la place à du texte normal" },
+      { type: "ameliore", text: "Les chiffres passent en Barlow, la police des panneaux de signalisation ; le tableau d'affichage garde ses volets" },
+      { type: "corrige", text: "Le texte des boutons bleus était blanc sur cyan, difficile à lire : il passe en bleu nuit" },
+    ],
+  },
   {
     version: "2.2.0",
     date: "Octobre 2026",

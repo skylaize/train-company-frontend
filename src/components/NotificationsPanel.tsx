@@ -90,7 +90,7 @@ export function NotificationsPanel() {
   }
 
   return (
-    <div className="border border-line p-4 mb-6">
+    <div className="border border-line p-4 mb-6 rounded-card bg-navy-900/40">
       <h3 className="font-display text-lg mb-1">Notifications</h3>
       <p className="text-[12.5px] text-slate2 font-body max-w-[62ch] mb-3">
         Être prévenu quand un chantier se termine, quand un ordre permanent s'exécute, ou quand un
@@ -126,20 +126,20 @@ export function NotificationsPanel() {
         <div className="flex flex-wrap items-center gap-2">
           {subscribed ? (
             <>
-              <span className="font-mono2 text-[11px] text-rail-green uppercase tracking-wide border border-line px-2 py-1">
+              <span className="font-body text-[12px] text-rail-green border border-line px-2 py-1 font-medium rounded-control">
                 Activées sur cet appareil
               </span>
               <button
                 onClick={test}
                 disabled={busy}
-                className="px-3 py-1.5 border border-line font-mono2 text-[11px] uppercase tracking-wide hover:border-amber disabled:opacity-40"
+                className="px-3 py-1.5 border border-line font-body text-[12px] hover:border-amber disabled:opacity-40 font-medium rounded-control"
               >
                 Envoyer un essai
               </button>
               <button
                 onClick={deactivate}
                 disabled={busy}
-                className="px-3 py-1.5 font-mono2 text-[11px] uppercase tracking-wide text-slate2 hover:text-rail-red disabled:opacity-40"
+                className="px-3 py-1.5 font-body text-[12px] text-slate2 hover:text-rail-red disabled:opacity-40 font-medium"
               >
                 Désactiver
               </button>
@@ -148,7 +148,7 @@ export function NotificationsPanel() {
             <button
               onClick={activate}
               disabled={busy || subscribed === null}
-              className="px-3 py-1.5 bg-cobalt text-onaccent font-mono2 text-[11px] uppercase tracking-wide disabled:opacity-40"
+              className="px-3 py-1.5 bg-cobalt text-onaccent font-body text-[12px] disabled:opacity-40 font-medium rounded-control"
             >
               {busy ? "Activation…" : "Activer les notifications"}
             </button>

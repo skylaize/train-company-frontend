@@ -65,7 +65,7 @@ export function ResaleOutlook({ trainId, trainName }: { trainId: string; trainNa
   }
 
   return (
-    <div className="mt-3 border border-line bg-navy-950/60">
+    <div className="mt-3 border border-line bg-navy-950/60 rounded-card">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 pt-2.5">
         <span className="text-[12.5px] font-body text-slate2">
           Cote de l'occasion aujourd'hui :{" "}
@@ -105,7 +105,7 @@ export function ResaleOutlook({ trainId, trainName }: { trainId: string; trainNa
           )}
         </p>
         {!o.sellNow && (
-          <button onClick={watch} className="text-[12.5px] font-body text-amber border border-amber/40 px-2.5 py-1 hover:bg-amber/10">
+          <button onClick={watch} className="text-[12.5px] font-body text-amber border border-amber/40 px-2.5 py-1 hover:bg-amber/10 rounded-control">
             Me prévenir ce jour-là
           </button>
         )}
@@ -191,19 +191,19 @@ export function TrainSchedule({
                 setTo(p.to);
               }}
               aria-pressed={from === p.from && to === p.to}
-              className={`text-[12.5px] font-body border px-2.5 py-1 ${from === p.from && to === p.to ? "border-cobalt text-cobalt" : "border-line text-slate2 hover:text-offwhite"}`}
+              className={`text-[12.5px] font-body border px-2.5 py-1 rounded-control ${from === p.from && to === p.to ? "border-cobalt text-cobalt" : "border-line text-slate2 hover:text-offwhite"}`}
             >
               {p.label}
             </button>
           ))}
           <span className="flex items-center gap-1.5 text-[12.5px] font-body text-slate2">
             de
-            <select value={from ?? ""} onChange={(e) => { const v = e.target.value === "" ? null : Number(e.target.value); setFrom(v); if (v !== null && to === null) setTo((v + 8) % 24); if (v === null) setTo(null); }} className="bg-navy-950 border border-line px-1.5 py-0.5 text-offwhite">
+            <select value={from ?? ""} onChange={(e) => { const v = e.target.value === "" ? null : Number(e.target.value); setFrom(v); if (v !== null && to === null) setTo((v + 8) % 24); if (v === null) setTo(null); }} className="bg-navy-950 border border-line px-1.5 py-0.5 text-offwhite rounded-control">
               <option value="">—</option>
               {HOURS.map((h) => <option key={h} value={h}>{h} h</option>)}
             </select>
             à
-            <select value={to ?? ""} onChange={(e) => { const v = e.target.value === "" ? null : Number(e.target.value); setTo(v); if (v !== null && from === null) setFrom((v + 16) % 24); if (v === null) setFrom(null); }} className="bg-navy-950 border border-line px-1.5 py-0.5 text-offwhite">
+            <select value={to ?? ""} onChange={(e) => { const v = e.target.value === "" ? null : Number(e.target.value); setTo(v); if (v !== null && from === null) setFrom((v + 16) % 24); if (v === null) setFrom(null); }} className="bg-navy-950 border border-line px-1.5 py-0.5 text-offwhite rounded-control">
               <option value="">—</option>
               {HOURS.map((h) => <option key={h} value={h}>{h} h</option>)}
             </select>
@@ -211,13 +211,13 @@ export function TrainSchedule({
           <button
             onClick={() => save(from, to)}
             disabled={!dirty || busy || (from !== null && from === to)}
-            className="ml-auto text-[13px] font-semibold font-body bg-cobalt text-onaccent px-3 py-1.5 disabled:opacity-40"
+            className="ml-auto text-[13px] font-semibold font-body bg-cobalt text-onaccent px-3 py-1.5 disabled:opacity-40 rounded-control"
           >
             {busy ? "…" : "Enregistrer"}
           </button>
         </div>
       ) : (
-        <button onClick={onGoPremium} className="mt-3 text-[13.5px] font-body text-amber border border-amber/40 px-3.5 py-2 hover:bg-amber/10">
+        <button onClick={onGoPremium} className="mt-3 text-[13.5px] font-body text-amber border border-amber/40 px-3.5 py-2 hover:bg-amber/10 rounded-control">
           Les horaires par rame sont réservés au Premium
         </button>
       )}
@@ -311,7 +311,7 @@ export function AlertsPanel({ isPremium, trains, onGoPremium }: { isPremium: boo
         condition se vérifie, puis de nouveau si elle change (une autre rame, un autre contrat).
       </p>
       {rows && rows.length > 0 && (
-        <ul className="border border-line divide-y divide-line mb-4">
+        <ul className="border border-line divide-y divide-line mb-4 rounded-card">
           {rows.map((a) => (
             <li key={a.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2.5">
               <span className={`w-2 h-2 rounded-full shrink-0 ${a.active ? "bg-amber" : "bg-line"}`} title={a.active ? "Condition vérifiée en ce moment" : "En veille"} />
@@ -327,7 +327,7 @@ export function AlertsPanel({ isPremium, trains, onGoPremium }: { isPremium: boo
         </ul>
       )}
       {isPremium ? (
-        <div className="border border-dashed border-line p-3 flex flex-wrap items-center gap-2">
+        <div className="border border-dashed border-line p-3 flex flex-wrap items-center gap-2 rounded-card bg-navy-900/40">
           <select
             value={kind}
             onChange={(e) => {
@@ -335,7 +335,7 @@ export function AlertsPanel({ isPremium, trains, onGoPremium }: { isPremium: boo
               setKind(nk);
               setValue(String(KINDS.find((x) => x.id === nk)!.def));
             }}
-            className="bg-navy-950 border border-line text-[13.5px] px-2 py-1.5 font-body"
+            className="bg-navy-950 border border-line text-[13.5px] px-2 py-1.5 font-body rounded-control"
           >
             {KINDS.map((x) => (
               <option key={x.id} value={x.id}>
@@ -344,7 +344,7 @@ export function AlertsPanel({ isPremium, trains, onGoPremium }: { isPremium: boo
             ))}
           </select>
           {kind === "REVENTE" && (
-            <select value={target} onChange={(e) => setTarget(e.target.value)} className="bg-navy-950 border border-line text-[13.5px] px-2 py-1.5 font-body">
+            <select value={target} onChange={(e) => setTarget(e.target.value)} className="bg-navy-950 border border-line text-[13.5px] px-2 py-1.5 font-body rounded-control">
               {trains.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -358,18 +358,18 @@ export function AlertsPanel({ isPremium, trains, onGoPremium }: { isPremium: boo
               min={0}
               value={value}
               onChange={(e) => setValue(e.target.value)}
-              className="w-28 bg-navy-950 border border-line text-[13.5px] px-2 py-1.5 font-mono2 text-right"
+              className="w-28 bg-navy-950 border border-line text-[13.5px] px-2 py-1.5 font-mono2 text-right rounded-control"
               aria-label={k.label}
             />
             <span className="text-[13px] font-body text-slate2">{k.unit}</span>
           </span>
-          <button onClick={add} disabled={busy || value === "" || (rows?.length ?? 0) >= max} className="text-[13px] font-semibold font-body bg-cobalt text-onaccent px-3 py-1.5 disabled:opacity-40">
+          <button onClick={add} disabled={busy || value === "" || (rows?.length ?? 0) >= max} className="text-[13px] font-semibold font-body bg-cobalt text-onaccent px-3 py-1.5 disabled:opacity-40 rounded-control">
             Poser l'alerte
           </button>
           <span className="basis-full text-[12px] font-body text-slate2">{k.hint}.</span>
         </div>
       ) : (
-        <button onClick={onGoPremium} className="text-[13.5px] font-body text-amber border border-amber/40 px-3.5 py-2 hover:bg-amber/10">
+        <button onClick={onGoPremium} className="text-[13.5px] font-body text-amber border border-amber/40 px-3.5 py-2 hover:bg-amber/10 rounded-control">
           Les alertes personnalisées sont réservées au Premium
         </button>
       )}

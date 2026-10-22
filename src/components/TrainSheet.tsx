@@ -141,7 +141,7 @@ export function TrainSheet({
   return createPortal(
     <div data-modal className="fixed inset-0 z-[70] bg-black/60 flex items-end sm:items-center justify-center sm:p-4" onClick={onClose}>
       <div
-        className="w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto bg-navy-900 border border-line sheet-up sm:animate-none"
+        className="w-full sm:max-w-2xl max-h-[92vh] overflow-y-auto bg-navy-900 border border-line sheet-up sm:animate-none rounded-card"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-label={`Atelier : ${train.name}`}
@@ -181,7 +181,7 @@ export function TrainSheet({
                 <button
                   onClick={() => post("express", "/trains/repair", { trainId: train.id, mode: "express" }, "Livraison express demandée")}
                   disabled={!!busy || balance < cat.express - cat.price}
-                  className="mt-3 text-[13.5px] font-body border border-amber/50 text-amber px-3 py-2 hover:bg-amber/10 disabled:opacity-40"
+                  className="mt-3 text-[13.5px] font-body border border-amber/50 text-amber px-3 py-2 hover:bg-amber/10 disabled:opacity-40 rounded-control"
                 >
                   Passer en express, +{fmt(cat.express - cat.price)} pi. (livrée en {cat.expressMin} min)
                 </button>
@@ -221,7 +221,7 @@ export function TrainSheet({
               <button
                 onClick={() => post("legacy", "/trains/repair", { trainId: train.id }, "Rame réparée et remise en service")}
                 disabled={!!busy || balance < labor}
-                className="mt-3 text-[14px] font-semibold font-body bg-rail-red text-white px-3.5 py-2 hover:bg-rail-red/90 disabled:opacity-40"
+                className="mt-3 text-[14px] font-semibold font-body bg-rail-red text-white px-3.5 py-2 hover:bg-rail-red/90 disabled:opacity-40 rounded-control"
               >
                 Réparer, {fmt(labor)} pi.
               </button>
@@ -243,7 +243,7 @@ export function TrainSheet({
                 onClick={() => post("service", "/trains/repair", { trainId: train.id }, `${train.name} part à l'atelier`, () => playChime())}
                 disabled={!!busy || train.wear === 0 || balance < serviceCost || onFreight}
                 title={onFreight ? "Révisez-la au retour de sa livraison" : undefined}
-                className="mt-3 text-[14px] font-semibold font-body bg-cobalt text-onaccent px-3.5 py-2 hover:bg-cobalt/90 disabled:opacity-40"
+                className="mt-3 text-[14px] font-semibold font-body bg-cobalt text-onaccent px-3.5 py-2 hover:bg-cobalt/90 disabled:opacity-40 rounded-control"
               >
                 {train.wear === 0 ? "Rien à réviser" : `Réviser maintenant, ${fmt(serviceCost)} pi. (${serviceMinutes(train.wear)} min d'atelier)`}
               </button>
@@ -283,7 +283,7 @@ export function TrainSheet({
           <p className="text-[13px] text-slate2 font-body mt-0.5 mb-3">
             La rame passe d'elle-même à l'atelier en fin de trajet dès qu'elle atteint le seuil : 60 % du prix d'une réparation, aucune pièce à commander, quelques minutes sans rouler.
           </p>
-          <div className="inline-flex border border-line" role="radiogroup" aria-label="Seuil de révision">
+          <div className="inline-flex border border-line rounded-card" role="radiogroup" aria-label="Seuil de révision">
             {[null, 40, 60, 80].map((v) => {
               const active = (train.serviceAt ?? null) === v;
               return (
@@ -292,7 +292,7 @@ export function TrainSheet({
                   role="radio"
                   aria-checked={active}
                   onClick={() => !active && post(`plan:${v}`, "/trains/service-plan", { trainId: train.id, threshold: v }, v ? `Révision programmée à ${v} %` : "Révision programmée retirée")}
-                  className={`px-3.5 py-2 text-[13.5px] font-body border-r border-line last:border-r-0 ${active ? "bg-cobalt/15 text-cobalt" : "text-slate2 hover:text-offwhite"}`}
+                  className={`px-3.5 py-2 text-[13.5px] font-body border-r border-line last:border-r-0 rounded-control ${active ? "bg-cobalt/15 text-cobalt" : "text-slate2 hover:text-offwhite"}`}
                 >
                   {v === null ? "Aucune" : `À ${v} %`}
                 </button>
@@ -332,7 +332,7 @@ export function TrainSheet({
                         void post(`crew:${r.role}`, "/staff/assign", { staffId, trainId: e.target.value ? train.id : null }, e.target.value ? `${pool.find((p) => p.id === e.target.value)?.name} monte à bord` : `${r.current?.name} redescend au dépôt`);
                       }}
                       disabled={!!busy}
-                      className="bg-navy-950 border border-line text-[13.5px] font-body px-2 py-1.5 max-w-[240px]"
+                      className="bg-navy-950 border border-line text-[13.5px] font-body px-2 py-1.5 max-w-[240px] rounded-control"
                       aria-label={`${r.label} de ${train.name}`}
                     >
                       <option value="">{r.current ? "Retirer de la rame" : "Choisir…"}</option>
@@ -357,7 +357,7 @@ export function TrainSheet({
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
                 onClick={() => post("plate", "/trains/plate", { trainId: train.id, style: null }, `Plaque retirée de ${train.name}`)}
-                className={`px-3 py-2 border font-mono2 text-[11px] uppercase ${!train.plateStyle ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}
+                className={`px-3 py-2 border font-body text-[12px] font-medium rounded-control ${!train.plateStyle ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}
               >
                 Aucune
               </button>
@@ -366,7 +366,7 @@ export function TrainSheet({
                   key={p}
                   onClick={() => post("plate", "/trains/plate", { trainId: train.id, style: p }, `Plaque ${PLATE_STYLE_LABELS[p]?.toLowerCase() ?? ""} posée sur ${train.name}`)}
                   aria-pressed={train.plateStyle === p}
-                  className={`px-2 py-1.5 border ${train.plateStyle === p ? "border-cobalt" : "border-line hover:border-slate2"}`}
+                  className={`px-2 py-1.5 border rounded-control ${train.plateStyle === p ? "border-cobalt" : "border-line hover:border-slate2"}`}
                 >
                   <NamePlate style={p} className="text-[11px]">
                     {train.name}
@@ -399,11 +399,11 @@ export function TrainSheet({
                     })
                   }
                   disabled={!!busy || Boolean(train.partsEta) || onFreight}
-                  className="text-[14px] font-semibold font-body bg-rail-red text-white px-3.5 py-2 disabled:opacity-40"
+                  className="text-[14px] font-semibold font-body bg-rail-red text-white px-3.5 py-2 disabled:opacity-40 rounded-control"
                 >
                   Revendre {train.name} pour {fmt(train.resaleValue ?? 0)} pi.
                 </button>
-                <button onClick={() => setConfirmSell(false)} className="text-[14px] font-body text-slate2 border border-line px-3.5 py-2">
+                <button onClick={() => setConfirmSell(false)} className="text-[14px] font-body text-slate2 border border-line px-3.5 py-2 rounded-control">
                   Garder la rame
                 </button>
               </div>
@@ -412,13 +412,13 @@ export function TrainSheet({
                 onClick={() => setConfirmSell(true)}
                 disabled={Boolean(train.partsEta) || onFreight}
                 title={train.partsEta ? "Une pièce est en commande pour cette rame" : onFreight ? "Elle livre du fret : attendez son retour" : undefined}
-                className="mt-3 text-[14px] font-body text-slate2 border border-line px-3.5 py-2 hover:text-rail-red hover:border-rail-red/60 disabled:opacity-40"
+                className="mt-3 text-[14px] font-body text-slate2 border border-line px-3.5 py-2 hover:text-rail-red hover:border-rail-red/60 disabled:opacity-40 rounded-control"
               >
                 Revendre la rame
               </button>
             )
           ) : (
-            <button onClick={onGoPremium} className="mt-3 text-[13.5px] font-body text-amber border border-amber/40 px-3.5 py-2 hover:bg-amber/10">
+            <button onClick={onGoPremium} className="mt-3 text-[13.5px] font-body text-amber border border-amber/40 px-3.5 py-2 hover:bg-amber/10 rounded-control">
               La revente est réservée au Premium
             </button>
           )}
@@ -448,7 +448,7 @@ function RepairOption({ title, detail, price, onClick, disabled, accent }: { tit
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`text-left border px-3 py-2.5 transition-colors disabled:opacity-40 ${accent ? "border-amber/50 hover:bg-amber/10" : "border-line hover:border-cobalt hover:bg-cobalt/5"}`}
+      className={`text-left border px-3 py-2.5 transition-colors disabled:opacity-40 rounded-control ${accent ? "border-amber/50 hover:bg-amber/10" : "border-line hover:border-cobalt hover:bg-cobalt/5"}`}
     >
       <div className="text-[14px] font-body font-semibold">{title}</div>
       <div className="text-[12.5px] text-slate2 font-body">{detail}</div>
@@ -510,7 +510,7 @@ export function PartsStore({ balance, onChange }: { balance: number; onChange: (
               <button
                 onClick={() => buy(c.id, c.part)}
                 disabled={!!busy || have >= parts.limit || balance < c.price}
-                className="text-[13px] font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 disabled:opacity-40 whitespace-nowrap"
+                className="text-[13px] font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 disabled:opacity-40 whitespace-nowrap rounded-control"
               >
                 Acheter, {fmt(c.price)} pi.
               </button>

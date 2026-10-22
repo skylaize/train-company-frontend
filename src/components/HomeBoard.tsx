@@ -118,7 +118,7 @@ function ArrivalsBoard({ trains, onOpenMap }: { trains: HBTrain[]; onOpenMap: ()
   };
 
   return (
-    <section className="border border-line bg-navy-900/60 min-w-0">
+    <section className="border border-line bg-navy-900/60 min-w-0 rounded-card">
       <div className="flex items-center justify-between gap-3 px-4 sm:px-5 py-3 border-b border-line">
         <h2 className="font-display text-[20px]">Prochaines arrivées</h2>
         <button onClick={onOpenMap} className="text-[13.5px] text-cobalt hover:underline font-body shrink-0">
@@ -273,19 +273,19 @@ export function HomeBoard({
             </div>
           )}
           {decision && (
-            <div className="border border-line px-4 py-3.5">
+            <div className="border border-line px-4 py-3.5 rounded-card bg-navy-900/40">
               <div className="text-[12.5px] text-cobalt font-body">Décision, {leftLabel} pour trancher</div>
               <div className="font-display text-[16px] mt-1 leading-tight">{decision.title}</div>
-              <button onClick={onOpenDecision} className="mt-2.5 bg-cobalt text-navy-950 px-3 py-1.5 text-[13px] font-semibold">
+              <button onClick={onOpenDecision} className="mt-2.5 bg-cobalt text-navy-950 px-3 py-1.5 text-[13px] font-semibold rounded-control">
                 Voir les choix
               </button>
             </div>
           )}
           {season?.season && season.me && (
-            <button onClick={onOpenSeason} className="text-left border border-line px-4 py-3 hover:border-slate2 transition-colors">
+            <button onClick={onOpenSeason} className="text-left border border-line px-4 py-3 hover:border-slate2 transition-colors rounded-control">
               <div className="flex justify-between items-baseline text-[14px] font-body">
                 <span className="flex items-center gap-2 font-semibold">
-                  <span className="w-2.5 h-2.5 rotate-45" style={{ background: DIVISION_COLORS[season.me.division] }} />
+                  <span className="w-2.5 h-2.5 rounded-full" style={{ background: DIVISION_COLORS[season.me.division] }} />
                   {season.season.name}
                 </span>
                 <span className="font-mono2 text-amber">
@@ -300,7 +300,7 @@ export function HomeBoard({
             </button>
           )}
           {challenge && (
-            <div className="border border-line px-4 py-3">
+            <div className="border border-line px-4 py-3 rounded-card bg-navy-900/40">
               <div className="flex justify-between text-[14px] font-body">
                 <span className="font-semibold">Défi du jour</span>
                 <span className="font-mono2 text-amber">
@@ -392,19 +392,19 @@ export function HomeBoard({
                   </div>
                 </div>
                 {isBroken && t.partsEta ? (
-                  <button onClick={() => onOpenTrain?.(t.id)} className="shrink-0 border border-amber/50 text-amber px-2.5 py-1.5 text-[12.5px]">
+                  <button onClick={() => onOpenTrain?.(t.id)} className="shrink-0 border border-amber/50 text-amber px-2.5 py-1.5 text-[12.5px] rounded-control">
                     Atelier
                   </button>
                 ) : isBroken && t.brokenPart ? (
-                  <button onClick={() => onOpenTrain?.(t.id)} className="shrink-0 bg-rail-red text-white px-2.5 py-1.5 text-[12.5px] font-semibold">
+                  <button onClick={() => onOpenTrain?.(t.id)} className="shrink-0 bg-rail-red text-white px-2.5 py-1.5 text-[12.5px] font-semibold rounded-control">
                     Réparer…
                   </button>
                 ) : isBroken ? (
-                  <button onClick={() => repair(t, false)} disabled={busy === t.id} className="shrink-0 bg-rail-red text-white px-2.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-50">
+                  <button onClick={() => repair(t, false)} disabled={busy === t.id} className="shrink-0 bg-rail-red text-white px-2.5 py-1.5 text-[12.5px] font-semibold disabled:opacity-50 rounded-control">
                     Réparer, {cost} pi.
                   </button>
                 ) : isWorn ? (
-                  <button onClick={() => repair(t, true)} disabled={busy === t.id} className="shrink-0 border border-amber/50 text-amber px-2.5 py-1.5 text-[12.5px] disabled:opacity-50" title="Quelques minutes à l'atelier, au tarif réduit">
+                  <button onClick={() => repair(t, true)} disabled={busy === t.id} className="shrink-0 border border-amber/50 text-amber px-2.5 py-1.5 text-[12.5px] disabled:opacity-50 rounded-control" title="Quelques minutes à l'atelier, au tarif réduit">
                     Réviser, {serviceCost} pi.
                   </button>
                 ) : t.lastPassengers ? (

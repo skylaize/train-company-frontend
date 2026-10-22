@@ -100,10 +100,10 @@ export function FirstSteps({
   }
 
   return (
-    <section className="border border-line bg-navy-900/60 mb-8" aria-labelledby="first-steps-title" data-tutorial="first-steps">
+    <section className="border border-line bg-navy-900/60 mb-8 rounded-card" aria-labelledby="first-steps-title" data-tutorial="first-steps">
       <div className="flex items-start gap-4 px-5 pt-4 pb-3 border-b border-line">
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-mono2 uppercase tracking-[0.2em] text-amber mb-1">Premiers pas</div>
+          <div className="text-[12px] font-body text-amber mb-1 font-medium">Premiers pas</div>
           <h2 id="first-steps-title" className="font-display text-xl leading-tight">
             {finished ? "Votre compagnie est lancée" : "Lancez votre compagnie"}
           </h2>
@@ -113,7 +113,7 @@ export function FirstSteps({
             {count}<span className="text-slate2"> / {STEPS.length}</span>
           </div>
           {!finished && (
-            <button onClick={close} className="text-[10.5px] font-mono2 uppercase tracking-[0.14em] text-slate2 hover:text-offwhite mt-1">
+            <button onClick={close} className="text-[12px] font-body text-slate2 hover:text-offwhite mt-1 font-medium">
               Masquer
             </button>
           )}
@@ -128,7 +128,7 @@ export function FirstSteps({
           {STEPS.map((s, i) => (
             <span
               key={s.id}
-              className={`absolute top-1/2 w-2 h-2 -translate-y-1/2 -translate-x-1/2 rotate-45 ${done[s.id] ? "bg-amber" : i === current ? "bg-offwhite" : "bg-line"}`}
+              className={`absolute top-1/2 w-2 h-2 -translate-y-1/2 -translate-x-1/2 rounded-full ${done[s.id] ? "bg-amber" : i === current ? "bg-offwhite" : "bg-line"}`}
               style={{ left: `${((i + 1) / STEPS.length) * 100}%` }}
             />
           ))}
@@ -141,23 +141,22 @@ export function FirstSteps({
             Ligne, rame, fret, correspondance : tout y est, et le succès <span className="text-offwhite">« Premiers pas »</span> est à vous.
             La suite se joue dans <span className="text-offwhite">Progression</span> : chaque grade débloque de nouvelles rames, et la licence internationale attend les meilleurs.
           </p>
-          <button onClick={close} className="bg-amber text-onaccent text-xs font-semibold uppercase tracking-wide px-5 py-2.5 hover:bg-amber/90">
+          <button onClick={close} className="bg-amber text-onaccent text-xs font-semibold px-5 py-2.5 hover:bg-amber/90 rounded-control">
             Fermer
           </button>
         </div>
       ) : (
-        <ol className="py-2">
+        <ol className="p-2">
           {STEPS.map((s, i) => {
             const isDone = done[s.id];
             const isCurrent = i === current;
             return (
               <li
                 key={s.id}
-                className={`relative flex items-center gap-3.5 px-5 py-2.5 ${isCurrent ? "bg-cobalt/[0.06]" : ""}`}
+                className={`relative flex items-center gap-3.5 px-3 py-2.5 rounded-control ${isCurrent ? "bg-cobalt/[0.08]" : ""}`}
               >
-                {isCurrent && <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-cobalt" />}
                 <span
-                  className={`w-6 h-6 shrink-0 flex items-center justify-center font-mono2 text-[11px] border ${
+                  className={`w-6 h-6 shrink-0 flex items-center justify-center rounded-full text-[12px] font-medium border ${
                     isDone ? "border-rail-green/50 text-rail-green bg-rail-green/10" : isCurrent ? "border-cobalt text-cobalt" : "border-line text-slate2"
                   }`}
                 >
@@ -170,7 +169,7 @@ export function FirstSteps({
                 {!isDone && (
                   <button
                     onClick={() => onGo(s.go)}
-                    className={`shrink-0 text-[11px] font-mono2 uppercase tracking-wide px-3 py-1.5 transition-colors ${
+                    className={`shrink-0 text-[12px] font-body px-3 py-1.5 transition-colors font-medium rounded-control ${
                       isCurrent ? "bg-cobalt text-onaccent hover:bg-cobalt/90" : "border border-line text-slate2 hover:text-offwhite hover:border-slate2"
                     }`}
                   >

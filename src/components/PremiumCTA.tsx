@@ -67,7 +67,7 @@ export function PremiumCTA({ company, compact = false }: { company: PremiumInfo;
     <button
       onClick={buy}
       disabled={busy}
-      className={`${compact ? "px-3 py-1.5" : "px-4 py-2"} text-[11px] bg-amber text-onaccent font-mono2 uppercase tracking-wide disabled:opacity-50`}
+      className={`font-medium rounded-control${compact ? "px-3 py-1.5" : "px-4 py-2"} text-[12px] bg-amber text-onaccent font-body disabled:opacity-50`}
     >
       {busy ? "Ouverture…" : `${trial ? "Garder le Premium" : "Passer Premium"} · dès ${euros(min)}`}
     </button>

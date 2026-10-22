@@ -69,13 +69,13 @@ export function PioneersBanner({ onOpen }: { onOpen: () => void }) {
   const [closed, setClosed] = useState(() => safeGet(SEEN_KEY) === "1");
   if (closed) return null;
   return (
-    <div className="border border-amber/50 bg-amber/5 p-4 mb-6 flex items-center gap-4 flex-wrap">
+    <div className="border border-amber/50 bg-amber/5 p-4 mb-6 flex items-center gap-4 flex-wrap rounded-card">
       <span className="font-display text-[28px] leading-none text-amber" aria-hidden="true">200</span>
       <div className="flex-1 min-w-[200px]">
         <div className="font-display text-[17px]">200 compagnies sur le réseau. Merci !</div>
         <div className="font-body text-[13px] text-slate2">Votre billet de pionnier numéroté et la grande carte des 200 vous attendent.</div>
       </div>
-      <button onClick={onOpen} className="px-4 py-2 bg-amber text-onaccent font-mono2 text-[11px] uppercase tracking-wide">
+      <button onClick={onOpen} className="px-4 py-2 bg-amber text-onaccent font-body text-[12px] font-medium rounded-control">
         Voir mon billet
       </button>
       <button
@@ -146,7 +146,7 @@ export function PioneersModal({ onClose }: { onClose: () => void }) {
         role="dialog"
         aria-modal="true"
         aria-label="Les 200 pionniers"
-        className="w-full max-w-3xl max-h-[92vh] overflow-y-auto bg-navy-950 border border-line"
+        className="w-full max-w-3xl max-h-[92vh] overflow-y-auto bg-navy-950 border border-line rounded-card"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 px-4 py-3 border-b border-line">
@@ -171,7 +171,7 @@ export function PioneersModal({ onClose }: { onClose: () => void }) {
                   role="tab"
                   aria-selected={tab === "billet"}
                   onClick={() => setTab("billet")}
-                  className={`px-3 py-1.5 border font-body text-[13px] ${tab === "billet" ? "border-white text-white" : "border-line text-slate2"}`}
+                  className={`px-3 py-1.5 border font-body text-[13px] rounded-control ${tab === "billet" ? "border-white text-white" : "border-line text-slate2"}`}
                 >
                   Mon billet
                 </button>
@@ -180,7 +180,7 @@ export function PioneersModal({ onClose }: { onClose: () => void }) {
                 role="tab"
                 aria-selected={tab === "carte"}
                 onClick={() => setTab("carte")}
-                className={`px-3 py-1.5 border font-body text-[13px] ${tab === "carte" ? "border-white text-white" : "border-line text-slate2"}`}
+                className={`px-3 py-1.5 border font-body text-[13px] rounded-control ${tab === "carte" ? "border-white text-white" : "border-line text-slate2"}`}
               >
                 La grande carte
               </button>
@@ -217,14 +217,14 @@ export function PioneersModal({ onClose }: { onClose: () => void }) {
               {shareable && (
                 <button
                   onClick={() => void deliver(isTicket ? ticketRef.current : mapRef.current, file, true, shareText)}
-                  className="px-4 py-2 border border-cobalt text-cobalt font-mono2 text-[11px] uppercase tracking-wide"
+                  className="px-4 py-2 border border-cobalt text-cobalt font-body text-[12px] font-medium rounded-control"
                 >
                   Partager
                 </button>
               )}
               <button
                 onClick={() => void deliver(isTicket ? ticketRef.current : mapRef.current, file, false)}
-                className="px-4 py-2 bg-cobalt text-onaccent font-mono2 text-[11px] uppercase tracking-wide"
+                className="px-4 py-2 bg-cobalt text-onaccent font-body text-[12px] font-medium rounded-control"
               >
                 Télécharger
               </button>

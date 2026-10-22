@@ -354,7 +354,7 @@ export function TrainArrival({
 
   return createPortal(
     <div data-modal className="fixed inset-0 z-[70] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="w-full max-w-xl bg-navy-900 border border-line overflow-hidden" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`${name} entre en gare`}>
+      <div className="w-full max-w-xl bg-navy-900 border border-line overflow-hidden rounded-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`${name} entre en gare`}>
         <canvas ref={ref} className="block w-full h-[200px]" />
         <div className="flex items-end justify-between gap-4 px-5 py-4 border-t border-line">
           <div className="min-w-0">
@@ -371,11 +371,11 @@ export function TrainArrival({
         </div>
         <div className="flex gap-2 px-5 pb-5">
           {onCompose && (
-            <button onClick={onCompose} className="flex-1 border border-cobalt/50 text-cobalt px-3 py-2 text-[14px] font-body hover:bg-cobalt/10">
+            <button onClick={onCompose} className="flex-1 border border-cobalt/50 text-cobalt px-3 py-2 text-[14px] font-body hover:bg-cobalt/10 rounded-control">
               {isFreightLoco(model) ? "Atteler des wagons" : "Ajouter des voitures"}
             </button>
           )}
-          <button onClick={onClose} className="flex-1 bg-amber text-onaccent px-3 py-2 text-[14px] font-body font-semibold hover:brightness-110">
+          <button onClick={onClose} className="flex-1 bg-amber text-onaccent px-3 py-2 text-[14px] font-body font-semibold hover:brightness-110 rounded-control">
             Continuer
           </button>
         </div>

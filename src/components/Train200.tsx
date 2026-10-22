@@ -111,7 +111,7 @@ export function Train200Card({ onShowMap }: { onShowMap?: () => void }) {
   const reward = data.reward ?? 250;
 
   return (
-    <div className="border border-[#d4a017]/50 bg-[#d4a017]/[0.04] mb-6 overflow-hidden">
+    <div className="border border-[#d4a017]/50 bg-[#d4a017]/[0.04] mb-6 overflow-hidden rounded-card">
       <div className="relative h-[86px] border-b border-[#d4a017]/30 bg-gradient-to-b from-navy-900 to-navy-950" aria-hidden="true">
         <div className="absolute inset-x-0 bottom-0">
           <TrainPicture model="STANDARD" livery={TRAIN200_GOLD} height={70} align="center" label="Train des 200" />
@@ -160,7 +160,7 @@ export function Train200Card({ onShowMap }: { onShowMap?: () => void }) {
                 .slice(-8)
                 .reverse()
                 .map((p) => (
-                  <span key={p.name} className="inline-flex items-center gap-1.5 border border-line px-2 py-0.5 font-body text-[12px]" title={`Gare de ${p.station}`}>
+                  <span key={p.name} className="inline-flex items-center gap-1.5 border border-line px-2 py-0.5 font-body text-[12px] rounded-control" title={`Gare de ${p.station}`}>
                     <span className="w-2 h-2 rounded-full" style={{ background: p.livery }} />
                     {p.name}
                   </span>

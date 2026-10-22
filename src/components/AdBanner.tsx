@@ -58,9 +58,9 @@ export function AdBanner({ placement }: { placement: string }) {
   return (
     <aside className="mt-12 pt-3 border-t border-line" aria-label="Publicité">
       <div className="flex items-baseline justify-between gap-3 mb-1.5">
-        <span className="font-mono2 text-[9.5px] uppercase tracking-[0.18em] text-slate2/60">Publicité</span>
+        <span className="font-body text-[11.5px] text-slate2/60 font-medium">Publicité</span>
         {billing?.enabled && (
-          <button onClick={removeAds} disabled={busy} className="font-mono2 text-[10px] uppercase tracking-wide text-slate2 hover:text-cobalt disabled:opacity-50">
+          <button onClick={removeAds} disabled={busy} className="font-body text-[12px] text-slate2 hover:text-cobalt disabled:opacity-50 font-medium">
             {busy ? "Ouverture…" : `Retirer les pubs · ${euros(billing.adFreeCents)}`}
           </button>
         )}

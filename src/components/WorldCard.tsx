@@ -22,7 +22,7 @@ export function WorldCard({ data, compact = false }: { data: WorldData; compact?
   const pct = Math.min(100, (data.progress / Math.max(1, data.target)) * 100);
   const open = Boolean(data.completedAt);
   return (
-    <div className="border border-line px-4 py-3.5">
+    <div className="border border-line px-4 py-3.5 rounded-card bg-navy-900/40">
       <div className="flex items-baseline justify-between gap-3">
         <span className="text-[14px] font-semibold font-body">{data.name}</span>
         <span className="font-mono2 text-[12.5px] text-amber tabular-nums">{open ? "ouvert" : `${pct.toFixed(1).replace(".", ",")} %`}</span>
@@ -47,7 +47,7 @@ export function WorldCard({ data, compact = false }: { data: WorldData; compact?
           {data.top.map((t) => (
             <div key={t.rank} className="flex items-center gap-2 text-[13px] font-body py-0.5">
               <span className="font-mono2 text-slate2 w-4">{t.rank}</span>
-              <span className="w-2 h-2" style={{ background: t.liveryColor }} />
+              <span className="w-2 h-2 rounded-[3px]" style={{ background: t.liveryColor }} />
               <span className={`flex-1 truncate ${t.isMe ? "font-semibold" : ""}`}>{t.name}</span>
               <span className="font-mono2 tabular-nums">{fmt(t.amount)}</span>
             </div>

@@ -65,7 +65,7 @@ function RewardChip({ r, unlocked, companyName }: { r: Reward; unlocked: boolean
       </span>
     );
   return (
-    <span className="bg-[#0b2a4a] border border-[#e8edf5]/70 px-1.5 py-0.5 font-body text-[10.5px] leading-tight text-[#f4d06f] text-center max-w-[84px]" title={r.label}>
+    <span className="bg-[#0b2a4a] border border-[#e8edf5]/70 px-1.5 py-0.5 font-body text-[10.5px] leading-tight text-[#f4d06f] text-center max-w-[84px] rounded-control" title={r.label}>
       {r.title}
     </span>
   );
@@ -122,7 +122,7 @@ export function SeasonPass({ companyName, compact = false, onChange }: { company
   const unlockedCount = tiers.filter((t) => t.reached && t.pass).length;
 
   return (
-    <section className="border border-line bg-navy-900/50">
+    <section className="border border-line bg-navy-900/50 rounded-card">
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-3 px-4 pt-4 pb-3">
         <div className="min-w-0">
           <h2 className="font-display text-[22px] leading-tight">Pass de la {season.name.toLowerCase()}</h2>
@@ -141,7 +141,7 @@ export function SeasonPass({ companyName, compact = false, onChange }: { company
           ) : (
             <>
               <GiftButton itemName="le Pass de saison" priceLabel={price} itemId={data.itemId} />
-              <button onClick={buy} disabled={busy !== null} className="bg-amber text-onaccent px-4 py-2.5 text-[14.5px] font-semibold font-body hover:brightness-110 disabled:opacity-50">
+              <button onClick={buy} disabled={busy !== null} className="bg-amber text-onaccent px-4 py-2.5 text-[14.5px] font-semibold font-body hover:brightness-110 disabled:opacity-50 rounded-control">
                 {busy === "buy" ? "Ouverture…" : `Débloquer le pass, ${price}`}
               </button>
             </>
@@ -154,8 +154,8 @@ export function SeasonPass({ companyName, compact = false, onChange }: { company
           <div className="relative" style={{ width: COL * 30 + 80, height: 214 }}>
             {/* étiquettes des deux parcours */}
             <div className="sticky left-0 z-10 w-0">
-              <span className="absolute left-1.5 top-8 text-[12px] font-body text-amber whitespace-nowrap bg-navy-900 border border-amber/40 px-1.5 py-0.5">Pass</span>
-              <span className="absolute left-1.5 top-[148px] text-[12px] font-body text-slate2 whitespace-nowrap bg-navy-900 border border-line px-1.5 py-0.5">Gratuit</span>
+              <span className="absolute left-1.5 top-8 text-[12px] font-body text-amber whitespace-nowrap bg-navy-900 border border-amber/40 px-1.5 py-0.5 rounded-control">Pass</span>
+              <span className="absolute left-1.5 top-[148px] text-[12px] font-body text-slate2 whitespace-nowrap bg-navy-900 border border-line px-1.5 py-0.5 rounded-control">Gratuit</span>
             </div>
             {/* la voie */}
             <div className="absolute left-[56px] right-5 top-[106px] h-[6px] bg-[#3a2f25]" />
@@ -172,7 +172,7 @@ export function SeasonPass({ companyName, compact = false, onChange }: { company
               return (
                 <div key={t.tier} className="absolute top-0" style={{ left: x, width: COL }}>
                   {/* récompense du pass */}
-                  <div className={`h-[78px] mx-1 mt-1 flex flex-col items-center justify-center gap-1 ${t.pass ? (owned && t.reached ? "bg-amber/10 border border-amber/50" : "border border-line") : ""}`}>
+                  <div className={`h-[78px] mx-1 mt-1 flex flex-col items-center justify-center gap-1 rounded-control ${t.pass ? (owned && t.reached ? "bg-amber/10 border border-amber/50" : "border border-line") : ""}`}>
                     {t.pass && (
                       <>
                         <div className={owned && t.reached ? "" : "opacity-55"}>
@@ -192,7 +192,7 @@ export function SeasonPass({ companyName, compact = false, onChange }: { company
                     <div className="absolute top-[146px] left-1 right-1 flex flex-col items-center gap-1">
                       <span className={`font-mono2 text-[13px] ${t.free.claimed ? "text-slate2 line-through" : "text-offwhite"}`}>+{fmt(t.free.coins)} pi.</span>
                       {t.reached && !t.free.claimed ? (
-                        <button onClick={() => claim(t.tier, t.free!.coins)} disabled={busy !== null} className="text-[12px] font-body bg-cobalt text-onaccent px-2 py-1 disabled:opacity-50">
+                        <button onClick={() => claim(t.tier, t.free!.coins)} disabled={busy !== null} className="text-[12px] font-body bg-cobalt text-onaccent px-2 py-1 disabled:opacity-50 rounded-control">
                           Réclamer
                         </button>
                       ) : t.free.claimed ? (

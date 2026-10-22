@@ -91,14 +91,13 @@ const pct = (x: number) => `${Math.round(x * 100)} %`;
 const when = (iso: string) =>
   new Date(iso).toLocaleString("fr-FR", { weekday: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
 
-function SectionTitle({ n, title, aside }: { n: string; title: string; aside?: React.ReactNode }) {
+/* 2.3 : plus de numéros « 01, 02… » devant les titres : la page n'est pas un formulaire
+   administratif. n reste dans la signature pour l'ordre de lecture du code. */
+function SectionTitle({ title, aside }: { n?: string; title: string; aside?: React.ReactNode }) {
   return (
     <div className="flex items-end justify-between gap-4 mb-3 border-b border-line pb-2">
-      <h2 className="flex items-baseline gap-3">
-        <span className="font-mono2 text-[11px] text-cobalt">{n}</span>
-        <span className="font-display text-xl leading-none">{title}</span>
-      </h2>
-      {aside && <span className="font-mono2 text-[11px] text-slate2 text-right">{aside}</span>}
+      <h2 className="font-display text-xl leading-none">{title}</h2>
+      {aside && <span className="font-body text-[12.5px] text-slate2 text-right tabular-nums">{aside}</span>}
     </div>
   );
 }
@@ -184,33 +183,32 @@ export function InfrastructureSection({
             {data.stations.map((s) => {
               const protectedNow = new Date(s.protectedUntil).getTime() > Date.now();
               return (
-                <div key={s.station} className="border border-line bg-navy-900/40">
-                  {/* le panneau de gare : nom en grand, bandeau de couleur */}
+                <div key={s.station} className="border border-line bg-navy-900/40 rounded-card">
+                  {/* le panneau de gare : nom en grand */}
                   <div className="flex items-stretch border-b border-line">
-                    <div className="w-1.5 bg-cobalt" />
                     <div className="px-4 py-3 flex-1 min-w-0">
-                      <div className="font-mono2 text-[10px] uppercase tracking-[0.16em] text-slate2">
+                      <div className="font-body text-[12px] text-slate2 font-medium">
                         {s.sizeLabel} · commerces niv. {s.level}/{rules.maxLevel}
                       </div>
                       <div className="font-display text-2xl leading-tight truncate">{s.station}</div>
                     </div>
                     <div className="px-4 py-3 text-right border-l border-line">
-                      <div className="font-mono2 text-[10px] uppercase tracking-[0.14em] text-slate2">Trafic 24 h</div>
+                      <div className="font-body text-[12px] text-slate2 font-medium">Trafic 24 h</div>
                       <div className="font-mono2 text-lg tabular-nums">{fmt(s.traffic24h)}</div>
                     </div>
                   </div>
                   <div className="grid grid-cols-3 divide-x divide-line text-center border-b border-line">
                     <div className="py-2.5">
                       <div className="font-mono2 text-sm text-rail-green tabular-nums">+{fmt(s.totalShops)}</div>
-                      <div className="text-[10px] uppercase tracking-wide text-slate2 font-body">commerces</div>
+                      <div className="text-[12px] text-slate2 font-body">commerces</div>
                     </div>
                     <div className="py-2.5">
                       <div className="font-mono2 text-sm text-rail-green tabular-nums">+{fmt(s.totalFees)}</div>
-                      <div className="text-[10px] uppercase tracking-wide text-slate2 font-body">redevances</div>
+                      <div className="text-[12px] text-slate2 font-body">redevances</div>
                     </div>
                     <div className="py-2.5">
                       <div className="font-mono2 text-sm tabular-nums">{fmt(s.invested)}</div>
-                      <div className="text-[10px] uppercase tracking-wide text-slate2 font-body">investi</div>
+                      <div className="text-[12px] text-slate2 font-body">investi</div>
                     </div>
                   </div>
                   <div className="px-4 py-2.5 flex flex-wrap items-center gap-2">
@@ -222,7 +220,7 @@ export function InfrastructureSection({
                       <button
                         onClick={() => act("up" + s.station, "/infrastructure/stations/upgrade", { station: s.station }, `Commerces de ${s.station} agrandis`)}
                         disabled={!!busy || balance < s.nextUpgrade}
-                        className="text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 disabled:opacity-40"
+                        className="text-[12px] font-body text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 disabled:opacity-40 font-medium rounded-control"
                         title={`Recettes des commerces ×${String(rules.shopLevelMult[String(s.level + 1)]).replace(".", ",")}`}
                       >
                         Agrandir · {fmt(s.nextUpgrade)} pi.
@@ -231,7 +229,7 @@ export function InfrastructureSection({
                     <button
                       onClick={() => act("sell" + s.station, "/infrastructure/stations/sell", { station: s.station }, `Gare de ${s.station} revendue`)}
                       disabled={!!busy}
-                      className="text-[11px] font-mono2 uppercase text-slate2 border border-line px-2 py-1 hover:text-rail-red disabled:opacity-40"
+                      className="text-[12px] font-body text-slate2 border border-line px-2 py-1 hover:text-rail-red disabled:opacity-40 font-medium rounded-control"
                     >
                       Revendre · {fmt(s.sellValue)}
                     </button>
@@ -242,8 +240,8 @@ export function InfrastructureSection({
           </div>
         )}
 
-        <div className="border border-line">
-          <div className="grid grid-cols-[1fr_auto_auto_auto] md:grid-cols-[1.4fr_1fr_0.7fr_auto] gap-x-4 px-4 py-2 border-b border-line font-mono2 text-[10.5px] uppercase tracking-[0.14em] text-slate2">
+        <div className="border border-line rounded-card">
+          <div className="grid grid-cols-[1fr_auto_auto_auto] md:grid-cols-[1.4fr_1fr_0.7fr_auto] gap-x-4 px-4 py-2 border-b border-line font-body text-[12px] text-slate2 font-medium">
             <span>Gare</span>
             <span className="hidden md:block">Propriétaire</span>
             <span className="text-right">Trafic 24 h</span>
@@ -257,7 +255,7 @@ export function InfrastructureSection({
                 <div className="min-w-0">
                   <span className="font-body text-offwhite">{m.station}</span>
                   <span className="ml-2 font-mono2 text-[10.5px] text-slate2">{m.sizeLabel}</span>
-                  {m.served && <span className="ml-2 font-mono2 text-[10px] uppercase text-cobalt">votre réseau</span>}
+                  {m.served && <span className="ml-2 font-body text-[12px] text-cobalt font-medium">votre réseau</span>}
                 </div>
                 <div className="hidden md:flex items-center gap-1.5 text-[12.5px] font-body min-w-0">
                   {m.owner ? (
@@ -274,7 +272,7 @@ export function InfrastructureSection({
                   onClick={() => act("buy" + m.station, "/infrastructure/stations/buy", { station: m.station }, m.owner ? `Gare de ${m.station} rachetée` : `Gare de ${m.station} achetée`)}
                   disabled={!!busy || full || locked || balance < m.price}
                   title={full ? `${rules.maxStations} gares au plus` : locked ? `Protégée jusqu'à ${when(m.protectedUntil!)}` : balance < m.price ? "Trésorerie insuffisante" : undefined}
-                  className={`text-[11px] font-mono2 uppercase border px-2 py-1 disabled:opacity-40 whitespace-nowrap ${m.owner ? "text-amber border-amber/40 hover:bg-amber/10" : "text-cobalt border-cobalt/40 hover:bg-cobalt/10"}`}
+                  className={`text-[12px] font-body border px-2 py-1 disabled:opacity-40 whitespace-nowrap font-medium rounded-control ${m.owner ? "text-amber border-amber/40 hover:bg-amber/10" : "text-cobalt border-cobalt/40 hover:bg-cobalt/10"}`}
                 >
                   {locked ? "protégée" : m.owner ? "Racheter" : "Acheter"} · {fmt(m.price)}
                 </button>
@@ -283,7 +281,7 @@ export function InfrastructureSection({
           })}
           <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 bg-navy-900/40 border-t border-line">
             <span className="text-[12px] text-slate2 font-body">Une autre gare :</span>
-            <select value={other} onChange={(e) => setOther(e.target.value)} className="bg-navy-950 border border-line text-sm px-2 py-1 font-body">
+            <select value={other} onChange={(e) => setOther(e.target.value)} className="bg-navy-950 border border-line text-sm px-2 py-1 font-body rounded-control">
               <option value="">choisir…</option>
               {otherChoices.map((s) => (
                 <option key={s} value={s}>
@@ -295,7 +293,7 @@ export function InfrastructureSection({
               <button
                 onClick={() => act("buy" + other, "/infrastructure/stations/buy", { station: other }, `Gare de ${other} achetée`).then(() => setOther(""))}
                 disabled={!!busy || full || balance < otherPrice}
-                className="text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 disabled:opacity-40"
+                className="text-[12px] font-body text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 disabled:opacity-40 font-medium rounded-control"
               >
                 Acheter · {fmt(otherPrice)}
               </button>
@@ -313,8 +311,8 @@ export function InfrastructureSection({
         </p>
         <div className="flex flex-wrap gap-3">
           {data.workshops.map((w) => (
-            <div key={w.id} className="border border-line px-4 py-3 min-w-[200px]">
-              <div className="font-mono2 text-[10px] uppercase tracking-[0.16em] text-slate2">Atelier</div>
+            <div key={w.id} className="border border-line px-4 py-3 min-w-[200px] rounded-card bg-navy-900/40">
+              <div className="font-body text-[12px] text-slate2 font-medium">Atelier</div>
               <div className="font-display text-lg leading-tight">{w.station}</div>
               <div className="text-[12px] font-body text-slate2 mt-0.5">
                 {w.lines ? `${w.lines} ligne${w.lines > 1 ? "s" : ""} en profite${w.lines > 1 ? "nt" : ""}` : <span className="text-amber">aucune ligne n'y passe</span>}
@@ -322,16 +320,16 @@ export function InfrastructureSection({
               <button
                 onClick={() => act("close" + w.id, "/infrastructure/workshops/close", { workshopId: w.id }, `Atelier de ${w.station} fermé`)}
                 disabled={!!busy}
-                className="mt-2 text-[10.5px] font-mono2 uppercase text-slate2 hover:text-rail-red"
+                className="mt-2 text-[12px] font-body text-slate2 hover:text-rail-red font-medium"
               >
                 Fermer · +{fmt(rules.workshopCost * rules.sellBack)}
               </button>
             </div>
           ))}
           {data.workshops.length < rules.maxWorkshops && (
-            <div className="border border-dashed border-line px-4 py-3 min-w-[240px] flex flex-col gap-2">
-              <div className="font-mono2 text-[10px] uppercase tracking-[0.16em] text-slate2">Ouvrir un atelier</div>
-              <select value={shopStation} onChange={(e) => setShopStation(e.target.value)} className="bg-navy-950 border border-line text-sm px-2 py-1 font-body">
+            <div className="border border-dashed border-line px-4 py-3 min-w-[240px] flex flex-col gap-2 rounded-card bg-navy-900/40">
+              <div className="font-body text-[12px] text-slate2 font-medium">Ouvrir un atelier</div>
+              <select value={shopStation} onChange={(e) => setShopStation(e.target.value)} className="bg-navy-950 border border-line text-sm px-2 py-1 font-body rounded-control">
                 <option value="">gare de votre réseau…</option>
                 {myStations
                   .filter((s) => !workshopStations.has(s))
@@ -344,7 +342,7 @@ export function InfrastructureSection({
               <button
                 onClick={() => act("ws", "/infrastructure/workshops", { station: shopStation }, `Atelier ouvert à ${shopStation}`).then(() => setShopStation(""))}
                 disabled={!shopStation || !!busy || balance < rules.workshopCost}
-                className="text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 disabled:opacity-40"
+                className="text-[12px] font-body text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 disabled:opacity-40 font-medium rounded-control"
               >
                 Construire · {fmt(rules.workshopCost)} pi.
               </button>
@@ -360,7 +358,7 @@ export function InfrastructureSection({
           Une ligne électrifiée se parcourt {pct(1 - rules.electricSpeed)} plus vite (donc plus de trajets à l'heure) et use {pct(1 - rules.electricWear)} moins le matériel.
           Payé au kilomètre, une fois. Changer les gares de la ligne fait perdre l'électrification.
         </p>
-        <div className="border border-line divide-y divide-line">
+        <div className="border border-line divide-y divide-line rounded-card">
           {data.lines.length === 0 && <p className="px-4 py-4 text-[13px] text-slate2 font-body">Aucune ligne à électrifier pour l'instant.</p>}
           {data.lines.map((l) => (
             <div key={l.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
@@ -375,12 +373,12 @@ export function InfrastructureSection({
               </div>
               <span className="font-mono2 text-[12px] text-slate2 tabular-nums w-20 text-right">{fmt(l.km)} km</span>
               {l.electrified ? (
-                <span className="font-mono2 text-[11px] uppercase text-amber w-40 text-right">ϟ électrifiée</span>
+                <span className="font-body text-[12px] text-amber w-40 text-right font-medium">ϟ électrifiée</span>
               ) : (
                 <button
                   onClick={() => act("el" + l.id, "/infrastructure/electrify", { lineId: l.id }, `${l.route[0]} – ${l.route[l.route.length - 1]} électrifiée`)}
                   disabled={!!busy || balance < l.cost}
-                  className="w-40 text-[11px] font-mono2 uppercase text-amber border border-amber/40 px-2 py-1 hover:bg-amber/10 disabled:opacity-40"
+                  className="w-40 text-[12px] font-body text-amber border border-amber/40 px-2 py-1 hover:bg-amber/10 disabled:opacity-40 font-medium rounded-control"
                 >
                   Électrifier · {fmt(l.cost)}
                 </button>
@@ -399,7 +397,7 @@ export function InfrastructureSection({
             {pct(1 - (rules.doubleDelay ?? 1))} de retards en moins. Et le cadencement attire du monde : chaque rame de plus sur la ligne ramène {pct(rules.cadenceStep ?? 0)} de
             voyageurs en plus, jusqu'à {pct(rules.cadenceCap ?? 0)}. En vue cabine, vous voyez passer vos rames qui roulent en sens inverse.
           </p>
-          <div className="border border-line divide-y divide-line">
+          <div className="border border-line divide-y divide-line rounded-card">
             {data.lines.length === 0 && <p className="px-4 py-4 text-[13px] text-slate2 font-body">Aucune ligne pour l'instant.</p>}
             {data.lines.map((l) => {
               const n = l.trains ?? 0;
@@ -425,12 +423,12 @@ export function InfrastructureSection({
                     {cadence > 0 && <span className={l.doubleTrack ? "text-rail-green" : ""}> · cadencement +{pct(cadence)}</span>}
                   </span>
                   {l.doubleTrack ? (
-                    <span className="font-mono2 text-[11px] uppercase text-offwhite w-40 text-right">‖ double voie</span>
+                    <span className="font-body text-[12px] text-offwhite w-40 text-right font-medium">‖ double voie</span>
                   ) : (
                     <button
                       onClick={() => act("dv" + l.id, "/infrastructure/double", { lineId: l.id }, `${l.route[0]} – ${l.route[l.route.length - 1]} à double voie`)}
                       disabled={!!busy || balance < (l.doubleCost ?? Infinity)}
-                      className="w-40 text-[11px] font-mono2 uppercase text-offwhite border border-offwhite/40 px-2 py-1 hover:bg-offwhite/10 disabled:opacity-40"
+                      className="w-40 text-[12px] font-body text-offwhite border border-offwhite/40 px-2 py-1 hover:bg-offwhite/10 disabled:opacity-40 font-medium rounded-control"
                     >
                       Doubler · {fmt(l.doubleCost ?? 0)}
                     </button>
@@ -452,22 +450,22 @@ export function InfrastructureSection({
           </p>
           <div className="flex flex-wrap gap-3">
             {data.yards.map((y) => (
-              <div key={y.id} className="border border-line px-4 py-3 min-w-[220px]">
+              <div key={y.id} className="border border-line px-4 py-3 min-w-[220px] rounded-card bg-navy-900/40">
                 <YardGlyph />
                 <div className="font-display text-lg leading-tight mt-1">{y.station}</div>
                 <button
                   onClick={() => act("yc" + y.id, "/infrastructure/yards/close", { yardId: y.id }, `Gare de triage de ${y.station} fermée`)}
                   disabled={!!busy}
-                  className="mt-2 text-[10.5px] font-mono2 uppercase text-slate2 hover:text-rail-red"
+                  className="mt-2 text-[12px] font-body text-slate2 hover:text-rail-red font-medium"
                 >
                   Fermer · +{fmt((rules.yardCost ?? 0) * rules.sellBack)}
                 </button>
               </div>
             ))}
             {data.yards.length < (rules.maxYards ?? 0) && (
-              <div className="border border-dashed border-line px-4 py-3 min-w-[260px] flex flex-col gap-2">
-                <div className="font-mono2 text-[10px] uppercase tracking-[0.16em] text-slate2">Ouvrir une gare de triage</div>
-                <select value={yardStation} onChange={(e) => setYardStation(e.target.value)} className="bg-navy-950 border border-line text-sm px-2 py-1 font-body">
+              <div className="border border-dashed border-line px-4 py-3 min-w-[260px] flex flex-col gap-2 rounded-card bg-navy-900/40">
+                <div className="font-body text-[12px] text-slate2 font-medium">Ouvrir une gare de triage</div>
+                <select value={yardStation} onChange={(e) => setYardStation(e.target.value)} className="bg-navy-950 border border-line text-sm px-2 py-1 font-body rounded-control">
                   <option value="">choisir une gare…</option>
                   <optgroup label="Votre réseau">
                     {myStations.filter((s) => !data.yards!.some((y) => y.station === s)).map((s) => (
@@ -486,7 +484,7 @@ export function InfrastructureSection({
                 <button
                   onClick={() => act("yard", "/infrastructure/yards", { station: yardStation }, `Gare de triage ouverte à ${yardStation}`).then(() => setYardStation(""))}
                   disabled={!yardStation || !!busy || balance < (rules.yardCost ?? 0)}
-                  className="text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 disabled:opacity-40"
+                  className="text-[12px] font-body text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 disabled:opacity-40 font-medium rounded-control"
                 >
                   Construire · {fmt(rules.yardCost ?? 0)} pi.
                 </button>
@@ -539,7 +537,7 @@ function HighSpeedPanel({
           {fmt(rules.perKm)} pi. du kilomètre ({fmt(rules.minCost)} au moins) et un chantier d'un jour pour {rules.kmPerDay} km, de {rules.minDays} à {rules.maxDays} jours. La ligne
           continue de rouler pendant les travaux, mais ses gares ne peuvent plus changer. Un seul chantier à la fois.
         </p>
-        <div className="border border-line px-4 py-3">
+        <div className="border border-line px-4 py-3 rounded-card bg-navy-900/40">
           <div className="font-display text-lg leading-tight">La rame TGV</div>
           <p className="text-[12.5px] text-slate2 font-body mt-1">
             {fmt(rules.tgv.cost)} pi., {rules.tgv.seats} places. Sur une LGV ouverte, trajets {pct(1 - rules.tgv.speed)} plus courts, billet +{pct(rules.tgv.fare - 1)}, usure +
@@ -550,7 +548,7 @@ function HighSpeedPanel({
       {!rules.gradeOk && (
         <p className="mb-3 text-[13px] font-body text-amber">Les LGV et la rame TGV s'ouvrent au grade « {rules.minGradeName} ».</p>
       )}
-      <div className="border border-line divide-y divide-line">
+      <div className="border border-line divide-y divide-line rounded-card">
         {lines.length === 0 && <p className="px-4 py-4 text-[13px] text-slate2 font-body">Aucune ligne pour l'instant.</p>}
         {sorted.map((l) => {
           const h = l.hsl;
@@ -569,9 +567,9 @@ function HighSpeedPanel({
                   </div>
                 </div>
                 {h.state === "ouverte" ? (
-                  <span className="font-mono2 text-[11px] uppercase text-cobalt w-52 text-right">» LGV ouverte</span>
+                  <span className="font-body text-[12px] text-cobalt w-52 text-right font-medium">» LGV ouverte</span>
                 ) : h.state === "chantier" ? (
-                  <span className="font-mono2 text-[11px] uppercase text-amber w-52 text-right">Ouverture {when(h.openAt!)}</span>
+                  <span className="font-body text-[12px] text-amber w-52 text-right font-medium">Ouverture {when(h.openAt!)}</span>
                 ) : l.km < rules.minKm ? (
                   <span className="font-body text-[12px] text-slate2 w-52 text-right">trop courte pour une LGV</span>
                 ) : (
@@ -579,14 +577,14 @@ function HighSpeedPanel({
                     onClick={() => act("hsl" + l.id, "/infrastructure/high-speed", { lineId: l.id }, `Chantier de la LGV ${name} lancé`)}
                     disabled={!ready || !!busy || balance < h.cost}
                     title={site ? `Un chantier est déjà en cours (${site.route[0]} – ${site.route[site.route.length - 1]})` : undefined}
-                    className="w-52 text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 disabled:opacity-40"
+                    className="w-52 text-[12px] font-body text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 disabled:opacity-40 font-medium rounded-control"
                   >
                     Lancer le chantier · {fmt(h.cost)}
                   </button>
                 )}
               </div>
               {h.state === "chantier" && (
-                <div className="mt-2 h-[4px] bg-navy-950 border border-line" role="progressbar" aria-valuenow={Math.round(siteProgress(l) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`Chantier de la LGV ${name}`}>
+                <div className="mt-2 h-[4px] bg-navy-950 border border-line rounded-control" role="progressbar" aria-valuenow={Math.round(siteProgress(l) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`Chantier de la LGV ${name}`}>
                   <div className="h-full bg-amber" style={{ width: `${siteProgress(l) * 100}%` }} />
                 </div>
               )}

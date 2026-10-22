@@ -24,18 +24,28 @@
   --c-slate2: 148 163 184;
   --c-rail-red: 239 68 68;
   --c-rail-green: 16 185 129;
-  /* texte posé sur un aplat d'accent : reste clair dans les deux thèmes,
-     sinon « papier » donnerait de l'encre noire sur du vert wagon */
-  --c-onaccent: 248 250 252;
+  /* texte posé sur un aplat d'accent. 2.3 : en Nuit, de l'encre bleu nuit et
+     plus du blanc — le blanc sur cyan plafonnait à 2:1 de contraste. Papier
+     garde un texte clair, sinon ce serait de l'encre noire sur du vert wagon. */
+  --c-onaccent: 6 32 46;
   /* 2.0.3 : couleur de l'équipe dans les notifications */
   --c-violet: 167 139 250;
 
   --font-display: "Bitter", serif;
   --font-body: "Work Sans", sans-serif;
-  --font-mono2: "Space Mono", monospace;
+  /* 2.3 : les chiffres passent de Space Mono à Barlow, la police des panneaux
+     routiers et ferroviaires, en chiffres tabulaires. Space Mono donnait au jeu
+     un air de terminal ; elle reste sur les volets du tableau d'affichage
+     (.split-flap) et dans l'habillage Plan 1935. */
+  --font-mono2: "Barlow", "Work Sans", sans-serif;
+  --font-flap: "Space Mono", monospace;
 
   /* le grain reste discret sur fond sombre, sinon il vire au bruit vidéo */
-  --grain-opacity: 0.05;
+  --grain-opacity: 0.04;
+
+  /* 2.3 : rayons (voir tailwind.config.js) */
+  --r-control: 9px;
+  --r-card: 14px;
 }
 
 /* Thème papier : la direction du site vitrine, portée dans le jeu.
@@ -62,6 +72,10 @@
   --font-mono2: "Barlow Condensed", sans-serif;
 
   --grain-opacity: 0.32;
+
+  /* un bordereau : coins à peine adoucis, comme un papier coupé au massicot */
+  --r-control: 5px;
+  --r-card: 8px;
 }
 
 /* Habillage « Plan 1935 » (boutique) : un plan d'ingénieur. Bleu de Prusse du
@@ -89,6 +103,10 @@
   --font-mono2: "Space Mono", monospace;
 
   --grain-opacity: 0.06;
+
+  /* un calque d'ingénieur reste tiré au tire-ligne */
+  --r-control: 3px;
+  --r-card: 4px;
 }
 
 /* le quadrillage du papier calque, très léger : il doit se deviner, pas se lire */
@@ -123,6 +141,29 @@
 
 html {
   scroll-behavior: smooth;
+}
+
+/* 2.3 : un seul anneau de focus, au clavier seulement, dans la couleur
+   d'accent du thème. Les champs gardent leur bordure d'accent au clic. */
+:where(button, a, summary, [role="tab"], [tabindex]):focus-visible {
+  outline: 2px solid rgb(var(--c-cobalt));
+  outline-offset: 2px;
+}
+:where(input, textarea, select):focus-visible {
+  outline: none;
+  border-color: rgb(var(--c-cobalt));
+  box-shadow: 0 0 0 3px rgb(var(--c-cobalt) / 0.18);
+}
+.font-mono2 {
+  font-variant-numeric: tabular-nums;
+}
+:root[data-theme="sombre"] .font-mono2,
+:root:not([data-theme]) .font-mono2 {
+  font-weight: 500;
+}
+
+::selection {
+  background: rgb(var(--c-cobalt) / 0.3);
 }
 
 /* Grain : c'est lui qui enlève le rendu « généré ». Posé au-dessus de tout,
@@ -406,7 +447,8 @@ tbody tr:nth-child(n+6) { animation-delay: 0.16s; }
 /* 1.7 : les tableaux prennent l'allure d'un tableau des départs — bandeau
    d'en-tête plein, première et dernière colonnes décollées du bord. Sélecteurs
    sans poids (:where) : une classe posée sur une cellule garde toujours le dernier mot. */
-:where(main table thead tr) {
+:where(main table thead tr) > * {
+  /* 2.3 : le fond passe sur les cellules, pour que les bouts puissent s'arrondir */
   background: rgb(var(--c-navy-900) / 0.85);
 }
 :where(main table th:first-child, main table td:first-child) {
@@ -596,3 +638,22 @@ body:has([data-modal]:not([data-nav-sheet])) .app-tabbar {
 @media (prefers-reduced-motion: reduce) {
   .halloween-drift, .halloween-float { animation: none; }
 }
+
+/* 2.3 : les volets gardent leur police à chasse fixe, sinon les chiffres sautent */
+.split-flap {
+  font-family: var(--font-flap, var(--font-mono2));
+  font-weight: 400;
+}
+:root[data-theme="papier"] .split-flap { font-family: var(--font-mono2); }
+
+/* 2.3 : un bloc arrondi dont le premier enfant est teinté (bandeau, en-tête de
+   tableau) ou qui contient directement un tableau rogne ses coins, sinon le
+   fond de l'enfant dépasse de l'arrondi. Les fenêtres font de même. */
+.rounded-card:not([class*="overflow-"]):has(> [class*="bg-"]:first-child),
+.rounded-card:not([class*="overflow-"]):has(> table),
+[data-modal] > .rounded-card:not([class*="overflow-"]) {
+  overflow: clip;
+}
+/* l'en-tête des tableaux devient une bande aux bouts arrondis */
+:where(main table thead tr) > :first-child { border-top-left-radius: var(--r-control); border-bottom-left-radius: var(--r-control); }
+:where(main table thead tr) > :last-child { border-top-right-radius: var(--r-control); border-bottom-right-radius: var(--r-control); }

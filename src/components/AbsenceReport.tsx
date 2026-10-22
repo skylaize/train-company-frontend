@@ -83,13 +83,13 @@ export function AbsenceReport({
   if (report.locked) {
     return (
       <div className="fixed bottom-4 right-4 left-4 md:left-auto md:w-[360px] z-40 bg-navy-900 border border-line border-t-[3px] border-t-cobalt p-4 shadow-xl tutorial-step-enter">
-        <div className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-[0.14em]">Pendant votre absence · {formatAway(hours)}</div>
+        <div className="font-body text-[12px] text-slate2 font-medium">Pendant votre absence · {formatAway(hours)}</div>
         <div className={`font-mono2 text-2xl mt-1 ${net < 0 ? "text-rail-red" : "text-offwhite"}`}>{signed(net)} pi.</div>
         <p className="text-[12px] text-slate2 font-body mt-2">
           Le détail — pannes, chantiers, cours, demandes du personnel — est inclus dans le Premium.
         </p>
         <div className="flex gap-2 mt-3">
-          <button onClick={() => close()} className="px-3 py-1.5 border border-line font-mono2 text-[11px] uppercase tracking-wide text-slate2 hover:text-offwhite">
+          <button onClick={() => close()} className="px-3 py-1.5 border border-line font-body text-[12px] text-slate2 hover:text-offwhite font-medium rounded-control">
             Fermer
           </button>
         </div>
@@ -132,9 +132,9 @@ export function AbsenceReport({
 
   return (
     <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-4">
-      <div className="w-full max-w-lg bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[90vh] overflow-y-auto">
+      <div className="w-full max-w-lg bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[90vh] overflow-y-auto rounded-card">
         <div className="px-5 pt-5 pb-4 border-b border-line">
-          <div className="font-mono2 text-[10.5px] text-slate2 uppercase tracking-[0.14em]">Pendant votre absence · {formatAway(hours)}</div>
+          <div className="font-body text-[12px] text-slate2 font-medium">Pendant votre absence · {formatAway(hours)}</div>
           <div className="flex items-baseline gap-3 mt-1">
             <span className={`font-mono2 text-3xl ${net < 0 ? "text-rail-red" : "text-offwhite"}`}>{signed(net)} pi.</span>
             <span className="text-[12px] text-slate2 font-body">de trésorerie, salaires compris</span>
@@ -143,13 +143,13 @@ export function AbsenceReport({
 
         {todo.length > 0 && (
           <section className="px-5 py-4 border-b border-line bg-amber/5">
-            <h3 className="font-mono2 text-[10.5px] text-amber uppercase tracking-[0.14em] mb-2">À traiter</h3>
+            <h3 className="font-body text-[12px] text-amber mb-2 font-medium">À traiter</h3>
             <ul className="space-y-2">
               {todo.map((t) => (
                 <li key={t.text} className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-[13px] font-body text-offwhite">{t.text}</span>
                   {t.action && (
-                    <button onClick={t.action.go} className="font-mono2 text-[10.5px] uppercase text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10">
+                    <button onClick={t.action.go} className="font-body text-[12px] text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 font-medium rounded-control">
                       {t.action.label}
                     </button>
                   )}
@@ -204,11 +204,11 @@ export function AbsenceReport({
         <div className="px-5 pb-5 flex flex-wrap gap-2 justify-end">
           <button
             onClick={() => close(() => onNavigate("rentabilite"))}
-            className="px-3 py-2 border border-line font-mono2 text-[11px] uppercase tracking-wide text-slate2 hover:text-offwhite"
+            className="px-3 py-2 border border-line font-body text-[12px] text-slate2 hover:text-offwhite font-medium rounded-control"
           >
             Rentabilité détaillée
           </button>
-          <button onClick={() => close()} className="px-4 py-2 bg-cobalt text-onaccent font-mono2 text-[11px] uppercase tracking-wide">
+          <button onClick={() => close()} className="px-4 py-2 bg-cobalt text-onaccent font-body text-[12px] font-medium rounded-control">
             Reprendre
           </button>
         </div>

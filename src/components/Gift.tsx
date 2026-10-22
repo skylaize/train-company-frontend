@@ -46,7 +46,7 @@ export function GiftDialog({
 
   return createPortal(
     <div data-modal className="fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4" onClick={onClose}>
-      <form onSubmit={send} className="w-full max-w-md bg-navy-900 border border-line" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Offrir ${itemName}`}>
+      <form onSubmit={send} className="w-full max-w-md bg-navy-900 border border-line rounded-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Offrir ${itemName}`}>
         <div className="px-5 pt-4 pb-3 border-b border-line flex items-start justify-between gap-3">
           <div>
             <h3 className="font-display text-[21px] leading-tight">Offrir {itemName}</h3>
@@ -64,14 +64,14 @@ export function GiftDialog({
             value={to}
             onChange={(e) => setTo(e.target.value)}
             placeholder="Compagnie Rhône-Méditerranée"
-            className="w-full bg-navy-950 border border-line px-3 py-2.5 text-[15px] font-body focus:outline-none focus:border-cobalt"
+            className="w-full bg-navy-950 border border-line px-3 py-2.5 text-[15px] font-body focus:outline-none focus:border-cobalt rounded-control"
           />
         </div>
         <div className="px-5 pb-5 flex gap-2">
-          <button type="button" onClick={onClose} className="flex-1 border border-line text-slate2 px-3 py-2.5 text-[14px] font-body">
+          <button type="button" onClick={onClose} className="flex-1 border border-line text-slate2 px-3 py-2.5 text-[14px] font-body rounded-control">
             Annuler
           </button>
-          <button type="submit" disabled={busy || !to.trim()} className="flex-1 bg-amber text-onaccent px-3 py-2.5 text-[14px] font-body font-semibold disabled:opacity-50">
+          <button type="submit" disabled={busy || !to.trim()} className="flex-1 bg-amber text-onaccent px-3 py-2.5 text-[14px] font-body font-semibold disabled:opacity-50 rounded-control">
             {busy ? "Ouverture…" : `Offrir, ${priceLabel}`}
           </button>
         </div>

@@ -165,7 +165,7 @@ function Hero({ item, companyName, liveryColor }: { item: RevealItem; companyNam
   }
   if (item.titles?.length) {
     return (
-      <span className="bg-[#0b2a4a] border-2 border-[#e8edf5]/80 px-5 py-3 font-display text-[28px] leading-tight text-[#f4d06f] text-center max-w-[80vw]">
+      <span className="bg-[#0b2a4a] border-2 border-[#e8edf5]/80 px-5 py-3 font-display text-[28px] leading-tight text-[#f4d06f] text-center max-w-[80vw] rounded-control">
         {item.titles[0]}
       </span>
     );
@@ -281,7 +281,7 @@ function PremiumScene({ giftFrom, companyName }: { giftFrom: string | null; comp
             <span className="pr-hole w-3.5 h-3.5 rounded-full bg-navy-950" style={{ animationDelay: "1480ms" }} />
             <span className="font-mono2 text-[11px] text-[#6b6255] ml-1">Réseau · voiture 1</span>
             {/* le compostage */}
-            <div className="pr-stamp absolute right-0 top-2 border-2 border-[#9b2d2d] text-[#9b2d2d] px-2 py-0.5 font-mono2 text-[11px] leading-tight text-center rotate-[-8deg] bg-[#f3ecd9]/60">
+            <div className="pr-stamp absolute right-0 top-2 border-2 border-[#9b2d2d] text-[#9b2d2d] px-2 py-0.5 font-mono2 text-[11px] leading-tight text-center rotate-[-8deg] bg-[#f3ecd9]/60 rounded-card">
               COMPOSTÉ
               <br />
               {date}
@@ -412,7 +412,7 @@ export function PurchaseReveal({
                 void doWear();
               }}
               disabled={busy}
-              className="bg-amber text-onaccent px-5 py-3 text-[15px] font-semibold font-body hover:brightness-110 disabled:opacity-50"
+              className="bg-amber text-onaccent px-5 py-3 text-[15px] font-semibold font-body hover:brightness-110 disabled:opacity-50 rounded-control"
             >
               {busy ? "Un instant…" : wear.label}
             </button>
@@ -423,7 +423,7 @@ export function PurchaseReveal({
               e.stopPropagation();
               onDone(current);
             }}
-            className={`px-5 py-3 text-[15px] font-semibold font-body ${wear ? "border border-white/40 text-offwhite hover:bg-white/10" : "bg-amber text-onaccent hover:brightness-110"}`}
+            className={`px-5 py-3 text-[15px] font-semibold font-body rounded-control ${wear ? "border border-white/40 text-offwhite hover:bg-white/10" : "bg-amber text-onaccent hover:brightness-110"}`}
           >
             {left > 0 ? `Suivant (${left} autre${left > 1 ? "s" : ""})` : premium ? "Monter à bord" : "Continuer"}
           </button>

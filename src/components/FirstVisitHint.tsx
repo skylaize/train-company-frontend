@@ -43,12 +43,10 @@ export function FirstVisitHint({ id, title, body, points, seen, onSeen, tag = "N
   }
 
   return (
-    <div className="relative border border-cobalt/40 bg-cobalt/5 p-4 mb-6">
-      <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-cobalt" />
-
+    <div className="relative border border-cobalt/40 bg-cobalt/5 p-4 mb-6 rounded-card">
       <div className="flex items-start gap-3 flex-wrap">
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-mono2 uppercase tracking-[0.2em] text-cobalt mb-1.5">
+          <div className="text-[12px] font-body text-cobalt mb-1.5 font-medium">
             {tag}
           </div>
           <h3 className="font-display text-lg leading-tight mb-1.5">{title}</h3>
@@ -70,7 +68,7 @@ export function FirstVisitHint({ id, title, body, points, seen, onSeen, tag = "N
           {action?.onClick && (
             <button
               onClick={action.onClick}
-              className="text-[11px] font-mono2 uppercase tracking-[0.14em] bg-cobalt text-onaccent px-3 py-1.5 hover:bg-cobalt/90 transition-colors"
+              className="text-[12px] font-body bg-cobalt text-onaccent px-3 py-1.5 hover:bg-cobalt/90 transition-colors font-medium rounded-control"
             >
               {action.label}
             </button>
@@ -80,14 +78,14 @@ export function FirstVisitHint({ id, title, body, points, seen, onSeen, tag = "N
               href={action.href}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[11px] font-mono2 uppercase tracking-[0.14em] bg-cobalt text-onaccent px-3 py-1.5 hover:bg-cobalt/90 transition-colors"
+              className="text-[12px] font-body bg-cobalt text-onaccent px-3 py-1.5 hover:bg-cobalt/90 transition-colors font-medium rounded-control"
             >
               {action.label}
             </a>
           )}
           <button
             onClick={dismiss}
-            className="text-[11px] font-mono2 uppercase tracking-[0.14em] text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors"
+            className="text-[12px] font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors font-medium rounded-control"
           >
             {action ? "Fermer" : "Compris"}
           </button>

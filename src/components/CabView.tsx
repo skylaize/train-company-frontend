@@ -160,7 +160,7 @@ export function CabView({
      ce qui décalerait une fenêtre « fixed » placée à l'intérieur. */
   return createPortal(
     <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/85 px-4" role="dialog" aria-label={`Vue cabine de ${train.name}`}>
-      <div className="w-full max-w-5xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[94vh] overflow-y-auto">
+      <div className="w-full max-w-5xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[94vh] overflow-y-auto rounded-card">
         <div className="px-5 py-3 border-b border-line flex flex-wrap items-center gap-x-4 gap-y-1">
           <span className="font-mono2 text-[10.5px] uppercase tracking-[0.16em] text-cobalt">Vue cabine</span>
           <span className="font-display text-lg leading-tight">{train.name}</span>
@@ -169,7 +169,7 @@ export function CabView({
           </span>
           <button
             onClick={onClose}
-            className="ml-auto font-mono2 text-[11px] uppercase border border-line px-2.5 py-1 text-slate2 hover:text-offwhite"
+            className="ml-auto font-mono2 text-[11px] uppercase border border-line px-2.5 py-1 text-slate2 hover:text-offwhite rounded-control"
           >
             Fermer
           </button>
@@ -177,14 +177,14 @@ export function CabView({
 
         <div className="relative bg-black">
           <canvas ref={canvasRef} className="block w-full aspect-[16/7] max-md:aspect-[4/3]" aria-label="La rame en route, de profil" />
-          <span className="absolute top-3 left-3 font-mono2 text-[10.5px] uppercase tracking-[0.14em] bg-navy-950/75 border border-line px-2 py-1 text-offwhite">
+          <span className="absolute top-3 left-3 font-mono2 text-[10.5px] uppercase tracking-[0.14em] bg-navy-950/75 border border-line px-2 py-1 text-offwhite rounded-control">
             <span className="text-rail-red">●</span> En direct · {hud.phase}
           </span>
           {/* 2.0 : la météo du réseau n'est plus sur le tableau de bord, elle se vit ici */}
           {hud.wx && (() => {
             const w = WEATHER_INFO[hud.wx.kind] ?? WEATHER_INFO.clair;
             return (
-              <span className="absolute top-3 right-3 max-w-[62%] text-right bg-navy-950/75 border border-line px-2.5 py-1.5 font-body">
+              <span className="absolute top-3 right-3 max-w-[62%] text-right bg-navy-950/75 border border-line px-2.5 py-1.5 font-body rounded-control">
                 <span className={`block text-[13px] font-semibold ${w.tone}`}>
                   {w.label} à {hud.wx.place}
                   {hud.wx.temp !== null && <span className="text-offwhite font-normal"> · {hud.wx.temp} °C</span>}
@@ -200,7 +200,7 @@ export function CabView({
 
           {locked && (
             <div className="absolute inset-0 backdrop-blur-sm bg-navy-950/60 flex items-center justify-center p-4">
-              <div className="bg-navy-900 border border-line border-t-[3px] border-t-amber max-w-sm p-5">
+              <div className="bg-navy-900 border border-line border-t-[3px] border-t-amber max-w-sm p-5 rounded-card">
                 <h3 className="font-display text-xl mb-1">La suite est en Premium</h3>
                 <p className="text-[13px] text-slate2 font-body mb-4">
                   Suivez chacune de vos rames en direct, du départ à l'arrêt en gare, avec la météo du réseau et votre
@@ -218,7 +218,7 @@ export function CabView({
             {hud.marks.map((m) => (
               <div
                 key={m.name}
-                className={`absolute top-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 border-2 ${m.pct <= hud.pct ? "bg-cobalt border-cobalt" : "bg-navy-900 border-slate2"}`}
+                className={`absolute top-1/2 w-2 h-2 -translate-x-1/2 -translate-y-1/2 border-2 rounded-control ${m.pct <= hud.pct ? "bg-cobalt border-cobalt" : "bg-navy-900 border-slate2"}`}
                 style={{ left: `${m.pct}%` }}
                 title={m.name}
               />

@@ -182,14 +182,14 @@ export function ThemeTrialBanner({ trial, onEnd }: { trial: ThemeTrial; onEnd: (
   }
   return (
     <div className="fixed bottom-0 inset-x-0 z-50 bg-navy-900 border-t-[3px] border-amber px-4 py-2.5 flex flex-wrap items-center gap-3 shadow-[0_-8px_20px_rgba(0,0,0,0.35)]" style={{ paddingBottom: "calc(0.625rem + env(safe-area-inset-bottom, 0px))" }}>
-      <span className="font-mono2 text-[10.5px] uppercase tracking-[0.14em] text-amber">Aperçu de l'habillage</span>
+      <span className="font-body text-[12px] text-amber font-medium">Aperçu de l'habillage</span>
       <span className="font-body text-sm flex-1 min-w-[160px]">{THEMES.find((t) => t.id === trial.theme)?.label ?? trial.theme} : parcourez la console pour le voir partout.</span>
       {!trial.owned && (
-        <button onClick={buy} disabled={busy} className="px-3 py-1.5 bg-amber text-onaccent font-mono2 text-[11px] uppercase disabled:opacity-50">
+        <button onClick={buy} disabled={busy} className="px-3 py-1.5 bg-amber text-onaccent font-body text-[12px] disabled:opacity-50 font-medium rounded-control">
           Acheter · {euros(trial.priceCents)}
         </button>
       )}
-      <button onClick={onEnd} className="px-3 py-1.5 border border-line text-offwhite font-mono2 text-[11px] uppercase">
+      <button onClick={onEnd} className="px-3 py-1.5 border border-line text-offwhite font-body text-[12px] font-medium rounded-control">
         Revenir à mon habillage
       </button>
     </div>
@@ -434,11 +434,11 @@ export function ShopSection({
 
           {data.unlocked.emblems.length > 0 && (
             <div className="mb-6">
-              <h3 className="font-mono2 text-[11px] text-slate2 uppercase tracking-[0.14em] mb-2">Emblème</h3>
+              <h3 className="font-body text-[12px] text-slate2 mb-2 font-medium">Emblème</h3>
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => equip({ emblem: null }, "Emblème retiré")}
-                  className={`px-3 py-2 border font-mono2 text-[11px] uppercase ${
+                  className={`px-3 py-2 border font-body text-[12px] font-medium rounded-control ${
                     data.equipped.emblem === null ? "border-cobalt text-cobalt" : "border-line text-slate2"
                   }`}
                 >
@@ -449,7 +449,7 @@ export function ShopSection({
                     key={e}
                     onClick={() => equip({ emblem: e }, `${EMBLEM_LABELS[e] ?? e} porté`)}
                     title={EMBLEM_LABELS[e] ?? e}
-                    className={`px-3 py-2 border flex items-center gap-2 font-body text-[12.5px] ${
+                    className={`px-3 py-2 border flex items-center gap-2 font-body text-[12.5px] rounded-control ${
                       data.equipped.emblem === e ? "border-cobalt text-cobalt" : "border-line hover:border-slate2"
                     }`}
                   >
@@ -463,11 +463,11 @@ export function ShopSection({
 
           {data.unlocked.titles.length > 0 && (
             <div className="mb-6">
-              <h3 className="font-mono2 text-[11px] text-slate2 uppercase tracking-[0.14em] mb-2">Titre au classement</h3>
+              <h3 className="font-body text-[12px] text-slate2 mb-2 font-medium">Titre au classement</h3>
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => equip({ title: null }, "Titre retiré")}
-                  className={`px-3 py-2 border font-mono2 text-[11px] uppercase ${
+                  className={`px-3 py-2 border font-body text-[12px] font-medium rounded-control ${
                     data.equipped.title === null ? "border-cobalt text-cobalt" : "border-line text-slate2"
                   }`}
                 >
@@ -477,7 +477,7 @@ export function ShopSection({
                   <button
                     key={t}
                     onClick={() => equip({ title: t }, `Titre « ${t} » affiché`)}
-                    className={`px-3 py-2 border font-body text-[12.5px] ${
+                    className={`px-3 py-2 border font-body text-[12.5px] rounded-control ${
                       data.equipped.title === t ? "border-cobalt text-cobalt" : "border-line hover:border-slate2"
                     }`}
                   >
@@ -490,11 +490,11 @@ export function ShopSection({
 
           {(data.unlocked.cabSkins?.length ?? 0) > 0 && (
             <div className="mb-6">
-              <h3 className="font-mono2 text-[11px] text-slate2 uppercase tracking-[0.14em] mb-2">Matériel en vue cabine</h3>
+              <h3 className="font-body text-[12px] text-slate2 mb-2 font-medium">Matériel en vue cabine</h3>
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => equip({ cabSkin: null }, "Vos rames reprennent leur allure")}
-                  className={`px-3 py-2 border font-mono2 text-[11px] uppercase ${
+                  className={`px-3 py-2 border font-body text-[12px] font-medium rounded-control ${
                     !data.equipped.cabSkin ? "border-cobalt text-cobalt" : "border-line text-slate2"
                   }`}
                 >
@@ -504,7 +504,7 @@ export function ShopSection({
                   <button
                     key={c}
                     onClick={() => equip({ cabSkin: c }, `${CAB_SKIN_LABELS[c] ?? c} en vue cabine`)}
-                    className={`px-3 py-1.5 border flex items-center gap-2 font-body text-[12.5px] ${
+                    className={`px-3 py-1.5 border flex items-center gap-2 font-body text-[12.5px] rounded-control ${
                       data.equipped.cabSkin === c ? "border-cobalt text-cobalt" : "border-line hover:border-slate2"
                     }`}
                   >
@@ -518,11 +518,11 @@ export function ShopSection({
 
           {(data.unlocked.plates?.length ?? 0) > 0 && (
             <div className="mb-6">
-              <h3 className="font-mono2 text-[11px] text-slate2 uppercase tracking-[0.14em] mb-2">Plaque au classement</h3>
+              <h3 className="font-body text-[12px] text-slate2 mb-2 font-medium">Plaque au classement</h3>
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => equip({ plate: null }, "Plaque retirée")}
-                  className={`px-3 py-2 border font-mono2 text-[11px] uppercase ${!data.equipped.plate ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}
+                  className={`px-3 py-2 border font-body text-[12px] font-medium rounded-control ${!data.equipped.plate ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}
                 >
                   Aucune
                 </button>
@@ -530,7 +530,7 @@ export function ShopSection({
                   <button
                     key={p}
                     onClick={() => equip({ plate: p }, `Plaque ${PLATE_LABELS[p]?.toLowerCase() ?? p} posée`)}
-                    className={`px-2.5 py-1.5 border ${data.equipped.plate === p ? "border-cobalt" : "border-line hover:border-slate2"}`}
+                    className={`px-2.5 py-1.5 border rounded-control ${data.equipped.plate === p ? "border-cobalt" : "border-line hover:border-slate2"}`}
                   >
                     <Plate plate={p}>
                       <span className="font-body text-[12.5px]">{me.name}</span>
@@ -578,10 +578,10 @@ export function ShopSection({
           )}
           {(data.unlocked.trainPlates?.length ?? 0) > 0 && (
             <div className="mb-6">
-              <h3 className="font-mono2 text-[11px] text-slate2 uppercase tracking-[0.14em] mb-2">Plaques de rame</h3>
+              <h3 className="font-body text-[12px] text-slate2 mb-2 font-medium">Plaques de rame</h3>
               <div className="flex flex-wrap items-center gap-2">
                 {data.unlocked.trainPlates!.map((p) => (
-                  <button key={p} onClick={() => special({ type: "plates", style: p })} className="px-2 py-1.5 border border-line hover:border-slate2" title="Poser sur toutes mes rames">
+                  <button key={p} onClick={() => special({ type: "plates", style: p })} className="px-2 py-1.5 border border-line hover:border-slate2 rounded-control" title="Poser sur toutes mes rames">
                     <NamePlate style={p} className="text-[11px]">
                       {PLATE_STYLE_LABELS[p]}
                     </NamePlate>
@@ -594,12 +594,12 @@ export function ShopSection({
           {((data.unlocked.posters?.length ?? 0) > 0 || data.unlocked.museum) && (
             <div className="mb-6 flex flex-wrap gap-2">
               {(data.unlocked.posters?.length ?? 0) > 0 && (
-                <button onClick={() => setSelectedId("affiche-reseau")} className="px-3 py-2 border border-line hover:border-slate2 font-body text-[13px]">
+                <button onClick={() => setSelectedId("affiche-reseau")} className="px-3 py-2 border border-line hover:border-slate2 font-body text-[13px] rounded-control">
                   Télécharger mon affiche ({data.unlocked.posters!.map((p) => POSTER_LABELS[p as keyof typeof POSTER_LABELS] ?? p).join(", ")})
                 </button>
               )}
               {data.unlocked.museum && onOpenMuseum && (
-                <button onClick={onOpenMuseum} className="px-3 py-2 border border-line hover:border-slate2 font-body text-[13px]">
+                <button onClick={onOpenMuseum} className="px-3 py-2 border border-line hover:border-slate2 font-body text-[13px] rounded-control">
                   Ouvrir mon musée
                 </button>
               )}
@@ -608,14 +608,14 @@ export function ShopSection({
 
           {data.unlocked.liveries.length > 0 && (
             <div className="mb-6">
-              <h3 className="font-mono2 text-[11px] text-slate2 uppercase tracking-[0.14em] mb-2">Livrées débloquées</h3>
+              <h3 className="font-body text-[12px] text-slate2 mb-2 font-medium">Livrées débloquées</h3>
               <div className="flex flex-wrap gap-2">
                 {data.unlocked.liveries.map((c) => (
                   <button
                     key={c}
                     onClick={() => equip({ liveryColor: c }, "Livrée appliquée")}
                     title={c}
-                    className={`w-9 h-9 border-2 ${
+                    className={`w-9 h-9 border-2 rounded-control ${
                       data.equipped.livery.toLowerCase() === c ? "border-offwhite" : "border-line hover:border-slate2"
                     }`}
                     style={{ background: c }}
@@ -637,7 +637,7 @@ function ExtensionCard({ item, focused, enabled, busy, onBuy }: { item: ShopItem
   const mountain = item.id === "dlc-montagne";
   const price = (item.priceCents / 100).toFixed(2).replace(".", ",");
   return (
-    <article className={`border ${focused ? "border-amber" : "border-line"} bg-navy-900/60 flex flex-col`} id={`ext-${item.id}`}>
+    <article className={`border rounded-card ${focused ? "border-amber" : "border-line"} bg-navy-900/60 flex flex-col`} id={`ext-${item.id}`}>
       <div className="relative h-[150px] overflow-hidden border-b border-line" aria-hidden="true">
         {mountain ? <MountainArt /> : <LegendArt />}
         <div className="absolute inset-x-0 bottom-0">
@@ -677,7 +677,7 @@ function ExtensionCard({ item, focused, enabled, busy, onBuy }: { item: ShopItem
               <button
                 onClick={onBuy}
                 disabled={!enabled || busy}
-                className="text-[14.5px] font-semibold font-body bg-amber text-onaccent px-4 py-2.5 hover:brightness-110 disabled:opacity-50"
+                className="text-[14.5px] font-semibold font-body bg-amber text-onaccent px-4 py-2.5 hover:brightness-110 disabled:opacity-50 rounded-control"
               >
                 Ajouter l'extension, {price} €
               </button>
@@ -769,7 +769,7 @@ function FeaturedCard({ item, enabled, busy, onBuy, onPreview, badge = "À la un
   const hasTrain = (item.liveries?.length ?? 0) > 0 || (item.cabSkins?.length ?? 0) > 0;
   const theme = item.theme ? THEMES.find((t) => t.id === item.theme) : null;
   return (
-    <article className="border border-line bg-navy-900/60 flex flex-col overflow-hidden">
+    <article className="border border-line bg-navy-900/60 flex flex-col overflow-hidden rounded-card">
       <button onClick={onPreview} className="relative h-[190px] overflow-hidden text-left group" aria-label={`Voir ${item.name} en vitrine`}>
         <div className="absolute inset-0" style={{ background: `radial-gradient(ellipse at 70% 110%, ${tint}99, transparent 65%), linear-gradient(180deg, #0f1726, #0b0f19)` }} />
         {/* 2.1 : l'atelier de prestige */}
@@ -801,7 +801,7 @@ function FeaturedCard({ item, enabled, busy, onBuy, onPreview, badge = "À la un
         {!hasTrain && !item.emblems && item.titles && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
             {item.titles.slice(0, 3).map((t) => (
-              <span key={t} className="bg-[#0b2a4a] border-2 border-[#e8edf5] px-3 py-1 font-mono2 text-[12px] uppercase tracking-wide text-[#f4d06f]">{t}</span>
+              <span key={t} className="bg-[#0b2a4a] border-2 border-[#e8edf5] px-3 py-1 font-body text-[12px] text-[#f4d06f] font-medium rounded-control">{t}</span>
             ))}
           </div>
         )}
@@ -840,12 +840,12 @@ function FeaturedCard({ item, enabled, busy, onBuy, onPreview, badge = "À la un
         </div>
         <p className="text-[13.5px] text-slate2 font-body line-clamp-2">{item.description}</p>
         <div className="mt-auto pt-2 flex flex-wrap items-center gap-3">
-          <button onClick={onPreview} className="text-[14px] font-body text-cobalt border border-cobalt/40 px-3 py-2 hover:bg-cobalt/10">
+          <button onClick={onPreview} className="text-[14px] font-body text-cobalt border border-cobalt/40 px-3 py-2 hover:bg-cobalt/10 rounded-control">
             {item.owned ? "Porter" : "Essayer en vitrine"}
           </button>
           {!item.owned && enabled && <GiftButton itemName={item.name} priceLabel={price} itemId={item.id} />}
           {!item.owned && (
-            <button onClick={onBuy} disabled={!enabled || busy} className="ml-auto bg-amber text-onaccent px-4 py-2 text-[14.5px] font-semibold font-body hover:brightness-110 disabled:opacity-50">
+            <button onClick={onBuy} disabled={!enabled || busy} className="ml-auto bg-amber text-onaccent px-4 py-2 text-[14.5px] font-semibold font-body hover:brightness-110 disabled:opacity-50 rounded-control">
               {!enabled ? "Bientôt" : busy ? "Ouverture…" : `Acheter, ${price}`}
             </button>
           )}
@@ -884,13 +884,13 @@ function PreviewModal({ title, onClose, children }: { title: string; onClose: ()
 function WearRow({ title, none, current, list, labels, onPick, render }: { title: string; none: string; current: string | null; list: string[]; labels: Record<string, string>; onPick: (v: string | null) => void; render?: (v: string) => React.ReactNode }) {
   return (
     <div className="mb-6">
-      <h3 className="font-mono2 text-[11px] text-slate2 uppercase tracking-[0.14em] mb-2">{title}</h3>
+      <h3 className="font-body text-[12px] text-slate2 mb-2 font-medium">{title}</h3>
       <div className="flex flex-wrap gap-2">
-        <button onClick={() => onPick(null)} className={`px-3 py-2 border font-mono2 text-[11px] uppercase ${!current ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}>
+        <button onClick={() => onPick(null)} className={`px-3 py-2 border font-body text-[12px] font-medium rounded-control ${!current ? "border-cobalt text-cobalt" : "border-line text-slate2"}`}>
           {none}
         </button>
         {list.map((v) => (
-          <button key={v} onClick={() => onPick(v)} className={`px-3 py-1.5 border flex items-center gap-2 font-body text-[12.5px] ${current === v ? "border-cobalt text-cobalt" : "border-line hover:border-slate2"}`}>
+          <button key={v} onClick={() => onPick(v)} className={`px-3 py-1.5 border flex items-center gap-2 font-body text-[12.5px] rounded-control ${current === v ? "border-cobalt text-cobalt" : "border-line hover:border-slate2"}`}>
             {render?.(v)}
             {labels[v] ?? v}
           </button>

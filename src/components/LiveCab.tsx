@@ -66,7 +66,7 @@ export function LiveCab({
 
   return (
     <section
-      className="relative border border-line bg-black mb-6 overflow-hidden"
+      className="relative border border-line bg-black mb-6 overflow-hidden rounded-card"
       aria-label="En direct depuis vos rames"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
@@ -105,11 +105,11 @@ export function LiveCab({
                     <div className="ml-auto flex items-center gap-1.5">
                       {running.length > 1 && (
                         <>
-                          <button onClick={() => setIndex((i) => i - 1)} className="w-7 h-7 border border-line bg-navy-950/70 text-offwhite hover:border-slate2" aria-label="Rame précédente">‹</button>
-                          <button onClick={() => setIndex((i) => i + 1)} className="w-7 h-7 border border-line bg-navy-950/70 text-offwhite hover:border-slate2" aria-label="Rame suivante">›</button>
+                          <button onClick={() => setIndex((i) => i - 1)} className="w-7 h-7 border border-line bg-navy-950/70 text-offwhite hover:border-slate2 rounded-control" aria-label="Rame précédente">‹</button>
+                          <button onClick={() => setIndex((i) => i + 1)} className="w-7 h-7 border border-line bg-navy-950/70 text-offwhite hover:border-slate2 rounded-control" aria-label="Rame suivante">›</button>
                         </>
                       )}
-                      <button onClick={() => onOpen(train.id)} className="h-7 px-2.5 border border-cobalt/60 bg-navy-950/70 text-cobalt text-[10.5px] uppercase tracking-wide hover:bg-cobalt/10">
+                      <button onClick={() => onOpen(train.id)} className="h-7 px-2.5 border border-cobalt/60 bg-navy-950/70 text-cobalt text-[10.5px] uppercase tracking-wide hover:bg-cobalt/10 rounded-control">
                         Agrandir
                       </button>
                     </div>
@@ -123,7 +123,7 @@ export function LiveCab({
 
             {!isPremium && (
               <div className="absolute inset-0 flex items-center justify-center p-4">
-                <div className="bg-navy-900/95 border border-line border-t-[3px] border-t-amber max-w-md p-4 flex flex-col gap-3">
+                <div className="bg-navy-900/95 border border-line border-t-[3px] border-t-amber max-w-md p-4 flex flex-col gap-3 rounded-card">
                   <div>
                     <div className="font-mono2 text-[10px] uppercase tracking-[0.18em] text-amber mb-1">Premium</div>
                     <h3 className="font-display text-lg leading-tight">Vos rames en direct, depuis la cabine</h3>

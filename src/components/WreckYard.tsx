@@ -81,7 +81,7 @@ export async function loadWrecks(): Promise<WreckData | null> {
 function RarityTag({ rarity, label }: { rarity: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-[12px] font-body" style={{ color: RARITY_COLOR[rarity] }}>
-      <span className="w-2 h-2 rotate-45" style={{ background: RARITY_COLOR[rarity] }} />
+      <span className="w-2 h-2 rounded-full" style={{ background: RARITY_COLOR[rarity] }} />
       {label}
     </span>
   );
@@ -149,7 +149,7 @@ export function WreckYard({ balance, onChange, onCommissioned }: { balance: numb
         const working = w.organs.find((o) => o.working);
         const rust = 1 - (done / 4) * 0.92;
         return (
-          <article key={w.id} className="border border-line bg-navy-900/60 mb-4" style={w.rarity === "LEGENDAIRE" ? { borderColor: "rgba(224,180,74,0.55)" } : undefined}>
+          <article key={w.id} className="border border-line bg-navy-900/60 mb-4 rounded-card" style={w.rarity === "LEGENDAIRE" ? { borderColor: "rgba(224,180,74,0.55)" } : undefined}>
             <div className="grid md:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
               <div className="p-4 md:border-r border-line">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -157,7 +157,7 @@ export function WreckYard({ balance, onChange, onCommissioned }: { balance: numb
                   <span className="font-mono2 text-[12px] text-slate2">{w.serial}</span>
                 </div>
                 <h3 className="font-display text-[21px] leading-tight mt-1">{w.label}</h3>
-                <div className="mt-3 bg-navy-950/60 border border-line px-2 pt-3">
+                <div className="mt-3 bg-navy-950/60 border border-line px-2 pt-3 rounded-card">
                   <TrainPicture model={w.model} skin={w.skin} livery={w.livery} rust={rust} seed={seedOf(w.id)} height={78} track fit label={`${w.label}, restaurée à ${w.progress} %`} />
                 </div>
                 <p className="text-[13px] text-slate2 font-body mt-3 italic">{w.history}</p>
@@ -184,7 +184,7 @@ export function WreckYard({ balance, onChange, onCommissioned }: { balance: numb
                       value={names[w.id] ?? defaultName(w)}
                       onChange={(e) => setNames((n) => ({ ...n, [w.id]: e.target.value }))}
                       maxLength={40}
-                      className="mt-1 bg-navy-950 border border-line px-3 py-2 text-[15px] font-body focus:border-amber outline-none"
+                      className="mt-1 bg-navy-950 border border-line px-3 py-2 text-[15px] font-body focus:border-amber outline-none rounded-control"
                     />
                     <button
                       disabled={busy !== null}
@@ -194,7 +194,7 @@ export function WreckYard({ balance, onChange, onCommissioned }: { balance: numb
                           onCommissioned(r);
                         })
                       }
-                      className="mt-3 bg-amber text-onaccent px-4 py-2.5 text-[15px] font-semibold font-body hover:brightness-110 disabled:opacity-50"
+                      className="mt-3 bg-amber text-onaccent px-4 py-2.5 text-[15px] font-semibold font-body hover:brightness-110 disabled:opacity-50 rounded-control"
                     >
                       {busy === `c:${w.id}` ? "Un instant…" : "Remettre en service"}
                     </button>
@@ -229,7 +229,7 @@ export function WreckYard({ balance, onChange, onCommissioned }: { balance: numb
                               onClick={() =>
                                 act(`r:${w.id}:${o.organ}`, () => api.post(`/wrecks/${w.id}/restore`, { organ: o.organ }), `${o.label} : chantier lancé`)
                               }
-                              className="shrink-0 border border-amber/60 text-amber px-3 py-1.5 text-[13px] font-body hover:bg-amber/10 disabled:opacity-40 disabled:hover:bg-transparent"
+                              className="shrink-0 border border-amber/60 text-amber px-3 py-1.5 text-[13px] font-body hover:bg-amber/10 disabled:opacity-40 disabled:hover:bg-transparent rounded-control"
                             >
                               {busy === `r:${w.id}:${o.organ}` ? "…" : o.cost ? `Restaurer · ${fmt(o.cost)} pi.` : "Restaurer"}
                             </button>
@@ -257,7 +257,7 @@ export function WreckYard({ balance, onChange, onCommissioned }: { balance: numb
             const left = minutesLeft(w.expiresAt);
             const reason = atLimit ? `Deux restaurations à la fois au plus` : depotFull ? "Dépôt plein : l'épave y prend une place" : w.price > balance ? "Trésorerie insuffisante" : null;
             return (
-              <article key={w.id} className="border bg-navy-900/50 flex flex-col" style={{ borderColor: w.rarity === "LEGENDAIRE" ? "rgba(224,180,74,0.6)" : "rgb(var(--c-line))" }}>
+              <article key={w.id} className="border bg-navy-900/50 flex flex-col rounded-card" style={{ borderColor: w.rarity === "LEGENDAIRE" ? "rgba(224,180,74,0.6)" : "rgb(var(--c-line))" }}>
                 <div className="px-3 pt-3 bg-navy-950/50 border-b border-line">
                   <TrainPicture model={w.model} skin={w.skin} livery={w.livery} rust={1} seed={seedOf(w.id)} height={56} track fit label={`Épave : ${w.label}`} />
                 </div>
@@ -276,7 +276,7 @@ export function WreckYard({ balance, onChange, onCommissioned }: { balance: numb
                     disabled={busy !== null || Boolean(reason)}
                     title={reason ?? undefined}
                     onClick={() => act(`b:${w.id}`, () => api.post(`/wrecks/${w.id}/buy`), `${w.label} rachetée`)}
-                    className="mt-3 bg-amber text-onaccent px-3 py-2 text-[14px] font-semibold font-body hover:brightness-110 disabled:opacity-40"
+                    className="mt-3 bg-amber text-onaccent px-3 py-2 text-[14px] font-semibold font-body hover:brightness-110 disabled:opacity-40 rounded-control"
                   >
                     {busy === `b:${w.id}` ? "Un instant…" : `Racheter · ${fmt(w.price)} pi.`}
                   </button>

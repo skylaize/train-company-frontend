@@ -1,18 +1,18 @@
-import { useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
-import { STATION_COORDS } from "../geo";
-import { COUNTRIES } from "./europeMap";
-
-// contour de la France, même tracé que la carte du réseau
-const FRANCE_D = COUNTRIES.find((c) => c.id === "France")?.d ?? "";
+import { AllianceMap, MapMember, MapMode, bonusFor, buildNetwork } from "./AllianceMap";
 
 /* ============================================================
-   Alliances (2.0).
+   Alliances (2.0, page refaite en 2.3).
 
    Jusqu'à cinq compagnies. Une gare que desservent aussi des alliés
    rapporte plus, aucun allié ne paie de redevance de quai chez un autre,
    et l'alliance a son classement : la somme des points de saison.
+
+   2.3 : la page se lit de haut en bas. L'identité de l'alliance, puis la
+   carte (le cœur de la page) avec sa liste, puis les membres, le tableau
+   d'affichage et le classement. Les réglages du fondateur ont leur bloc.
    ============================================================ */
 
 interface Rules { max: number; cost: number; allyStep: number; allyMaxAllies: number; messageMax: number; colors: string[]; applyMax?: number; applyMessageMax?: number; pitchMax?: number }
@@ -35,6 +35,7 @@ export interface AllianceData {
 }
 
 const fmt = (n: number) => n.toLocaleString("fr-FR");
+const ordinal = (n: number) => `${n}${n === 1 ? "re" : "e"}`;
 const ago = (iso: string) => {
   const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
   if (m < 1) return "à l'instant";
@@ -43,6 +44,28 @@ const ago = (iso: string) => {
   if (h < 24) return `il y a ${h} h`;
   return `il y a ${Math.round(h / 24)} j`;
 };
+const initials = (name: string) => {
+  const w = name.replace(/^(Compagnie|Cie)\s+(du|de la|des|de|d')?\s*/i, "").split(/[\s-]+/).filter(Boolean);
+  return ((w[0]?.[0] ?? "?") + (w[1]?.[0] ?? w[0]?.[1] ?? "")).toUpperCase();
+};
+
+/* Les couleurs des membres sur cette page. Vous gardez l'accent du thème ;
+   les autres reçoivent une teinte chacun, dans l'ordre d'arrivée. Deux jeux :
+   les teintes vives se perdent sur le crème du thème Papier. */
+const MEMBER_HUES = {
+  dark: ["#f472b6", "#a3e635", "#b9a6ff", "#fb923c", "#2dd4bf"],
+  paper: ["#b5306b", "#4d7c0f", "#6d4fc2", "#c2560c", "#0f766e"],
+};
+function useThemeId() {
+  const read = () => document.documentElement.dataset.theme ?? "sombre";
+  const [theme, setTheme] = useState(read);
+  useEffect(() => {
+    const mo = new MutationObserver(() => setTheme(read()));
+    mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => mo.disconnect();
+  }, []);
+  return theme;
+}
 
 export function allianceLead(data: AllianceData | null) {
   if (!data) return null;
@@ -60,18 +83,44 @@ export function allianceLead(data: AllianceData | null) {
   return `${a.name} est ${a.rank ?? "–"}${a.rank === 1 ? "re" : "e"} des alliances${best ? `, et vos gares communes rapportent jusqu'à ${best} % de plus` : ""}.`;
 }
 
+/* ---------------- petites pièces communes ---------------- */
+
+function Card({ title, aside, children, className = "" }: { title?: ReactNode; aside?: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <section className={`min-w-0 rounded-card border border-line bg-navy-900/50 p-4 md:p-5 ${className}`}>
+      {(title || aside) && (
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 mb-3">
+          {title && <h2 className="font-display text-[19px] leading-tight">{title}</h2>}
+          {aside && <span className="text-[12.5px] text-slate2 font-body">{aside}</span>}
+        </div>
+      )}
+      {children}
+    </section>
+  );
+}
+
+function Avatar({ name, color, size = 34 }: { name: string; color: string; size?: number }) {
+  return (
+    <span
+      className="shrink-0 inline-flex items-center justify-center rounded-control font-body font-semibold"
+      style={{ width: size, height: size, fontSize: Math.round(size * 0.37), color, background: `color-mix(in srgb, ${color} 16%, transparent)` }}
+      aria-hidden="true"
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
+const btnPrimary = "rounded-control bg-cobalt text-onaccent px-3.5 py-2 text-[13.5px] font-semibold font-body hover:bg-cobalt/90 transition-colors disabled:opacity-40";
+const btnSoft = "rounded-control bg-offwhite/[0.06] hover:bg-offwhite/[0.1] px-3.5 py-2 text-[13.5px] font-body text-offwhite transition-colors disabled:opacity-40";
+const btnQuiet = "rounded-control px-2.5 py-1.5 text-[13px] font-body text-slate2 hover:text-offwhite hover:bg-offwhite/[0.05] transition-colors disabled:opacity-40";
+const field = "w-full min-w-0 rounded-control bg-navy-950/60 border border-line px-3 py-2 text-[13.5px] font-body placeholder:text-slate2/70 focus:outline-none focus:border-cobalt";
+
+/* ============================================================ */
+
 export function AllianceSection({ data, onReload, onChange }: { data: AllianceData | null; onReload: () => void; onChange: () => void }) {
   const { showToast, showComposter } = useToast();
   const [busy, setBusy] = useState(false);
-  const [name, setName] = useState("");
-  const [color, setColor] = useState<string | null>(null);
-  const [invite, setInvite] = useState("");
-  const [text, setText] = useState("");
-  const [discord, setDiscord] = useState<string | null>(null);
-  const [confirmLeave, setConfirmLeave] = useState(false);
-  const [applyTo, setApplyTo] = useState<string | null>(null);
-  const [applyText, setApplyText] = useState("");
-  const [pitch, setPitch] = useState<string | null>(null);
 
   useEffect(() => {
     onReload();
@@ -96,600 +145,644 @@ export function AllianceSection({ data, onReload, onChange }: { data: AllianceDa
   }
 
   if (!data) return <p className="text-slate2 font-body text-sm">Chargement…</p>;
-  const { rules } = data;
+  if (!data.alliance) return <WithoutAlliance data={data} busy={busy} run={run} />;
+  return <WithAlliance data={data} busy={busy} run={run} />;
+}
 
-  /* ---------------- sans alliance ---------------- */
-  if (!data.alliance) {
-    return (
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <div className="flex flex-col gap-6">
-          {(data.invites ?? []).length > 0 && (
-            <section>
-              <h2 className="font-display text-[20px] mb-2">Vos invitations</h2>
+type Run = (fn: () => Promise<unknown>, done?: string) => void;
+
+/* ---------------- sans alliance ---------------- */
+
+function WithoutAlliance({ data, busy, run }: { data: AllianceData; busy: boolean; run: Run }) {
+  const { rules } = data;
+  const [name, setName] = useState("");
+  const [color, setColor] = useState<string | null>(null);
+  const [applyTo, setApplyTo] = useState<string | null>(null);
+  const [applyText, setApplyText] = useState("");
+  const chosen = color ?? rules.colors[0];
+  const pending = data.myApplications?.length ?? 0;
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] items-start">
+      <div className="flex flex-col gap-5 min-w-0">
+        {(data.invites ?? []).length > 0 && (
+          <Card title="Vos invitations">
+            <ul className="flex flex-col gap-1">
               {data.invites!.map((i) => (
-                <div key={i.id} className="flex flex-wrap items-center gap-3 py-2.5 border-b border-line">
-                  <span className="w-3 h-3 rotate-45" style={{ background: i.color }} />
-                  <span className="text-[15px] font-semibold font-body flex-1">{i.alliance}</span>
-                  <span className="text-[12.5px] text-slate2 font-body">{ago(i.at)}</span>
-                  <button disabled={busy} onClick={() => run(() => api.post(`/alliance/invites/${i.id}`, { accept: true }), `Bienvenue dans ${i.alliance}`)} className="bg-cobalt text-onaccent px-3 py-1.5 text-[13px] font-semibold font-body">
+                <li key={i.id} className="flex flex-wrap items-center gap-3 rounded-control px-2 py-2 hover:bg-offwhite/[0.03]">
+                  <Avatar name={i.alliance} color={i.color} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14.5px] font-semibold font-body truncate">{i.alliance}</div>
+                    <div className="text-[12.5px] text-slate2 font-body">{ago(i.at)}</div>
+                  </div>
+                  <button disabled={busy} onClick={() => run(() => api.post(`/alliance/invites/${i.id}`, { accept: true }), `Bienvenue dans ${i.alliance}`)} className={btnPrimary}>
                     Rejoindre
                   </button>
-                  <button disabled={busy} onClick={() => run(() => api.post(`/alliance/invites/${i.id}`, { accept: false }))} className="text-[13px] text-slate2 hover:text-offwhite font-body">
+                  <button disabled={busy} onClick={() => run(() => api.post(`/alliance/invites/${i.id}`, { accept: false }))} className={btnQuiet}>
                     Refuser
                   </button>
-                </div>
+                </li>
               ))}
-            </section>
-          )}
+            </ul>
+          </Card>
+        )}
 
-          {(data.myApplications ?? []).length > 0 && (
-            <section>
-              <h2 className="font-display text-[20px] mb-2">Vos candidatures</h2>
+        {pending > 0 && (
+          <Card title="Vos candidatures">
+            <ul className="flex flex-col gap-1">
               {data.myApplications!.map((c) => (
-                <div key={c.id} className="flex flex-wrap items-center gap-3 py-2.5 border-b border-line">
-                  <span className="w-3 h-3 rotate-45" style={{ background: c.color }} />
+                <li key={c.id} className="flex flex-wrap items-center gap-3 rounded-control px-2 py-2">
+                  <Avatar name={c.alliance} color={c.color} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-[15px] font-semibold font-body">{c.alliance}</div>
+                    <div className="text-[14.5px] font-semibold font-body truncate">{c.alliance}</div>
                     <div className="text-[12.5px] text-slate2 font-body">Envoyée {ago(c.at)}, en attente du fondateur</div>
                   </div>
-                  <button disabled={busy} onClick={() => run(() => api.delete(`/alliance/applications/${c.id}`), "Candidature retirée")} className="text-[13px] text-slate2 hover:text-rail-red font-body">
+                  <button disabled={busy} onClick={() => run(() => api.delete(`/alliance/applications/${c.id}`), "Candidature retirée")} className={`${btnQuiet} hover:text-rail-red`}>
                     Retirer
                   </button>
-                </div>
+                </li>
               ))}
-            </section>
-          )}
+            </ul>
+          </Card>
+        )}
 
-          <section>
-            <div className="flex justify-between items-baseline mb-1">
-              <h2 className="font-display text-[20px]">Les alliances qui recrutent</h2>
-              {rules.applyMax ? <span className="text-[12.5px] text-slate2 font-body">{data.myApplications?.length ?? 0} candidature{(data.myApplications?.length ?? 0) > 1 ? "s" : ""} sur {rules.applyMax}</span> : null}
-            </div>
-            {(data.directory ?? []).length === 0 ? (
-              <p className="text-[13.5px] text-slate2 font-body py-2">Aucune alliance ne cherche de membre en ce moment. Fondez la vôtre ci-dessous.</p>
-            ) : (
-              data.directory!.map((d) => {
+        <Card title="Les alliances qui recrutent" aside={rules.applyMax ? `${pending} candidature${pending > 1 ? "s" : ""} sur ${rules.applyMax}` : undefined}>
+          {(data.directory ?? []).length === 0 ? (
+            <p className="text-[13.5px] text-slate2 font-body">Aucune alliance ne cherche de membre en ce moment. Fondez la vôtre ci-dessous.</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {data.directory!.map((d) => {
                 const open = applyTo === d.id;
-                const full = !d.applied && (data.myApplications?.length ?? 0) >= (rules.applyMax ?? 3);
+                const full = !d.applied && pending >= (rules.applyMax ?? 3);
                 return (
-                  <div key={d.id} className="py-3 border-b border-line">
-                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                      <span className="w-3 h-3 rotate-45" style={{ background: d.color }} />
-                      <span className="text-[15px] font-semibold font-body">{d.name}</span>
-                      <span className="text-[12.5px] text-slate2 font-body">
-                        {d.rank ? `${d.rank}${d.rank === 1 ? "re" : "e"}, ` : ""}
-                        {d.members} sur {rules.max}, {fmt(d.points)} pts
-                      </span>
-                      <span className="ml-auto">
-                        {d.applied ? (
-                          <span className="text-[13px] text-rail-green font-body">Candidature envoyée</span>
-                        ) : (
-                          <button
-                            disabled={busy || full}
-                            title={full ? `${rules.applyMax} candidatures en attente au plus` : undefined}
-                            onClick={() => { setApplyTo(open ? null : d.id); setApplyText(""); }}
-                            className={`px-3 py-1.5 text-[13px] font-semibold font-body disabled:opacity-40 ${open ? "border border-line text-slate2" : "bg-cobalt text-onaccent"}`}
-                          >
-                            {open ? "Annuler" : "Postuler"}
-                          </button>
-                        )}
-                      </span>
+                  <li key={d.id} className="rounded-control bg-navy-950/40 px-3.5 py-3">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                      <Avatar name={d.name} color={d.color} />
+                      <div className="flex-1 min-w-[10rem]">
+                        <div className="text-[14.5px] font-semibold font-body">{d.name}</div>
+                        <div className="text-[12.5px] text-slate2 font-body">
+                          {d.rank ? `${ordinal(d.rank)} · ` : ""}
+                          {d.members} sur {rules.max} · <span className="font-mono2 tabular-nums">{fmt(d.points)}</span> pts
+                        </div>
+                      </div>
+                      {d.applied ? (
+                        <span className="rounded-full bg-rail-green/10 text-rail-green px-2.5 py-1 text-[12.5px] font-body">Candidature envoyée</span>
+                      ) : (
+                        <button
+                          disabled={busy || full}
+                          title={full ? `${rules.applyMax} candidatures en attente au plus` : undefined}
+                          onClick={() => { setApplyTo(open ? null : d.id); setApplyText(""); }}
+                          className={open ? btnQuiet : btnPrimary}
+                        >
+                          {open ? "Annuler" : "Postuler"}
+                        </button>
+                      )}
                     </div>
-                    {d.pitch && <p className="text-[13.5px] font-body mt-1.5 leading-snug max-w-prose">{d.pitch}</p>}
-                    <div className="text-[12px] text-slate2/80 font-body mt-1">Fondée par {d.founder}, encore {d.room} place{d.room > 1 ? "s" : ""}</div>
+                    {d.pitch && <p className="text-[13.5px] font-body mt-2 leading-snug max-w-prose">{d.pitch}</p>}
+                    <div className="text-[12.5px] text-slate2 font-body mt-1">
+                      Fondée par {d.founder}, encore {d.room} place{d.room > 1 ? "s" : ""}
+                    </div>
                     {open && (
                       <form
                         onSubmit={(e) => {
                           e.preventDefault();
                           run(async () => { await api.post(`/alliances/${d.id}/apply`, { message: applyText }); setApplyTo(null); setApplyText(""); }, `Candidature envoyée à ${d.name}`);
                         }}
-                        className="mt-2.5 flex flex-col gap-2"
+                        className="mt-3 flex flex-col gap-2"
                       >
+                        <label className="sr-only" htmlFor={`apply-${d.id}`}>Message au fondateur</label>
                         <textarea
+                          id={`apply-${d.id}`}
                           value={applyText}
                           maxLength={rules.applyMessageMax ?? 200}
                           rows={2}
                           autoFocus
                           onChange={(e) => setApplyText(e.target.value)}
                           placeholder="Un mot pour le fondateur : vos lignes, vos gares, ce que vous apportez…"
-                          className="w-full bg-transparent border border-line px-3 py-2 text-[13.5px] font-body focus:outline-none focus:border-cobalt resize-none"
+                          className={`${field} resize-none`}
                         />
                         <div className="flex items-center gap-3">
-                          <button disabled={busy} className="bg-cobalt text-onaccent px-3 py-1.5 text-[13px] font-semibold font-body disabled:opacity-40">
-                            Envoyer la candidature
-                          </button>
-                          <span className="text-[12px] text-slate2/70 font-body">{applyText.length}/{rules.applyMessageMax ?? 200}</span>
+                          <button disabled={busy} className={btnPrimary}>Envoyer la candidature</button>
+                          <span className="text-[12px] text-slate2 font-body tabular-nums">{applyText.length}/{rules.applyMessageMax ?? 200}</span>
                         </div>
                       </form>
                     )}
-                  </div>
+                  </li>
                 );
-              })
-            )}
-          </section>
+              })}
+            </ul>
+          )}
+        </Card>
 
-          <section className="border border-line p-5">
-            <h2 className="font-display text-[20px]">Fonder une alliance</h2>
-            <p className="text-[13.5px] text-slate2 font-body mt-1.5 max-w-prose">
-              Jusqu'à {rules.max} compagnies. Une gare que desservent aussi vos alliés rapporte {Math.round(rules.allyStep * 100)} % de plus par allié (jusqu'à +{Math.round(rules.allyStep * rules.allyMaxAllies * 100)} %), vos
-              alliés ne paient pas de redevance dans vos gares, et l'alliance a son classement de saison.
-            </p>
-            <div className="flex flex-wrap gap-2 mt-4">
-              <input
-                value={name}
-                maxLength={32}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Nom de l'alliance"
-                className="flex-1 min-w-[200px] bg-transparent border border-line px-3 py-2 text-[14px] font-body focus:outline-none focus:border-cobalt"
-              />
+        <Card title="Fonder une alliance">
+          <p className="text-[13.5px] text-slate2 font-body max-w-prose leading-relaxed">
+            Jusqu'à {rules.max} compagnies. Une gare que desservent aussi vos alliés rapporte {Math.round(rules.allyStep * 100)} % de plus par allié (jusqu'à +
+            {Math.round(rules.allyStep * rules.allyMaxAllies * 100)} %), vos alliés ne paient pas de redevance dans vos gares, et l'alliance a son classement de saison.
+          </p>
+          <div className="flex flex-wrap items-center gap-2 mt-4">
+            <label className="sr-only" htmlFor="alliance-name">Nom de l'alliance</label>
+            <input id="alliance-name" value={name} maxLength={32} onChange={(e) => setName(e.target.value)} placeholder="Nom de l'alliance" className={`${field} flex-1 min-w-[200px] !w-auto`} />
+            <button disabled={busy || name.trim().length < 3} onClick={() => run(() => api.post("/alliance", { name, color: chosen }), "Alliance fondée")} className={btnPrimary}>
+              Fonder · <span className="font-mono2">{fmt(rules.cost)}</span> pi.
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 mt-3" role="radiogroup" aria-label="Couleur de l'alliance">
+            <span className="text-[13px] text-slate2 font-body mr-1">Couleur</span>
+            {rules.colors.map((c) => (
               <button
-                disabled={busy || name.trim().length < 3}
-                onClick={() => run(() => api.post("/alliance", { name, color: color ?? rules.colors[0] }), "Alliance fondée")}
-                className="bg-cobalt text-onaccent px-4 py-2 text-[14px] font-semibold font-body disabled:opacity-40"
-              >
-                Fonder, {fmt(rules.cost)} pi.
-              </button>
-            </div>
-            <div className="flex items-center gap-2 mt-3">
-              <span className="text-[12.5px] text-slate2 font-body mr-1">Couleur</span>
-              {rules.colors.map((c) => (
-                <button key={c} onClick={() => setColor(c)} aria-label={`Couleur ${c}`} className={`w-6 h-6 rotate-45 border-2 ${(color ?? rules.colors[0]) === c ? "border-offwhite" : "border-transparent"}`} style={{ background: c }} />
-              ))}
-            </div>
-            <p className="text-[12.5px] text-slate2 font-body mt-4">Un fondateur peut aussi vous inviter directement : l'invitation apparaîtra en haut de cette page.</p>
-          </section>
-        </div>
-        <Ranking rows={data.ranking} />
+                key={c}
+                role="radio"
+                aria-checked={chosen === c}
+                onClick={() => setColor(c)}
+                aria-label={`Couleur ${c}`}
+                className={`w-7 h-7 rounded-full transition-shadow ${chosen === c ? "shadow-[0_0_0_2px_rgb(var(--c-navy-900)),0_0_0_4px_rgb(var(--c-offwhite))]" : ""}`}
+                style={{ background: c }}
+              />
+            ))}
+          </div>
+          <p className="text-[12.5px] text-slate2 font-body mt-4">Un fondateur peut aussi vous inviter directement : l'invitation apparaîtra en haut de cette page.</p>
+        </Card>
       </div>
-    );
-  }
+      <Card title="Classement des alliances">
+        <Ranking rows={data.ranking} />
+      </Card>
+    </div>
+  );
+}
 
-  /* ---------------- avec alliance ---------------- */
-  const a = data.alliance;
-  const members = data.members ?? [];
-  const room = rules.max - members.length - (data.invited?.length ?? 0);
+/* ---------------- avec alliance ---------------- */
+
+function WithAlliance({ data, busy, run }: { data: AllianceData; busy: boolean; run: Run }) {
+  const a = data.alliance!;
+  const { rules } = data;
+  const theme = useThemeId();
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const [mode, setMode] = useState<MapMode>("all");
+  const [pinned, setPinned] = useState<string | null>(null);
+  const [peek, setPeek] = useState<string | null>(null);
+  const [hover, setHover] = useState<string | null>(null);
+  const focus = peek ?? pinned;
+
+  const rawMembers = data.members ?? [];
+  // l'ordre d'arrivée fixe les couleurs : elles ne changent pas quand le classement bouge
+  const members: (MapMember & { founder: boolean; points: number; liveryColor: string })[] = useMemo(() => {
+    const hues = theme === "papier" ? MEMBER_HUES.paper : MEMBER_HUES.dark;
+    let i = 0;
+    return [...rawMembers]
+      .sort((x, y) => new Date(x.joinedAt).getTime() - new Date(y.joinedAt).getTime())
+      .map((m) => ({ ...m, color: m.isMe ? "rgb(var(--c-cobalt))" : hues[i++ % hues.length] }));
+  }, [rawMembers, theme]);
+  const net = useMemo(() => buildNetwork(data.lines ?? [], members), [data.lines, members]);
+  const me = members.find((m) => m.isMe)?.companyId ?? "";
+  const n = (s: string) => net.served.get(s)?.length ?? 0;
+  const meIn = (s: string) => (net.served.get(s) ?? []).includes(me);
+  const bonus = (k: number) => bonusFor(k, rules.allyStep, rules.allyMaxAllies);
+
+  const room = rules.max - rawMembers.length - (data.invited?.length ?? 0);
+  const sharedAll = net.stations.filter((s) => n(s) >= 2);
+  const mineShared = sharedAll.filter(meIn);
+  const maxBonus = bonus(rules.allyMaxAllies + 1);
+
+  // la liste à côté de la carte suit la vue choisie
+  const byWeight = (x: string, y: string) => n(y) - n(x) || x.localeCompare(y);
+  const rows =
+    mode === "conquer"
+      ? net.stations.filter((s) => !meIn(s)).sort(byWeight).map((s) => ({ s, val: `+${bonus(n(s) + 1)} %`, conquer: true }))
+      : sharedAll
+          .filter((s) => (mode !== "mine" || meIn(s)) && (!focus || (net.served.get(s) ?? []).includes(focus)))
+          .sort(byWeight)
+          .map((s) => ({ s, val: `+${bonus(n(s))} %`, conquer: false }));
+  const listTitle = mode === "conquer" ? "Vos alliés vous attendent" : mode === "mine" ? "Vos gares communes" : "Gares communes";
+
+  const modes: { id: MapMode; label: string }[] = [
+    { id: "all", label: "Tout le réseau" },
+    { id: "mine", label: "Mes gares communes" },
+    { id: "conquer", label: "À conquérir" },
+  ];
+  const sortedMembers = [...members].sort((x, y) => y.points - x.points);
+  const topPoints = Math.max(1, ...members.map((m) => m.points));
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-wrap items-center gap-3">
-        <span className="w-4 h-4 rotate-45" style={{ background: a.color }} />
-        <span className="font-display text-[22px]">{a.name}</span>
-        <span className="text-[13px] text-slate2 font-body">
-          {members.length} compagnie{members.length > 1 ? "s" : ""} sur {rules.max}, {fmt(a.points)} points de saison
-        </span>
-        <span className="ml-auto flex gap-2">
+    <div className="flex flex-col gap-5">
+      {/* l'identité de l'alliance */}
+      <section className="rounded-card border border-line bg-navy-900/50 p-4 md:p-5 flex flex-wrap items-center gap-x-6 gap-y-4">
+        <div className="flex items-center gap-3.5 flex-1 min-w-[260px]">
+          <span
+            className="shrink-0 w-[52px] h-[52px] rounded-card inline-flex items-center justify-center font-display text-[19px] font-bold text-white shadow-[inset_0_0_0_1px_rgb(255_255_255/0.15)]"
+            style={{ background: a.color }}
+            aria-hidden="true"
+          >
+            {initials(a.name)}
+          </span>
+          <div className="min-w-0">
+            <div className="font-display text-[21px] leading-tight truncate">{a.name}</div>
+            <div className="flex flex-wrap gap-1.5 mt-1.5 font-body text-[12.5px]">
+              <span className="rounded-full bg-offwhite/[0.07] px-2.5 py-0.5 text-slate2">
+                {rawMembers.length} / {rules.max} compagnies
+              </span>
+              {a.rank && (
+                <span className="rounded-full bg-amber/[0.12] px-2.5 py-0.5 text-amber">
+                  {ordinal(a.rank)} sur {a.total} alliance{a.total > 1 ? "s" : ""}
+                </span>
+              )}
+              <span className="rounded-full bg-offwhite/[0.07] px-2.5 py-0.5 text-slate2">
+                <span className="font-mono2 tabular-nums text-offwhite">{fmt(a.points)}</span> pts de saison
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* 2.1 : la livrée commune (coffret d'alliance) */}
+        {(a.livery || (data.liveryChoices?.length ?? 0) > 0) && (
+          <div className="flex flex-wrap items-center gap-2.5 font-body">
+            <span className="text-[13px] text-slate2">Livrée commune</span>
+            {(data.liveryChoices?.length ?? 0) > 0 ? (
+              <span className="flex items-center gap-1.5" role="group" aria-label="Livrées d'alliance">
+                {data.liveryChoices!.map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => run(() => api.post("/alliance/livery", { livery: c }), "Livrée commune peinte")}
+                    aria-pressed={a.livery === c}
+                    title={c}
+                    aria-label={`Livrée ${c}`}
+                    className={`w-7 h-7 rounded-control transition-shadow ${a.livery === c ? "shadow-[0_0_0_2px_rgb(var(--c-navy-900)),0_0_0_4px_rgb(var(--c-offwhite))]" : "shadow-[inset_0_0_0_1px_rgb(255_255_255/0.12)]"}`}
+                    style={{ background: c }}
+                  />
+                ))}
+              </span>
+            ) : (
+              <span className="w-7 h-7 rounded-control border border-[#d9a441]" style={{ background: a.livery! }} title="portée par l'alliance, filet doré compris" />
+            )}
+            {a.livery && (
+              <button onClick={() => run(() => api.patch("/company", { liveryColor: a.livery }), "Vos rames portent la livrée de l'alliance")} className="rounded-control bg-cobalt/[0.12] text-cobalt hover:bg-cobalt/[0.18] px-3 py-1.5 text-[13px] transition-colors">
+                La porter sur mes rames
+              </button>
+            )}
+          </div>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2 font-body">
           {a.discordUrl && (
-            <a href={a.discordUrl} target="_blank" rel="noopener noreferrer" className="border border-line px-3 py-1.5 text-[13px] font-body hover:border-slate2">
+            <a href={a.discordUrl} target="_blank" rel="noopener noreferrer" className={btnSoft}>
               Salon Discord
             </a>
           )}
           {confirmLeave ? (
-            <span className="flex items-center gap-2 text-[13px] font-body">
+            <span className="flex items-center gap-2 text-[13px] rounded-control bg-rail-red/[0.08] pl-3 pr-1 py-1">
               Quitter {a.name} ?
-              <button onClick={() => run(() => api.post("/alliance/leave"), "Vous avez quitté l'alliance")} className="text-rail-red border border-rail-red/40 px-2.5 py-1">Oui</button>
-              <button onClick={() => setConfirmLeave(false)} className="text-slate2 border border-line px-2.5 py-1">Non</button>
+              <button onClick={() => run(() => api.post("/alliance/leave"), "Vous avez quitté l'alliance")} className="rounded-control bg-rail-red text-white px-2.5 py-1 font-semibold">
+                Oui
+              </button>
+              <button onClick={() => setConfirmLeave(false)} className={btnQuiet}>
+                Non
+              </button>
             </span>
           ) : (
-            <button onClick={() => setConfirmLeave(true)} className="text-[13px] text-slate2 hover:text-rail-red font-body px-1">
+            <button onClick={() => setConfirmLeave(true)} className={`${btnQuiet} hover:!text-rail-red`}>
               Quitter
             </button>
           )}
-        </span>
-      </div>
-
-      {/* 2.1 : la livrée commune (coffret d'alliance) */}
-      {(a.livery || (data.liveryChoices?.length ?? 0) > 0) && (
-        <div className="mb-6 border border-line px-4 py-3 flex flex-wrap items-center gap-x-5 gap-y-2">
-          <span className="font-display text-[17px]">Livrée commune</span>
-          {a.livery ? (
-            <span className="flex items-center gap-2 text-[13px] font-body text-slate2">
-              <span className="w-6 h-6 border border-[#d9a441]" style={{ background: a.livery }} />
-              portée par l'alliance, filet doré compris
-            </span>
-          ) : (
-            <span className="text-[13px] font-body text-slate2">Choisissez la couleur de toute l'alliance :</span>
-          )}
-          {(data.liveryChoices?.length ?? 0) > 0 && (
-            <span className="flex items-center gap-1.5" role="group" aria-label="Livrées d'alliance">
-              {data.liveryChoices!.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => run(() => api.post("/alliance/livery", { livery: c }), "Livrée commune peinte")}
-                  aria-pressed={a.livery === c}
-                  title={c}
-                  className={`w-7 h-7 border-2 ${a.livery === c ? "border-offwhite" : "border-line hover:border-slate2"}`}
-                  style={{ background: c }}
-                />
-              ))}
-            </span>
-          )}
-          {a.livery && (
-            <button onClick={() => run(() => api.patch("/company", { liveryColor: a.livery }), "Vos rames portent la livrée de l'alliance")} className="ml-auto text-[13px] font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10">
-              La porter sur mes rames
-            </button>
-          )}
         </div>
-      )}
+      </section>
 
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)_minmax(0,1fr)]">
-        {/* les membres */}
-        <section className="min-w-0">
-          <div className="flex justify-between items-baseline">
-            <h2 className="font-display text-[20px]">Les membres</h2>
-            <span className="text-[12.5px] text-slate2 font-body">points de saison</span>
+      {/* le réseau commun */}
+      <Card>
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+          <div>
+            <h2 className="font-display text-[20px] leading-tight">Le réseau commun</h2>
+            <p className="text-[13.5px] text-slate2 font-body mt-1">
+              {sharedAll.length === 0
+                ? "Aucune gare desservie par deux membres pour l'instant."
+                : `${sharedAll.length} gare${sharedAll.length > 1 ? "s" : ""} en commun, dont ${mineShared.length} sur vos lignes. Survolez une gare pour voir qui la dessert.`}
+            </p>
           </div>
-          {members.map((m) => (
-            <div key={m.companyId} className="grid grid-cols-[12px_minmax(0,1fr)_auto] gap-3 items-center py-2.5 border-b border-line">
-              <span className="w-3 h-3" style={{ background: m.liveryColor }} />
-              <div className="min-w-0">
-                <div className={`text-[14.5px] font-body truncate ${m.isMe ? "font-semibold" : ""}`}>{m.name}</div>
-                <div className="text-[12.5px] text-slate2 font-body">
-                  {m.isMe ? "Vous" : m.founder ? "Fondateur" : "Membre"}
-                  {m.isMe && m.founder ? ", fondateur" : ""}
-                  {a.founder && !m.isMe && (
-                    <button onClick={() => run(() => api.post("/alliance/kick", { companyId: m.companyId }), `${m.name} ne fait plus partie de l'alliance`)} className="ml-2 text-slate2/70 hover:text-rail-red">
-                      exclure
-                    </button>
-                  )}
-                </div>
-              </div>
-              <span className={`font-mono2 text-[14px] tabular-nums ${m.isMe ? "text-amber" : ""}`}>{fmt(m.points)}</span>
-            </div>
-          ))}
-          {a.founder && (data.applications ?? []).length > 0 && (
-            <div className="mt-5">
-              <div className="flex justify-between items-baseline">
-                <h3 className="font-display text-[17px]">Candidatures</h3>
-                <span className="text-[12.5px] text-slate2 font-body">{room > 0 ? `${room} place${room > 1 ? "s" : ""} libre${room > 1 ? "s" : ""}` : "alliance complète"}</span>
-              </div>
-              {data.applications!.map((c) => (
-                <div key={c.id} className="py-2.5 border-b border-line">
-                  <div className="grid grid-cols-[12px_minmax(0,1fr)_auto] gap-3 items-center">
-                    <span className="w-3 h-3" style={{ background: c.liveryColor }} />
-                    <div className="min-w-0">
-                      <div className="text-[14.5px] font-body font-semibold truncate">{c.name}</div>
-                      <div className="text-[12.5px] text-slate2 font-body">
-                        {c.lines} ligne{c.lines > 1 ? "s" : ""}, {fmt(c.points)} pts de saison, {ago(c.at)}
-                      </div>
-                    </div>
-                    <span className="flex gap-2">
-                      <button disabled={busy || room <= 0} onClick={() => run(() => api.post(`/alliance/applications/${c.id}`, { accept: true }), `${c.name} rejoint l'alliance`)} className="bg-cobalt text-onaccent px-2.5 py-1 text-[12.5px] font-semibold font-body disabled:opacity-40">
-                        Accepter
-                      </button>
-                      <button disabled={busy} onClick={() => run(() => api.post(`/alliance/applications/${c.id}`, { accept: false }))} className="text-[12.5px] text-slate2 hover:text-rail-red font-body">
-                        Refuser
-                      </button>
-                    </span>
-                  </div>
-                  {c.message && <p className="text-[13.5px] font-body mt-1.5 ml-[24px] leading-snug break-words border-l-2 border-line pl-2.5">{c.message}</p>}
-                </div>
-              ))}
-            </div>
-          )}
-          {(data.invited ?? []).map((n) => (
-            <div key={n} className="py-2 border-b border-line text-[13px] text-slate2 font-body">
-              {n}, invitation envoyée
-            </div>
-          ))}
-          {a.founder && room > 0 && (
-            <div className="flex gap-2 mt-3">
-              <input
-                value={invite}
-                onChange={(e) => setInvite(e.target.value)}
-                placeholder="Nom exact d'une compagnie"
-                className="flex-1 min-w-0 bg-transparent border border-line px-3 py-1.5 text-[13.5px] font-body focus:outline-none focus:border-cobalt"
-              />
+          <div role="tablist" aria-label="Affichage de la carte" className="inline-flex max-w-full overflow-x-auto gap-1 p-1 rounded-control bg-navy-950/60 border border-line">
+            {modes.map((m) => (
               <button
-                disabled={busy || !invite.trim()}
-                onClick={() => run(async () => { await api.post("/alliance/invite", { companyName: invite }); setInvite(""); }, "Invitation envoyée")}
-                className="bg-cobalt text-onaccent px-3 py-1.5 text-[13px] font-semibold font-body disabled:opacity-40"
+                key={m.id}
+                role="tab"
+                aria-selected={mode === m.id}
+                onClick={() => { setMode(m.id); setPinned(null); setPeek(null); setHover(null); }}
+                className={`shrink-0 rounded-[calc(var(--r-control)-3px)] px-3 py-1.5 text-[13px] font-body transition-colors ${mode === m.id ? "bg-navy-700/70 text-offwhite font-medium" : "text-slate2 hover:text-offwhite"}`}
               >
-                Inviter
+                {m.label}
               </button>
-            </div>
-          )}
-          <div className="mt-5">
-            <Ranking rows={data.ranking} highlight={a.id} />
-          </div>
-        </section>
-
-        {/* le réseau commun */}
-        <section className="min-w-0">
-          <div className="flex justify-between items-baseline mb-2">
-            <h2 className="font-display text-[20px]">Le réseau commun</h2>
-            <span className="text-[12.5px] text-slate2 font-body">
-              {(data.shared ?? []).length} gare{(data.shared ?? []).length > 1 ? "s" : ""} en commun
-            </span>
-          </div>
-          <AllianceMap lines={data.lines ?? []} shared={data.shared ?? []} members={members} />
-          <div className="mt-3">
-            {(data.shared ?? []).length === 0 ? (
-              <p className="text-[13px] text-slate2 font-body">Aucune gare desservie par deux membres pour l'instant. Tracez une ligne vers une gare d'un allié : chacun de vous y gagne.</p>
-            ) : (
-              [...(data.shared ?? [])]
-                .sort((x, y) => y.bonus - x.bonus || x.station.localeCompare(y.station))
-                .map((s) => {
-                  // 2.0.3 : qui dessert la gare, à la couleur de chaque compagnie
-                  const who = members.filter((m) => (data.lines ?? []).some((l) => l.companyId === m.companyId && l.route.includes(s.station)));
-                  return (
-                    <div key={s.station} className="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 items-center text-[13.5px] font-body py-1.5 border-b border-line/60">
-                      <span className="truncate">{s.station}</span>
-                      <span className="flex items-center gap-1" title={who.map((m) => m.name).join(", ")}>
-                        {who.map((m) => (
-                          <span key={m.companyId} className="w-2.5 h-2.5" style={{ background: m.liveryColor }} aria-label={m.name} />
-                        ))}
-                      </span>
-                      <span className="text-amber font-mono2 tabular-nums w-12 text-right">+{s.bonus} %</span>
-                    </div>
-                  );
-                })
-            )}
-          </div>
-        </section>
-
-        {/* le tableau d'affichage */}
-        <section className="min-w-0">
-          <div className="flex justify-between items-baseline">
-            <h2 className="font-display text-[20px]">Le tableau d'affichage</h2>
-            <span className="text-[12.5px] text-slate2 font-body">entre membres</span>
-          </div>
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              if (text.trim()) run(async () => { await api.post("/alliance/messages", { text }); setText(""); });
-            }}
-            className="flex gap-2 mt-2"
-          >
-            <input
-              value={text}
-              maxLength={rules.messageMax}
-              onChange={(e) => setText(e.target.value)}
-              placeholder="Écrire aux membres…"
-              className="flex-1 min-w-0 bg-transparent border border-line px-3 py-1.5 text-[13.5px] font-body focus:outline-none focus:border-cobalt"
-            />
-            <button disabled={busy || !text.trim()} className="bg-navy-900 border border-line px-3 py-1.5 text-[13px] font-body disabled:opacity-40">
-              Afficher
-            </button>
-          </form>
-          <p className="text-[12px] text-slate2/70 font-body mt-1.5">Messages courts, gardés sept jours. L'auteur et le fondateur peuvent les retirer.</p>
-          <div className="mt-2">
-            {(data.messages ?? []).length === 0 && <p className="text-[13px] text-slate2 font-body py-2">Rien d'affiché pour l'instant.</p>}
-            {(data.messages ?? []).map((m) => (
-              <div key={m.id} className="py-2.5 border-b border-line">
-                <div className="flex items-center gap-2 text-[12.5px] font-body">
-                  <span className="w-2 h-2" style={{ background: m.color }} />
-                  <span className="font-semibold">{m.name}</span>
-                  <span className="text-slate2/70">{ago(m.at)}</span>
-                  {(m.mine || a.founder) && (
-                    <button onClick={() => run(() => api.delete(`/alliance/messages/${m.id}`))} className="ml-auto text-slate2/60 hover:text-rail-red">
-                      retirer
-                    </button>
-                  )}
-                </div>
-                <div className="text-[14px] font-body mt-1 leading-snug break-words">{m.text}</div>
-              </div>
             ))}
           </div>
-          {a.founder && (
-            <div className="mt-5">
-              <div className="text-[13px] text-slate2 font-body mb-1.5">Lien du salon Discord de l'alliance</div>
-              <div className="flex gap-2">
-                <input
-                  value={discord ?? a.discordUrl ?? ""}
-                  onChange={(e) => setDiscord(e.target.value)}
-                  placeholder="https://discord.gg/…"
-                  className="flex-1 min-w-0 bg-transparent border border-line px-3 py-1.5 text-[13px] font-body focus:outline-none focus:border-cobalt"
-                />
-                <button disabled={busy || discord === null} onClick={() => run(async () => { await api.patch("/alliance", { discordUrl: discord }); setDiscord(null); }, "Lien enregistré")} className="border border-line px-3 py-1.5 text-[13px] font-body disabled:opacity-40">
-                  Enregistrer
-                </button>
-              </div>
+        </div>
+
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-[999_1_460px] min-w-0 flex flex-col gap-3">
+            <AllianceMap net={net} members={members} mode={mode} focus={focus} hover={hover} onHover={setHover} step={rules.allyStep} maxAllies={rules.allyMaxAllies} />
+            <div className="flex flex-wrap items-center gap-1.5" onMouseLeave={() => setPeek(null)}>
+              {members.map((m) => {
+                const on = focus === m.companyId;
+                return (
+                  <button
+                    key={m.companyId}
+                    onMouseEnter={() => setPeek(m.companyId)}
+                    onFocus={() => setPeek(m.companyId)}
+                    onBlur={() => setPeek(null)}
+                    onClick={() => setPinned((f) => (f === m.companyId ? null : m.companyId))}
+                    aria-pressed={pinned === m.companyId}
+                    className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-[12.5px] font-body transition-all ${on ? "border-offwhite/40 bg-offwhite/[0.06]" : "border-line hover:border-slate2/60"} ${focus && !on ? "opacity-50" : ""}`}
+                  >
+                    <span className="w-4 h-1 rounded-full" style={{ background: m.color }} />
+                    <span className={m.isMe ? "text-offwhite font-medium" : "text-offwhite/90"}>{m.isMe ? "Vous" : m.name}</span>
+                    <span className="text-slate2 tabular-nums">{net.lineCount.get(m.companyId) ?? 0}</span>
+                  </button>
+                );
+              })}
+              <span className="ml-auto flex items-center gap-1.5 text-[12px] text-slate2 font-body">
+                <span className="w-3 h-3 rounded-full bg-amber" aria-hidden="true" />
+                gare commune, le chiffre compte les compagnies
+              </span>
             </div>
-          )}
-          {a.founder && (
-            <div className="mt-5">
-              <label className="flex items-center gap-2.5 text-[13.5px] font-body cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={a.recruiting ?? true}
-                  disabled={busy}
-                  onChange={(e) => run(() => api.patch("/alliance", { recruiting: e.target.checked }), e.target.checked ? "L'alliance recrute" : "Recrutement fermé")}
-                  className="accent-[rgb(var(--c-cobalt))] w-4 h-4"
-                />
-                Recevoir des candidatures
-              </label>
-              <p className="text-[12px] text-slate2/70 font-body mt-1">
-                {a.recruiting ?? true ? "Votre alliance figure dans la liste de celles qui recrutent, tant qu'il reste de la place." : "Votre alliance n'apparaît plus dans la liste. Les invitations restent possibles."}
+          </div>
+
+          <div className="flex-[1_1_250px] min-w-0 flex flex-col gap-2">
+            <div className="flex items-baseline justify-between gap-2">
+              <h3 className="text-[14px] font-semibold font-body">{listTitle}</h3>
+              <span className="text-[12px] text-slate2 font-body">{mode === "conquer" ? "si vous venez" : `${rows.length} gare${rows.length > 1 ? "s" : ""}`}</span>
+            </div>
+            {rows.length === 0 ? (
+              <p className="text-[13px] text-slate2 font-body leading-relaxed">
+                {mode === "conquer"
+                  ? "Vous desservez déjà toutes les gares de vos alliés."
+                  : "Tracez une ligne vers une gare d'un allié : chacun de vous y gagne."}
               </p>
-              <div className="text-[13px] text-slate2 font-body mt-3 mb-1.5">Présentation, lue par les candidats</div>
-              <textarea
-                value={pitch ?? a.pitch ?? ""}
-                maxLength={rules.pitchMax ?? 200}
-                rows={2}
-                onChange={(e) => setPitch(e.target.value)}
-                placeholder="Par exemple : réseau du Sud-Ouest, on cherche des lignes vers Toulouse et Bordeaux."
-                className="w-full bg-transparent border border-line px-3 py-1.5 text-[13px] font-body focus:outline-none focus:border-cobalt resize-none"
-              />
-              <button disabled={busy || pitch === null} onClick={() => run(async () => { await api.patch("/alliance", { pitch }); setPitch(null); }, "Présentation enregistrée")} className="mt-1.5 border border-line px-3 py-1.5 text-[13px] font-body disabled:opacity-40">
-                Enregistrer
-              </button>
-            </div>
-          )}
-        </section>
+            ) : (
+              <ul className="flex flex-col gap-0.5 max-h-[460px] overflow-y-auto pr-1 -mr-1" onMouseLeave={() => setHover(null)}>
+                {rows.map((r) => (
+                  <li key={r.s}>
+                    <button
+                      onMouseEnter={() => setHover(r.s)}
+                      onFocus={() => setHover(r.s)}
+                      onClick={() => setHover(hover === r.s ? null : r.s)}
+                      className={`w-full flex items-center gap-2.5 rounded-control px-2.5 py-1.5 text-left font-body transition-colors ${hover === r.s ? "bg-cobalt/[0.1]" : "hover:bg-offwhite/[0.04]"}`}
+                    >
+                      <span className="flex-1 min-w-0 truncate text-[13.5px]">{r.s}</span>
+                      <span className="flex gap-[3px]" aria-label={(net.served.get(r.s) ?? []).map((id) => members.find((m) => m.companyId === id)?.name).join(", ")}>
+                        {(net.served.get(r.s) ?? []).map((id) => (
+                          <span key={id} className="w-2 h-2 rounded-full" style={{ background: members.find((m) => m.companyId === id)?.color }} />
+                        ))}
+                      </span>
+                      <span className={`w-12 text-right font-mono2 text-[12.5px] tabular-nums ${r.conquer ? "text-cobalt" : "text-amber"}`}>{r.val}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="text-[12px] text-slate2 font-body leading-relaxed mt-1">
+              +{Math.round(rules.allyStep * 100)} % par allié qui dessert la même gare, jusqu'à +{maxBonus} %. Pas de redevance de quai entre alliés.
+            </p>
+          </div>
+        </div>
+      </Card>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)_minmax(0,0.95fr)] items-start">
+        <Members a={a} members={sortedMembers} topPoints={topPoints} data={data} room={room} busy={busy} run={run} />
+        <Board a={a} data={data} busy={busy} run={run} colorOf={(name) => members.find((m) => m.name === name)?.color} />
+        <div className="flex flex-col gap-5 min-w-0">
+          <Card title="Classement des alliances">
+            <Ranking rows={data.ranking} highlight={a.id} />
+          </Card>
+          {a.founder && <FounderSettings a={a} rules={rules} busy={busy} run={run} />}
+        </div>
       </div>
     </div>
   );
 }
 
-function Ranking({ rows, highlight }: { rows: RankRow[]; highlight?: string }) {
+/* ---------------- les membres ---------------- */
+
+function Members({
+  a, members, topPoints, data, room, busy, run,
+}: {
+  a: NonNullable<AllianceData["alliance"]>;
+  members: (MapMember & { founder: boolean; points: number })[];
+  topPoints: number;
+  data: AllianceData;
+  room: number;
+  busy: boolean;
+  run: Run;
+}) {
+  const [invite, setInvite] = useState("");
   return (
-    <section>
-      <h2 className="font-display text-[18px] mb-1.5">Classement des alliances</h2>
-      {rows.length === 0 ? (
-        <p className="text-[13px] text-slate2 font-body">Aucune alliance pour l'instant : la première fondée sera en tête.</p>
-      ) : (
-        rows.map((r) => (
-          <div key={r.id} className={`grid grid-cols-[24px_12px_minmax(0,1fr)_auto] gap-2.5 items-center py-1.5 px-1 text-[13.5px] font-body ${r.id === highlight ? "bg-navy-900 shadow-[inset_0_0_0_1px_rgb(var(--c-cobalt))]" : ""}`}>
-            <span className="font-mono2 text-slate2 text-right">{r.rank}</span>
-            <span className="w-2.5 h-2.5 rotate-45" style={{ background: r.color }} />
-            <span className="truncate">
-              {r.name} <span className="text-slate2 text-[12px]">· {r.members}</span>
-            </span>
-            <span className="font-mono2 tabular-nums">{fmt(r.points)}</span>
+    <Card title="Les membres" aside="points de saison">
+      <ul className="flex flex-col gap-0.5">
+        {members.map((m) => (
+          <li key={m.companyId} className={`flex items-center gap-3 rounded-control px-2 py-2 ${m.isMe ? "bg-cobalt/[0.07]" : ""}`}>
+            <Avatar name={m.name} color={m.color} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2 min-w-0">
+                <span className={`text-[14px] font-body truncate ${m.isMe ? "font-semibold" : ""}`} title={m.name}>{m.name}</span>
+                {(m.isMe || m.founder) && (
+                  <span className="text-[12px] text-slate2 font-body shrink-0">{m.isMe ? (m.founder ? "vous, fondateur" : "vous") : "fondateur"}</span>
+                )}
+              </div>
+              <div className="mt-1.5 h-1 rounded-full bg-line/70 overflow-hidden">
+                <div className="h-full rounded-full" style={{ width: `${Math.round((m.points / topPoints) * 100)}%`, background: m.color }} />
+              </div>
+            </div>
+            <span className={`font-mono2 text-[13px] tabular-nums ${m.isMe ? "text-amber" : ""}`}>{fmt(m.points)}</span>
+            {a.founder && !m.isMe && (
+              <button
+                onClick={() => run(() => api.post("/alliance/kick", { companyId: m.companyId }), `${m.name} ne fait plus partie de l'alliance`)}
+                className="shrink-0 -mr-1 w-7 h-7 inline-flex items-center justify-center rounded-control text-slate2/70 hover:text-rail-red hover:bg-rail-red/[0.08]"
+                title={`Exclure ${m.name}`}
+                aria-label={`Exclure ${m.name}`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
+            )}
+          </li>
+        ))}
+        {(data.invited ?? []).map((name) => (
+          <li key={name} className="flex items-center gap-3 rounded-control px-2 py-2 text-[13px] text-slate2 font-body">
+            <span className="w-[34px] h-[34px] rounded-control border border-dashed border-line" aria-hidden="true" />
+            {name}, invitation envoyée
+          </li>
+        ))}
+      </ul>
+
+      {a.founder && (data.applications ?? []).length > 0 && (
+        <div className="mt-4 pt-4 border-t border-line">
+          <div className="flex justify-between items-baseline mb-2">
+            <h3 className="text-[14px] font-semibold font-body">Candidatures</h3>
+            <span className="text-[12.5px] text-slate2 font-body">{room > 0 ? `${room} place${room > 1 ? "s" : ""} libre${room > 1 ? "s" : ""}` : "alliance complète"}</span>
           </div>
-        ))
+          <ul className="flex flex-col gap-2">
+            {data.applications!.map((c) => (
+              <li key={c.id} className="rounded-control bg-navy-950/40 px-3 py-2.5">
+                <div className="flex items-center gap-3">
+                  <Avatar name={c.name} color={c.liveryColor} size={30} />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[14px] font-body font-semibold truncate">{c.name}</div>
+                    <div className="text-[12.5px] text-slate2 font-body">
+                      {c.lines} ligne{c.lines > 1 ? "s" : ""} · {fmt(c.points)} pts · {ago(c.at)}
+                    </div>
+                  </div>
+                </div>
+                {c.message && <p className="text-[13.5px] font-body mt-2 leading-snug break-words text-offwhite/90">« {c.message} »</p>}
+                <div className="flex gap-2 mt-2.5">
+                  <button disabled={busy || room <= 0} onClick={() => run(() => api.post(`/alliance/applications/${c.id}`, { accept: true }), `${c.name} rejoint l'alliance`)} className={btnPrimary}>
+                    Accepter
+                  </button>
+                  <button disabled={busy} onClick={() => run(() => api.post(`/alliance/applications/${c.id}`, { accept: false }))} className={`${btnQuiet} hover:!text-rail-red`}>
+                    Refuser
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
-    </section>
+
+      {a.founder && room > 0 ? (
+        <form
+          className="flex gap-2 mt-4"
+          onSubmit={(e: FormEvent) => {
+            e.preventDefault();
+            if (invite.trim()) run(async () => { await api.post("/alliance/invite", { companyName: invite }); setInvite(""); }, "Invitation envoyée");
+          }}
+        >
+          <label className="sr-only" htmlFor="alliance-invite">Nom exact d'une compagnie à inviter</label>
+          <input id="alliance-invite" value={invite} onChange={(e) => setInvite(e.target.value)} placeholder="Nom exact d'une compagnie" className={field} />
+          <button disabled={busy || !invite.trim()} className={`${btnPrimary} shrink-0`}>
+            Inviter
+          </button>
+        </form>
+      ) : (
+        room <= 0 && <p className="text-[12.5px] text-slate2 font-body mt-3">Alliance complète.</p>
+      )}
+    </Card>
   );
 }
 
-/* 2.0.3 : la carte du réseau commun, refaite.
-   - la France et ses voisins en fond, pour se repérer ;
-   - un tronçon emprunté par plusieurs membres est dessiné en lignes
-     parallèles, une par compagnie, au lieu de se recouvrir ;
-   - les noms de gares se placent là où ils ne chevauchent rien ;
-   - les gares communes sont cerclées d'ambre, avec leur bonus ;
-   - la légende des membres : survoler un nom éclaire ses lignes. */
-type MapLine = { companyId: string; color: string; route: string[] };
-type MapMember = { companyId: string; name: string; liveryColor: string; isMe: boolean };
+/* ---------------- le tableau d'affichage ---------------- */
 
-function AllianceMap({ lines, shared, members }: { lines: MapLine[]; shared: { station: string; bonus: number }[]; members: MapMember[] }) {
-  const [focus, setFocus] = useState<string | null>(null);
-  const routes = lines.map((l) => ({ ...l, route: l.route.filter((s) => STATION_COORDS[s]) })).filter((l) => l.route.length >= 2);
-  const stations = [...new Set(routes.flatMap((l) => l.route))];
-  if (stations.length === 0) {
-    return <div className="border border-line h-[240px] flex items-center justify-center text-[13px] text-slate2 font-body bg-navy-950/60">Pas encore de ligne dans l'alliance.</div>;
-  }
-
-  // cadrage : les gares utilisées, avec de la marge et une taille minimale
-  const pts = stations.map((s) => STATION_COORDS[s]);
-  const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
-  const pad = 42;
-  let minX = Math.min(...xs) - pad, maxX = Math.max(...xs) + pad, minY = Math.min(...ys) - pad, maxY = Math.max(...ys) + pad;
-  const minW = 200, minH = 170;
-  if (maxX - minX < minW) { const c = (minX + maxX) / 2; minX = c - minW / 2; maxX = c + minW / 2; }
-  if (maxY - minY < minH) { const c = (minY + maxY) / 2; minY = c - minH / 2; maxY = c + minH / 2; }
-  // même proportion que le cadre (environ 3:2) : pas de carte écrasée
-  const ratio = 1.45;
-  let w = maxX - minX, h = maxY - minY;
-  if (w / h < ratio) { const nw = h * ratio; minX -= (nw - w) / 2; w = nw; } else { const nh = w / ratio; minY -= (nh - h) / 2; h = nh; }
-  const k = w / 330; // une unité d'écran
-
-  const sharedMap = new Map(shared.map((s) => [s.station, s.bonus]));
-  const colorOf = (id: string) => members.find((m) => m.companyId === id)?.liveryColor ?? routes.find((l) => l.companyId === id)?.color ?? "#94a3b8";
-
-  // tronçons : qui passe entre deux gares voisines
-  const segs = new Map<string, { a: string; b: string; companies: string[] }>();
-  for (const l of routes) {
-    for (let i = 0; i < l.route.length - 1; i++) {
-      const [a, b] = [l.route[i], l.route[i + 1]].sort();
-      const key = `${a}|${b}`;
-      const seg = segs.get(key) ?? { a, b, companies: [] };
-      if (!seg.companies.includes(l.companyId)) seg.companies.push(l.companyId);
-      segs.set(key, seg);
-    }
-  }
-  const gap = 4.6 * k;
-
-  // étiquettes : on essaie à droite, à gauche, au-dessus, en dessous ; la première place libre l'emporte
-  type Box = { x1: number; y1: number; x2: number; y2: number };
-  const boxes: Box[] = stations.map((s) => ({ x1: STATION_COORDS[s].x - 6 * k, y1: STATION_COORDS[s].y - 6 * k, x2: STATION_COORDS[s].x + 6 * k, y2: STATION_COORDS[s].y + 6 * k }));
-  const hit = (b: Box) => boxes.some((o) => b.x1 < o.x2 && b.x2 > o.x1 && b.y1 < o.y2 && b.y2 > o.y1);
-  const order = [...stations].sort((x, y) => (sharedMap.has(y) ? 1 : 0) - (sharedMap.has(x) ? 1 : 0));
-  const labels = order.map((s) => {
-    const p = STATION_COORDS[s];
-    const isShared = sharedMap.has(s);
-    const fs = (isShared ? 11.5 : 10.5) * k;
-    const tw = s.length * fs * 0.56;
-    const th = fs * (isShared ? 2.2 : 1.15);
-    const off = (isShared ? 10 : 7) * k;
-    const cands: { x: number; y: number; anchor: "start" | "end" | "middle"; box: Box }[] = [
-      { x: p.x + off, y: p.y + fs * 0.35, anchor: "start", box: { x1: p.x + off, y1: p.y - fs * 0.8, x2: p.x + off + tw, y2: p.y - fs * 0.8 + th } },
-      { x: p.x - off, y: p.y + fs * 0.35, anchor: "end", box: { x1: p.x - off - tw, y1: p.y - fs * 0.8, x2: p.x - off, y2: p.y - fs * 0.8 + th } },
-      { x: p.x, y: p.y - off - (isShared ? fs * 1.1 : 0), anchor: "middle", box: { x1: p.x - tw / 2, y1: p.y - off - th, x2: p.x + tw / 2, y2: p.y - off } },
-      { x: p.x, y: p.y + off + fs, anchor: "middle", box: { x1: p.x - tw / 2, y1: p.y + off, x2: p.x + tw / 2, y2: p.y + off + th } },
-    ];
-    const pick = cands.find((c) => !hit(c.box)) ?? cands[0];
-    boxes.push(pick.box);
-    return { s, ...pick, fs, isShared };
-  });
-
-  const dim = (id: string) => (focus && focus !== id ? 0.18 : 1);
-
+function Board({ a, data, busy, run, colorOf }: { a: NonNullable<AllianceData["alliance"]>; data: AllianceData; busy: boolean; run: Run; colorOf: (name: string) => string | undefined }) {
+  const [text, setText] = useState("");
+  const max = data.rules.messageMax;
   return (
-    <div>
-      <svg viewBox={`${minX} ${minY} ${w} ${h}`} className="w-full h-auto aspect-[1.45] border border-line bg-navy-950/70 block" role="img" aria-label="Les lignes de l'alliance sur la carte de France">
-        <g>
-          {COUNTRIES.filter((c) => c.id !== "France").map((c) => (
-            <path key={c.id} d={c.d} fill="rgb(var(--c-navy-900))" fillOpacity="0.5" stroke="rgb(var(--c-slate2))" strokeOpacity="0.25" strokeWidth={0.6 * k} strokeLinejoin="round" />
-          ))}
-          <path d={FRANCE_D} fill="rgb(var(--c-navy-900))" stroke="rgb(var(--c-slate2))" strokeOpacity="0.5" strokeWidth={0.9 * k} strokeLinejoin="round" />
-        </g>
-        {[...segs.values()].map((seg) => {
-          const A = STATION_COORDS[seg.a], B = STATION_COORDS[seg.b];
-          const dx = B.x - A.x, dy = B.y - A.y, len = Math.hypot(dx, dy) || 1;
-          const nx = -dy / len, ny = dx / len;
-          const n = seg.companies.length;
-          return seg.companies.map((id, i) => {
-            const o = (i - (n - 1) / 2) * gap;
-            const x1 = A.x + nx * o, y1 = A.y + ny * o, x2 = B.x + nx * o, y2 = B.y + ny * o;
-            return (
-              <g key={`${seg.a}|${seg.b}|${id}`} opacity={dim(id)} style={{ transition: "opacity 160ms" }}>
-                {/* liseré clair : une livrée sombre reste lisible sur le fond de carte */}
-                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgb(var(--c-offwhite))" strokeOpacity="0.35" strokeWidth={4.6 * k} strokeLinecap="round" />
-                <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={colorOf(id)} strokeWidth={3 * k} strokeLinecap="round" />
-              </g>
-            );
-          });
-        })}
-        {stations.map((s) => {
-          const p = STATION_COORDS[s];
-          const sh = sharedMap.has(s);
-          return sh ? (
-            <g key={s}>
-              <circle cx={p.x} cy={p.y} r={8.5 * k} fill="rgb(var(--c-amber))" opacity="0.18" />
-              <circle cx={p.x} cy={p.y} r={5.5 * k} fill="rgb(var(--c-navy-950))" stroke="rgb(var(--c-amber))" strokeWidth={2.4 * k} />
-            </g>
-          ) : (
-            <circle key={s} cx={p.x} cy={p.y} r={3.2 * k} fill="rgb(var(--c-navy-950))" stroke="rgb(var(--c-offwhite))" strokeOpacity="0.8" strokeWidth={1.4 * k} />
-          );
-        })}
-        {labels.map((l) => (
-          <g key={l.s} fontFamily="var(--font-body), sans-serif">
-            <text x={l.x} y={l.y} textAnchor={l.anchor} fontSize={l.fs} fill={l.isShared ? "rgb(var(--c-amber))" : "rgb(var(--c-offwhite))"} fillOpacity={l.isShared ? 1 : 0.85} fontWeight={l.isShared ? 600 : 400} paintOrder="stroke" stroke="rgb(var(--c-navy-950))" strokeWidth={3 * k} strokeLinejoin="round">
-              {l.s}
-            </text>
-            {l.isShared && (
-              <text x={l.x} y={l.y + l.fs * 1.05} textAnchor={l.anchor} fontSize={l.fs * 0.82} fill="rgb(var(--c-amber))" fontFamily="var(--font-mono2), monospace" paintOrder="stroke" stroke="rgb(var(--c-navy-950))" strokeWidth={3 * k}>
-                +{sharedMap.get(l.s)} %
-              </text>
-            )}
-          </g>
+    <Card title="Le tableau d'affichage" aside="gardé sept jours">
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (text.trim()) run(async () => { await api.post("/alliance/messages", { text }); setText(""); });
+        }}
+        className="flex gap-2"
+      >
+        <label className="sr-only" htmlFor="alliance-message">Message aux membres</label>
+        <input id="alliance-message" value={text} maxLength={max} onChange={(e) => setText(e.target.value)} placeholder="Écrire aux membres…" className={field} />
+        <button disabled={busy || !text.trim()} className={`${btnPrimary} shrink-0`}>
+          Publier
+        </button>
+      </form>
+      <p className="text-[12px] text-slate2 font-body mt-1.5">
+        {text.length > 0 ? `${text.length}/${max} · ` : ""}L'auteur et le fondateur peuvent retirer un message.
+      </p>
+      <ul className="mt-3 flex flex-col gap-2">
+        {(data.messages ?? []).length === 0 && <li className="text-[13px] text-slate2 font-body py-2">Rien d'affiché pour l'instant.</li>}
+        {(data.messages ?? []).map((m) => (
+          <li key={m.id} className={`flex gap-3 rounded-control px-3 py-2.5 ${m.mine ? "bg-cobalt/[0.07]" : "bg-navy-950/40"}`}>
+            <Avatar name={m.name} color={m.mine ? "rgb(var(--c-cobalt))" : colorOf(m.name) ?? m.color} size={28} />
+            <div className="flex-1 min-w-0">
+              <div className="flex items-baseline gap-2 text-[12.5px] font-body">
+                <span className="font-semibold truncate">{m.mine ? "Vous" : m.name}</span>
+                <span className="text-slate2 shrink-0">{ago(m.at)}</span>
+                {(m.mine || a.founder) && (
+                  <button onClick={() => run(() => api.delete(`/alliance/messages/${m.id}`))} className="ml-auto shrink-0 text-slate2/80 hover:text-rail-red">
+                    retirer
+                  </button>
+                )}
+              </div>
+              <p className="text-[14px] font-body mt-0.5 leading-snug break-words">{m.text}</p>
+            </div>
+          </li>
         ))}
-      </svg>
-      {members.length > 0 && (
-        <div className="flex flex-wrap gap-x-3 gap-y-1.5 mt-2" onMouseLeave={() => setFocus(null)}>
-          {members.map((m) => {
-            const n = routes.filter((l) => l.companyId === m.companyId).length;
-            return (
-              <button
-                key={m.companyId}
-                onMouseEnter={() => setFocus(m.companyId)}
-                onFocus={() => setFocus(m.companyId)}
-                onBlur={() => setFocus(null)}
-                onClick={() => setFocus((f) => (f === m.companyId ? null : m.companyId))}
-                aria-pressed={focus === m.companyId}
-                className={`flex items-center gap-1.5 text-[12.5px] font-body transition-opacity ${focus && focus !== m.companyId ? "opacity-45" : ""} ${m.isMe ? "text-offwhite" : "text-slate2"} hover:text-offwhite`}
-              >
-                <span className="w-3 h-[3px]" style={{ background: m.liveryColor }} />
-                {m.isMe ? "Vous" : m.name}
-                <span className="font-mono2 text-[11px] text-slate2">{n}</span>
-              </button>
-            );
-          })}
-        </div>
+      </ul>
+    </Card>
+  );
+}
+
+/* ---------------- les réglages du fondateur ---------------- */
+
+function FounderSettings({ a, rules, busy, run }: { a: NonNullable<AllianceData["alliance"]>; rules: Rules; busy: boolean; run: Run }) {
+  const [discord, setDiscord] = useState<string | null>(null);
+  const [pitch, setPitch] = useState<string | null>(null);
+  const recruiting = a.recruiting ?? true;
+  return (
+    <Card title="Réglages du fondateur">
+      <label className="flex items-start gap-3 cursor-pointer font-body">
+        <input
+          type="checkbox"
+          checked={recruiting}
+          disabled={busy}
+          onChange={(e) => run(() => api.patch("/alliance", { recruiting: e.target.checked }), e.target.checked ? "L'alliance recrute" : "Recrutement fermé")}
+          className="accent-[rgb(var(--c-cobalt))] w-4 h-4 mt-0.5"
+        />
+        <span>
+          <span className="block text-[13.5px]">Recevoir des candidatures</span>
+          <span className="block text-[12.5px] text-slate2 mt-0.5 leading-snug">
+            {recruiting ? "Votre alliance figure dans la liste de celles qui recrutent, tant qu'il reste de la place." : "Votre alliance n'apparaît plus dans la liste. Les invitations restent possibles."}
+          </span>
+        </span>
+      </label>
+
+      <label htmlFor="alliance-pitch" className="block text-[13px] text-slate2 font-body mt-4 mb-1.5">
+        Présentation, lue par les candidats
+      </label>
+      <textarea
+        id="alliance-pitch"
+        value={pitch ?? a.pitch ?? ""}
+        maxLength={rules.pitchMax ?? 200}
+        rows={3}
+        onChange={(e) => setPitch(e.target.value)}
+        placeholder="Par exemple : réseau du Sud-Ouest, on cherche des lignes vers Toulouse et Bordeaux."
+        className={`${field} resize-none`}
+      />
+      {pitch !== null && (
+        <button disabled={busy} onClick={() => run(async () => { await api.patch("/alliance", { pitch }); setPitch(null); }, "Présentation enregistrée")} className={`${btnSoft} mt-2`}>
+          Enregistrer la présentation
+        </button>
       )}
-    </div>
+
+      <label htmlFor="alliance-discord" className="block text-[13px] text-slate2 font-body mt-4 mb-1.5">
+        Lien du salon Discord
+      </label>
+      <div className="flex gap-2">
+        <input id="alliance-discord" value={discord ?? a.discordUrl ?? ""} onChange={(e) => setDiscord(e.target.value)} placeholder="https://discord.gg/…" className={field} />
+        <button disabled={busy || discord === null} onClick={() => run(async () => { await api.patch("/alliance", { discordUrl: discord }); setDiscord(null); }, "Lien enregistré")} className={`${btnSoft} shrink-0`}>
+          Enregistrer
+        </button>
+      </div>
+    </Card>
+  );
+}
+
+/* ---------------- le classement ---------------- */
+
+function Ranking({ rows, highlight }: { rows: RankRow[]; highlight?: string }) {
+  if (rows.length === 0) return <p className="text-[13px] text-slate2 font-body">Aucune alliance pour l'instant : la première fondée sera en tête.</p>;
+  return (
+    <ol className="flex flex-col gap-0.5">
+      {rows.map((r) => {
+        const mine = r.id === highlight;
+        return (
+          <li key={r.id} className={`flex items-center gap-2.5 rounded-control px-2.5 py-2 text-[13.5px] font-body ${mine ? "bg-cobalt/[0.08] shadow-[inset_0_0_0_1px_rgb(var(--c-cobalt)/0.45)]" : ""}`}>
+            <span className={`w-5 text-right font-mono2 text-[12.5px] tabular-nums ${r.rank <= 3 ? "text-amber" : "text-slate2"}`}>{r.rank}</span>
+            <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: r.color }} />
+            <span className={`flex-1 min-w-0 truncate ${mine ? "font-semibold" : ""}`}>{r.name}</span>
+            <span className="text-[12px] text-slate2 shrink-0">{r.members} cie{r.members > 1 ? "s" : ""}</span>
+            <span className="font-mono2 tabular-nums w-[4.5rem] text-right">{fmt(r.points)}</span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
