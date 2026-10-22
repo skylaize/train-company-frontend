@@ -31,6 +31,9 @@ export function createCabScene(ctx) {
     yards: null as string[] | null, // 2.1 : gares de triage de la compagnie
     // 2.1.1 : poste-frontière sur le tronçon en cours ; dx = distance (px) devant la rame
     border: null as { dx: number; to: { code: string; name: string }; from: { code: string; name: string } } | null,
+    // 2.2 : Halloween — citrouilles le long de la voie, chauves-souris, et le fantôme sur sa gare
+    halloween: false,
+    haunted: null as string | null,
   };
   const oncomingW = new Map(); // longueur de chaque rame croisée, mesurée à l'image précédente
   const puffs = []; // fumée de la locomotive à vapeur
@@ -244,6 +247,59 @@ export function createCabScene(ctx) {
     ctx.fillStyle = "#e8edf5"; ctx.fillText(name.toUpperCase().slice(0, 14), x - 62, groundY - 75);
     ctx.fillStyle = "#4ade80"; ctx.textAlign = "right"; ctx.fillText("À L'HEURE", x + 64, groundY - 91);
     ctx.fillStyle = "#2b3443"; ctx.fillRect(x - 2, groundY - 64, 4, 58);
+  }
+
+  /* 2.2 : une citrouille sculptée, son œil et sa bouche éclairés de l'intérieur la nuit */
+  function drawPumpkin(x, y, r, dark, seed) {
+    ctx.save();
+    ctx.fillStyle = dark > 0.5 ? "#9a4a12" : "#d9721c";
+    for (const dx of [-0.55, 0.55, 0]) {
+      ctx.beginPath(); ctx.ellipse(x + dx * r, y, r * (dx ? 0.62 : 0.7), r * 0.78, 0, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = "rgba(0,0,0,.18)"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x - r * 0.3, y - r * 0.7); ctx.quadraticCurveTo(x - r * 0.45, y, x - r * 0.3, y + r * 0.7); ctx.moveTo(x + r * 0.3, y - r * 0.7); ctx.quadraticCurveTo(x + r * 0.45, y, x + r * 0.3, y + r * 0.7); ctx.stroke();
+    ctx.fillStyle = "#3f5a2a"; ctx.fillRect(x - 1.2, y - r * 0.95, 2.4, r * 0.35);
+    const glow = dark > 0.3;
+    const flick = glow ? 0.75 + 0.25 * Math.sin(seed * 7.3 + performance.now() / 160) : 1;
+    ctx.fillStyle = glow ? `rgba(255,200,90,${flick})` : "#2a1406";
+    ctx.beginPath(); ctx.moveTo(x - r * 0.45, y - r * 0.12); ctx.lineTo(x - r * 0.2, y - r * 0.38); ctx.lineTo(x - r * 0.08, y - r * 0.08); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x + r * 0.45, y - r * 0.12); ctx.lineTo(x + r * 0.2, y - r * 0.38); ctx.lineTo(x + r * 0.08, y - r * 0.08); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - r * 0.45, y + r * 0.18); ctx.lineTo(x - r * 0.2, y + r * 0.42); ctx.lineTo(x, y + r * 0.26); ctx.lineTo(x + r * 0.2, y + r * 0.42); ctx.lineTo(x + r * 0.45, y + r * 0.18); ctx.lineTo(x, y + r * 0.32); ctx.fill();
+    if (glow) {
+      const g = ctx.createRadialGradient(x, y, 1, x, y, r * 2.4);
+      g.addColorStop(0, "rgba(255,170,60,.28)"); g.addColorStop(1, "rgba(255,170,60,0)");
+      ctx.fillStyle = g; ctx.fillRect(x - r * 2.4, y - r * 2.4, r * 4.8, r * 4.8);
+    }
+    ctx.restore();
+  }
+
+  /* 2.2 : le fantôme de la gare hantée, qui ondule au-dessus du quai */
+  function drawGhost(x, y, t) {
+    const bob = Math.sin(t * 1.6) * 6;
+    const w = 34, h = 44;
+    ctx.save();
+    ctx.translate(x, y + bob);
+    const g = ctx.createRadialGradient(0, 0, 4, 0, 0, 70);
+    g.addColorStop(0, "rgba(167,139,250,.35)"); g.addColorStop(1, "rgba(167,139,250,0)");
+    ctx.fillStyle = g; ctx.fillRect(-70, -70, 140, 140);
+    ctx.globalAlpha = 0.88;
+    ctx.fillStyle = "#efe9ff";
+    ctx.beginPath();
+    ctx.moveTo(-w / 2, h / 2);
+    ctx.lineTo(-w / 2, -h / 2 + w / 2);
+    ctx.arc(0, -h / 2 + w / 2, w / 2, Math.PI, 0);
+    ctx.lineTo(w / 2, h / 2);
+    for (let i = 0; i < 4; i++) {
+      const x1 = w / 2 - (w / 4) * (i + 0.5), x2 = w / 2 - (w / 4) * (i + 1);
+      ctx.quadraticCurveTo(x1, h / 2 - 7 - Math.sin(t * 5 + i) * 2, x2, h / 2);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = "#2a1d40";
+    ctx.beginPath(); ctx.ellipse(-6, -h / 2 + w / 2 - 1, 2.6, 3.6, 0, 0, Math.PI * 2); ctx.ellipse(6, -h / 2 + w / 2 - 1, 2.6, 3.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, -h / 2 + w / 2 + 9, 3, 4 + Math.sin(t * 2) * 1, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
   }
 
   function drawStation(x, groundY, name, pal) {
@@ -565,6 +621,28 @@ export function createCabScene(ctx) {
       }
     }
 
+    // 2.2 : Halloween, des chauves-souris qui battent des ailes au loin (surtout au crépuscule et la nuit)
+    if (sc.halloween) {
+      const nb = dark > 0.3 ? 7 : 3;
+      ctx.fillStyle = dark > 0.3 ? "rgba(10,8,18,.85)" : "rgba(25,20,35,.55)";
+      for (let i = 0; i < nb; i++) {
+        const sp = 0.018 + (i % 3) * 0.006;
+        const bx = (((0.15 + i * 0.37 - t * sp - s * 0.00004) % 1.3) + 1.3) % 1.3 * W - W * 0.15;
+        const by = H * (0.1 + ((i * 0.23) % 0.22)) + Math.sin(t * 1.7 + i) * 6;
+        const sz = 5 + (i % 3) * 1.6;
+        const fl = Math.sin(t * 12 + i * 2) * 0.6;
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.quadraticCurveTo(bx - sz * 0.6, by - sz * (0.8 + fl), bx - sz * 1.4, by - sz * 0.1 * (1 + fl));
+        ctx.quadraticCurveTo(bx - sz * 0.9, by + sz * 0.05, bx - sz * 0.55, by + sz * 0.25);
+        ctx.quadraticCurveTo(bx - sz * 0.3, by + sz * 0.05, bx, by + sz * 0.35);
+        ctx.quadraticCurveTo(bx + sz * 0.3, by + sz * 0.05, bx + sz * 0.55, by + sz * 0.25);
+        ctx.quadraticCurveTo(bx + sz * 0.9, by + sz * 0.05, bx + sz * 1.4, by - sz * 0.1 * (1 + fl));
+        ctx.quadraticCurveTo(bx + sz * 0.6, by - sz * (0.8 + fl), bx, by);
+        ctx.fill();
+      }
+    }
+
     // plans successifs : plus ils sont loin, plus ils défilent lentement
     const layers = [
       { k: 0.06, base: groundY - H * 0.26, amp: H * 0.08, f: 0.004, seed: 1, c: pal.far },
@@ -662,8 +740,27 @@ export function createCabScene(ctx) {
     if (farY !== null && sc.oncoming.length) drawOncoming(sc.box ? sc.box.right : trainX + W * 0.3, farY + 1, t, { ...pal, lamps });
     if (depX > -400) drawStation(depX, groundY, sc.dep, pal);
     if (arrX < W + 400) drawStation(arrX, groundY, sc.arr, pal);
+    // 2.2 : le Train fantôme hante l'une des deux gares
+    if (sc.halloween && sc.haunted) {
+      if (sc.haunted === sc.dep && depX > -300 && depX < W + 300) drawGhost(depX + 120, groundY - H * 0.3, t);
+      if (sc.haunted === sc.arr && arrX > -300 && arrX < W + 300) drawGhost(arrX + 120, groundY - H * 0.3, t);
+    }
 
     drawTrain(trainX, groundY, t, { ...pal, lamps });
+
+    // 2.2 : Halloween, des citrouilles sculptées au premier plan, entre la voie et nous ; allumées à la nuit tombée
+    if (sc.halloween) {
+      const fk = 1.25, fsp = 120, foff = (s * fk) % fsp;
+      for (let i = -1; i < W / fsp + 2; i++) {
+        const idx = Math.floor((s * fk) / fsp) + i;
+        const r = Math.abs(Math.sin(idx * 78.233 + 4.1) * 24634.6345) % 1;
+        if (r > 0.42) continue;
+        const px = i * fsp - foff + r * 60;
+        const py = groundY + 34 + r * 70;
+        if (py > H - 12) continue;
+        drawPumpkin(px, py, 12 + r * 18, dark, idx);
+      }
+    }
 
     // canicule : l'air ondule au ras de la voie
     if (weather === "canicule" && dark < 0.5) {

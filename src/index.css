@@ -581,3 +581,18 @@ body:has([data-modal]) {
 body:has([data-modal]:not([data-nav-sheet])) .app-tabbar {
   display: none;
 }
+
+/* 2.2 : Halloween — le Train fantôme flotte un peu, et le fantôme de la carte aussi */
+@keyframes halloween-drift {
+  0%, 100% { transform: translateX(-2%); opacity: 0.7; }
+  50% { transform: translateX(2%); opacity: 0.45; }
+}
+.halloween-drift { animation: halloween-drift 7s ease-in-out infinite; }
+@keyframes halloween-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2px); }
+}
+.halloween-float { animation: halloween-float 2.6s ease-in-out infinite; transform-box: fill-box; }
+@media (prefers-reduced-motion: reduce) {
+  .halloween-drift, .halloween-float { animation: none; }
+}

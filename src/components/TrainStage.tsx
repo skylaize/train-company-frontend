@@ -20,9 +20,9 @@ import { WAGON_TYPES, isFreightLoco } from "../freight";
    ============================================================ */
 
 export type CarKind = "SECONDE" | "PREMIERE" | "BAR";
-type Model = "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE";
+type Model = "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE" | "TGV";
 
-const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, NUIT_EUROPE: 200, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220 };
+const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, NUIT_EUROPE: 200, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220, TGV: 500 };
 const CAR_SEATS: Record<string, number> = { SECONDE: 100, PREMIERE: 60, BAR: 0 };
 export const CAR_TAG: Record<string, string> = {
   SECONDE: "+100 places · 2de classe",

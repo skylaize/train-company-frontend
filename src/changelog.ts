@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.1.2";
+export const CURRENT_VERSION = "2.2.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,20 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.2.0",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Halloween, du 27 octobre au 2 novembre : le Train fantôme hante le réseau. Toutes les 45 minutes, il s'installe dans une gare desservie. Les curieux s'y pressent (voyageurs ×1,3), et chaque trajet qui passe par la gare hantée récolte une âme, deux de 20 h à 6 h. Son horaire est public, sur la flotte et sur la carte : envoyez vos rames là où il va" },
+      { type: "nouveau", text: "Les âmes débloquent pour toujours l'emblème de la citrouille (10), le titre « Chasseur de fantômes » (60), la livrée spectrale (150) et l'emblème du fantôme (300). Un classement des chasseurs court toute la semaine" },
+      { type: "nouveau", text: "Pendant Halloween, en vue cabine : des citrouilles sculptées le long de la voie, allumées à la nuit tombée, des chauves-souris, et le fantôme qui flotte au-dessus du quai de la gare hantée" },
+      { type: "nouveau", text: "Les lignes à grande vitesse : sur une ligne électrifiée, à double voie et longue d'au moins 200 km, lancez le chantier d'une LGV dans Infrastructures. 60 pi. du kilomètre, un jour de travaux pour 75 km (de 3 à 10 jours). La ligne roule pendant le chantier ; ses gares, elles, ne bougent plus. Un chantier à la fois, à partir du grade de Baron du rail" },
+      { type: "nouveau", text: "La rame TGV (6 000 pi., 500 places) : sur une LGV ouverte, et seulement là, elle fait le trajet presque deux fois plus vite, avec un billet 15 % plus cher. Une motrice à chaque bout, des voitures argent à votre livrée. Elle s'use 25 % plus vite et ne prend aucune voiture en plus" },
+      { type: "nouveau", text: "Sur la carte, une LGV ouverte porte un filet clair au cœur du trait, et un chantier en cours des tirets ambre" },
+      { type: "nouveau", text: "Un nouveau classement : Grande vitesse, les kilomètres de LGV ouvertes. Aussi sur Discord avec /classement" },
+      { type: "nouveau", text: "Cinq succès : Premier coup de pioche, À grande vitesse, Trois TGV, Train fantôme et Exorciste" },
+    ],
+  },
   {
     version: "2.1.2",
     date: "Octobre 2026",
