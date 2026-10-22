@@ -27,6 +27,7 @@ export default {
           dim: c("cobalt-dim"),
         },
         offwhite: c("offwhite"),
+        violet: c("violet"), // 2.0.3 (notifications), 2.2 : Halloween
         onaccent: c("onaccent"),
         slate2: c("slate2"),
         rail: {

@@ -1541,6 +1541,9 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
         return [{ w: L, kind: "deck2" }, { w: L, kind: "deck2" }, { w: 190, kind: "duplexHead" }];
       case "grande-vitesse":
         return [{ w: L, kind: "coachSilver" }, { w: L, kind: "coachSilver" }, { w: 230, kind: "express", arg: true }];
+      // 2.2 : la rame TGV, une motrice à chaque bout et ses voitures argent à la livrée
+      case "TGV":
+        return [{ w: 230, kind: "tgvTail" }, { w: L, kind: "coachSilver" }, { w: L, kind: "coachSilver" }, { w: L, kind: "coachSilver" }, { w: 230, kind: "express", arg: true }];
       case "EXPRESS":
         return [...extra.map((k) => ({ w: L, kind: "coach", arg: k })), { w: L, kind: "coach" }, { w: L, kind: "coach" }, { w: 230, kind: "express" }];
       // 2.1.1 : le train de nuit international — voitures-lits bleu nuit, voiture-restaurant, couchettes
@@ -1576,7 +1579,7 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
 
   // la rame tient dans la largeur donnée
   const gapU = 6;
-  const naturalU = plan.reduce((s, p) => s + p.w, 0) + gapU * (plan.length - 1) + (kind === "EXPRESS" || kind === "grande-vitesse" ? 20 : 8);
+  const naturalU = plan.reduce((s, p) => s + p.w, 0) + gapU * (plan.length - 1) + (kind === "EXPRESS" || kind === "grande-vitesse" ? 20 : kind === "TGV" ? 40 : 8);
   const u = o.maxWidth ? Math.min(o.u, o.maxWidth / naturalU) : o.u;
   const total = naturalU * u;
   const c: Ctx = {
@@ -1590,7 +1593,8 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
     t: o.t ?? 0,
   };
 
-  let x = o.cx - total / 2;
+  // 2.2 : le nez de la motrice de queue dépasse à gauche, comme celui de tête à droite
+  let x = o.cx - total / 2 + (kind === "TGV" ? 18 * u : 0);
   let head: any = null;
   const pieces: { x: number; w: number; kind: string }[] = [];
   const shiftFirst = (o.cars?.length ?? 0) > 0 && o.tailShift ? o.tailShift : 0;
@@ -1630,6 +1634,14 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
         break;
       case "express":
         head = regionalHead(c, x, w, true, !!p.arg);
+        break;
+      // 2.2 : la motrice de queue du TGV, la même retournée
+      case "tgvTail":
+        ctx.save();
+        ctx.translate(2 * x + w, 0);
+        ctx.scale(-1, 1);
+        regionalHead({ ...c, lit: false }, x, w, true, true);
+        ctx.restore();
         break;
       case "box":
         head = boxLoco(c, x, w, p.arg[0], { stripe: p.arg[1] });

@@ -6,6 +6,7 @@ import { weatherAt, SCENE_KIND } from "../stationWeather";
 import { PremiumCTA, PremiumInfo } from "./PremiumCTA";
 import { api } from "../api/client";
 import { routeStations, routeTimeline, FOREIGN_COUNTRY } from "../geo";
+import { useHauntedStation } from "./Halloween";
 
 /* ============================================================
    Vue cabine (1.4, Premium).
@@ -25,7 +26,7 @@ import { routeStations, routeTimeline, FOREIGN_COUNTRY } from "../geo";
 export interface CabTrain {
   id: string;
   name: string;
-  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE";
+  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE" | "TGV";
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
@@ -53,8 +54,8 @@ function tripPlan(t: CabTrain) {
   };
 }
 
-const CRUISE: Record<string, number> = { STANDARD: 430, EXPRESS: 560, FRET_LOURD: 380, COUCHETTES: 400, NUIT_EUROPE: 470, VAPEUR: 330, LUXE: 400, CREMAILLERE: 300, LOCOTRACTEUR: 300, FRET_RAPIDE: 470, FRET_ELECTRIQUE: 420 }; // px/s à l'écran
-const KMH: Record<string, number> = { STANDARD: 220, EXPRESS: 300, FRET_LOURD: 160, COUCHETTES: 200, NUIT_EUROPE: 230, VAPEUR: 110, LUXE: 180, CREMAILLERE: 60, LOCOTRACTEUR: 80, FRET_RAPIDE: 200, FRET_ELECTRIQUE: 160 };
+const CRUISE: Record<string, number> = { STANDARD: 430, EXPRESS: 560, FRET_LOURD: 380, COUCHETTES: 400, NUIT_EUROPE: 470, VAPEUR: 330, LUXE: 400, CREMAILLERE: 300, LOCOTRACTEUR: 300, FRET_RAPIDE: 470, FRET_ELECTRIQUE: 420, TGV: 720 }; // px/s à l'écran
+const KMH: Record<string, number> = { STANDARD: 220, EXPRESS: 300, FRET_LOURD: 160, COUCHETTES: 200, NUIT_EUROPE: 230, VAPEUR: 110, LUXE: 180, CREMAILLERE: 60, LOCOTRACTEUR: 80, FRET_RAPIDE: 200, FRET_ELECTRIQUE: 160, TGV: 320 };
 /* 2.1 : à l'échelle réelle, deux rames qui se croisent passent en une seconde ;
    on ralentit le croisement à l'écran (le moment où les têtes se croisent ne bouge pas) */
 const CROSS_SLOW = 0.4;
@@ -277,6 +278,10 @@ export function useCabScene(
   othersRef.current = others;
   const yardsRef = useRef(yards);
   yardsRef.current = yards;
+  // 2.2 : Halloween, la gare hantée par le Train fantôme
+  const haunted = useHauntedStation();
+  const hauntRef = useRef(haunted);
+  hauntRef.current = haunted;
   const onTickRef = useRef(onTick);
   onTickRef.current = onTick;
   const [hud, setHud] = useState({ kmh: 0, left: "—", phase: "En route", pct: 0, next: "", marks: [] as { name: string; pct: number }[], wx: null as null | { place: string; kind: string; temp: number | null } });
@@ -348,6 +353,8 @@ export function useCabScene(
          l'échelle de la scène, et on les voit passer sur la voie du fond */
       sc.doubleTrack = !!t.line?.doubleTrack;
       sc.yards = yardsRef.current;
+      sc.halloween = hauntRef.current.active;
+      sc.haunted = hauntRef.current.station;
       const f = duration > 0 ? Math.min(1, Math.max(0, elapsed / duration)) : 0;
       sc.oncoming = sc.doubleTrack
         ? othersRef.current

@@ -45,6 +45,9 @@ export const EMBLEM_LABELS: Record<string, string> = {
   coeur: "Cœur",
   // 2.1 : exclusivité Discord, jamais vendue
   "porte-voix": "Porte-voix",
+  // 2.2 : Halloween, gagnés avec les âmes du Train fantôme
+  citrouille: "Citrouille d'Halloween",
+  fantome: "Fantôme du réseau",
 };
 
 export function Emblem({ id, size = 14, className = "" }: { id: string; size?: number; className?: string }) {
@@ -305,6 +308,20 @@ export function Emblem({ id, size = 14, className = "" }: { id: string; size?: n
           <path d="M2.4 6.2H5L11 3v10L5 9.8H2.4z" />
           <path d="M5.4 10l1 3.4h1.4l-.6-3" />
           <path d="M12.9 6.4c.7.9.7 2.3 0 3.2M14.3 5.1c1.2 1.6 1.2 4.2 0 5.8" />
+        </svg>
+      );
+    case "citrouille":
+      return (
+        <svg {...common}>
+          <path d="M8 4.6c-1-.9-2.6-1-3.9-.3C2.3 5.3 1.6 7.6 1.9 9.8c.4 2.6 2.4 4 4.4 3.6.6.4 1.1.5 1.7.5s1.1-.1 1.7-.5c2 .4 4-1 4.4-3.6.3-2.2-.4-4.5-2.2-5.5-1.3-.7-2.9-.6-3.9.3Z" />
+          <path d="M8 4.6V2.2l1.4-.6M5.5 8.2l1 .9M10.5 8.2l-1 .9M5.6 11l1.2-.7 1.2.7 1.2-.7 1.2.7" />
+        </svg>
+      );
+    case "fantome":
+      return (
+        <svg {...common}>
+          <path d="M3 14.2V7.4a5 5 0 0 1 10 0v6.8l-1.7-1.3-1.6 1.3L8 12.9l-1.7 1.3-1.6-1.3z" />
+          <path d="M6.2 7.2v.4M9.8 7.2v.4" />
         </svg>
       );
     default:
