@@ -13,6 +13,7 @@ export const MODEL_LABEL: Record<string, string> = {
   LOCOTRACTEUR: "Locotracteur",
   FRET_RAPIDE: "Messagerie rapide",
   FRET_ELECTRIQUE: "Électrique longue distance",
+  TGV: "TGV", // 2.2
 };
 export const modelLabel = (m: string) => MODEL_LABEL[m] ?? "Standard";
 export const DLC_MODEL_IDS = new Set(["VAPEUR", "LUXE", "CREMAILLERE"]);
@@ -33,7 +34,12 @@ export function minutesLeft(iso: string | Date, now = Date.now()) {
 }
 
 /* Durée relative d'un trajet selon le matériel (aligné sur le serveur). */
-export const MODEL_SPEED: Record<string, number> = { EXPRESS: 0.7, VAPEUR: 1.3, LUXE: 1.1, CREMAILLERE: 1.35 };
+/* 2.2 : la rame TGV ne roule que sur une LGV ouverte, où elle va à ×0,55 */
+export const MODEL_SPEED: Record<string, number> = { EXPRESS: 0.7, VAPEUR: 1.3, LUXE: 1.1, CREMAILLERE: 1.35, TGV: 0.55 };
+
+/* 2.2 : une ligne dont la LGV est ouverte */
+export const hslOpen = (l?: { highSpeedAt?: string | null } | null) => Boolean(l?.highSpeedAt && new Date(l.highSpeedAt).getTime() <= Date.now());
+export const hslBuilding = (l?: { highSpeedAt?: string | null } | null) => Boolean(l?.highSpeedAt && new Date(l.highSpeedAt).getTime() > Date.now());
 export const modelSpeed = (m: string) => MODEL_SPEED[m] ?? 1;
 
 /* « il faut … » : la pièce avec son article */

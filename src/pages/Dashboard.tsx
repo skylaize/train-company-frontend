@@ -21,6 +21,7 @@ import { api } from "../api/client";
 import { clearReferral, pendingReferral, referralLink } from "../referral";
 import { PioneersBanner, PioneersModal } from "../components/Pioneers";
 import { Train200Card, Train200MapLayer } from "../components/Train200";
+import { HalloweenCard, HalloweenMapLayer } from "../components/Halloween";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { JournalBell } from "../components/Journal";
@@ -52,7 +53,7 @@ import { NavRow, NavGroup, MobileTabBar, CompanyBadge } from "../components/AppN
 import { TrainStage, TrainArrival } from "../components/TrainStage";
 import { TrainSheet, PartsStore } from "../components/TrainSheet";
 import { GazetteData, loadGazette } from "../components/Gazette";
-import { modelLabel, hhmm, minutesLeft, PART_LABEL, PART_NEED, modelSpeed } from "../models";
+import { modelLabel, hhmm, minutesLeft, PART_LABEL, PART_NEED, modelSpeed, hslOpen, hslBuilding } from "../models";
 import { playChime, playAlert, vibrate, soundsOn, setSoundsOn, setSoundPack } from "../sfx";
 import { AllianceSection, AllianceData, loadAlliance, allianceLead } from "../components/AllianceSection";
 import { WorldData } from "../components/WorldCard";
@@ -85,12 +86,12 @@ import { WreckYard, loadWrecks, RARITY_COLOR, type Wreck as WreckInfo } from "..
 interface Train {
   id: string;
   name: string;
-  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE";
+  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE" | "TGV";
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
   departedAt?: string | null;
-  line?: { id: string; name: string; departureStation: string; arrivalStation: string; durationMinutes?: number; stops?: string[]; electrified?: boolean; doubleTrack?: boolean } | null;
+  line?: { id: string; name: string; departureStation: string; arrivalStation: string; durationMinutes?: number; stops?: string[]; electrified?: boolean; doubleTrack?: boolean; highSpeedAt?: string | null } | null;
   // 1.7
   direction?: number;
   cars?: string[];
@@ -200,6 +201,7 @@ interface Line {
   electrified?: boolean;
   autoPrice?: boolean;
   doubleTrack?: boolean; // 2.1
+  highSpeedAt?: string | null; // 2.2 : LGV (ouverture, ou fin de chantier si dans le futur)
 }
 
 interface Company {
@@ -1423,6 +1425,7 @@ export default function Dashboard() {
             )}
             {/* 2.1.2 : les 200 pionniers */}
             {view === "trains" && !onboarding && <PioneersBanner onOpen={() => setPioneersOpen(true)} />}
+            {view === "trains" && !onboarding && <HalloweenCard onShowMap={() => setView("carte")} />}
             {view === "trains" && !onboarding && <Train200Card onShowMap={() => setView("carte")} />}
             {view === "trains" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
             {/* 2.1 : Premium d'essai en cours, puis la proposition de le garder */}
@@ -2022,11 +2025,13 @@ function AssignDropdown({
   options,
   onSelect,
   triggerClassName,
+  emptyText,
 }: {
   placeholder: string;
   options: { id: string; label: string }[];
   onSelect: (id: string) => void;
   triggerClassName?: string;
+  emptyText?: string; // 2.2 : pourquoi la liste est vide (rame TGV sans LGV)
 }) {
   const [open, setOpen] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number; width: number; maxH: number } | null>(null);
@@ -2115,7 +2120,7 @@ function AssignDropdown({
           style={{ top: coords.top, left: coords.left, width: coords.width, maxHeight: coords.maxH, WebkitOverflowScrolling: "touch" }}
         >
           {options.length === 0 && (
-            <div className="px-3 py-2 text-xs text-slate2 font-body">Aucune option disponible</div>
+            <div className="px-3 py-2 text-xs text-slate2 font-body">{emptyText ?? "Aucune option disponible"}</div>
           )}
           {options.map((opt) => (
             <button
@@ -2842,6 +2847,8 @@ function LinesSection({
                       <span>{l.durationMinutes} min, {nTrains} rame{nTrains > 1 ? "s" : ""}</span>
                       {l.electrified && <span className="text-amber">, électrifiée</span>}
                       {l.doubleTrack && <span className="text-offwhite">, double voie</span>}
+                      {hslOpen(l) && <span className="text-cobalt">, grande vitesse</span>}
+                      {hslBuilding(l) && <span className="text-amber">, LGV en chantier jusqu'au {new Date(l.highSpeedAt!).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</span>}
                       {m?.demand !== undefined && <span>, demande <DemandCell demand={m.demand} /></span>}
                       {m?.hub && m.hub > 1.0001 && <span>, correspondance <HubCell hub={m.hub} /></span>}
                     </div>
@@ -2862,7 +2869,7 @@ function LinesSection({
                 <div className="flex lg:flex-col items-end gap-2">
                   {confirmDeleteId === l.id ? (
                     <span className="flex items-center gap-2">
-                      <span className="text-[12px] text-slate2 font-body">Supprimer ?</span>
+                      <span className="text-[12px] text-slate2 font-body">{l.highSpeedAt ? "Supprimer la ligne et sa LGV, sans remboursement ?" : "Supprimer ?"}</span>
                       <button onClick={() => confirmDelete(l.id)} className="text-[12.5px] text-rail-red border border-rail-red/40 px-2.5 py-1 hover:bg-rail-red/10 font-body">Oui</button>
                       <button onClick={() => setConfirmDeleteId(null)} className="text-[12.5px] text-slate2 border border-line px-2.5 py-1 hover:text-offwhite font-body">Non</button>
                     </span>
@@ -2906,7 +2913,7 @@ function RouteCell({ line }: { line: Line }) {
         <span className="text-slate2 text-xs">⇄</span>
         {line.arrivalStation}
       </div>
-      {(stops.length > 0 || line.electrified || line.doubleTrack) && (
+      {(stops.length > 0 || line.electrified || line.doubleTrack || line.highSpeedAt) && (
         <div className="text-[11px] text-slate2 mt-0.5 flex items-center gap-1.5 flex-wrap">
           {stops.length > 0 && <span>via {stops.join(", ")}</span>}
           {line.electrified && (
@@ -2917,6 +2924,11 @@ function RouteCell({ line }: { line: Line }) {
           {line.doubleTrack && (
             <span className="font-mono2 text-[10px] uppercase text-offwhite" title="Double voie : trajets 7 % plus rapides, moins de retards, cadencement">
               ‖ double voie
+            </span>
+          )}
+          {hslOpen(line) && (
+            <span className="font-mono2 text-[10px] uppercase text-cobalt" title="Ligne à grande vitesse : les rames TGV y roulent presque deux fois plus vite">
+              » grande vitesse
             </span>
           )}
         </div>
@@ -3087,7 +3099,7 @@ function PriceControl({ line, ridership, premium, onChange }: { line: Line; ride
 /* ---------------- 1.7 : composition des rames ---------------- */
 
 // doit rester aligné sur ridership.service.ts
-const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, NUIT_EUROPE: 200, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220 };
+const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, NUIT_EUROPE: 200, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220, TGV: 500 };
 const CAR_TYPES: { id: string; label: string; short: string; seats: number; first: boolean; price: number; unique?: boolean; blurb: string }[] = [
   { id: "SECONDE", label: "Voiture de 2de classe", short: "2", seats: 100, first: false, price: 150, blurb: "+100 places. Pour les lignes où des voyageurs restent à quai." },
   { id: "PREMIERE", label: "Voiture de 1re classe", short: "1", seats: 60, first: true, price: 300, blurb: "+60 places payées 1,8 fois le billet. Rentable sur les lignes chargées." },
@@ -3195,6 +3207,10 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
           </div>
         </div>
 
+        {train.model === "TGV" ? (
+          // 2.2 : une rame articulée : rien ne s'y attelle
+          <p className="p-5 text-[13px] text-slate2 font-body">Une rame TGV est indéformable : ses {seats.total} places sont celles de ses voitures, on n'y attelle rien.</p>
+        ) : (
         <div className="p-5 space-y-2">
           {CAR_TYPES.map((c) => {
             const full = cars.length >= MAX_CARS;
@@ -3221,6 +3237,7 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
             Chaque voiture ralentit la rame de {Math.round(CAR_SLOWDOWN * 100)} %. Une voiture dételée rend la moitié de son prix.
           </p>
         </div>
+        )}
       </div>
     </div>,
     document.body
@@ -3652,8 +3669,11 @@ function TrainsSection({
                       .filter((l) => (t.model !== "COUCHETTES" || l.durationMinutes >= 10) && (t.model !== "LUXE" || l.durationMinutes >= 12))
                       // 2.1.1 : le train de nuit international passe une frontière
                       .filter((l) => t.model !== "NUIT_EUROPE" || (l.durationMinutes >= 10 && [l.departureStation, ...(l.stops ?? []), l.arrivalStation].some((s) => INTL_STATIONS.includes(s))))
-                      .map((l) => ({ id: l.id, label: `${l.departureStation} → ${l.arrivalStation}` }))}
+                      // 2.2 : la rame TGV ne roule que sur une LGV ouverte
+                      .filter((l) => t.model !== "TGV" || hslOpen(l))
+                      .map((l) => ({ id: l.id, label: `${l.departureStation} → ${l.arrivalStation}${hslOpen(l) ? " · LGV" : ""}` }))}
                     onSelect={(lineId) => assign(t.id, lineId)}
+                    emptyText={t.model === "TGV" ? "Une rame TGV ne roule que sur une LGV ouverte. Construisez-en une dans Infrastructures." : undefined}
                   />
                   </span>
                 ) : null}
@@ -4578,6 +4598,7 @@ function LeaderboardSection() {
     if (!data) return String(v);
     if (data.unit === "%") return `${v} %`;
     if (data.unit === "pi.") return `${v.toLocaleString("fr-FR")} pi.`;
+    if (data.unit === "km") return `${v.toLocaleString("fr-FR")} km`; // 2.2 : grande vitesse
     return String(v);
   };
 
@@ -4905,6 +4926,16 @@ const CATALOG = [
     minGradeId: 3,
     needsLicence: true,
   },
+  // 2.2
+  {
+    id: "TGV",
+    name: "Rame TGV",
+    spec: "500 places, trajets presque deux fois plus courts et billet +15 % sur une ligne à grande vitesse, et seulement là. S'use 25 % plus vite. Rame indéformable",
+    speedLevel: 3,
+    capacityLevel: 3,
+    price: 6000,
+    minGradeId: 3,
+  },
 ] as { id: string; name: string; spec: string; speedLevel: number; capacityLevel: number; price: number; minGradeId: number; needsLicence?: boolean }[];
 
 function StatBars({ level, max = 3, active }: { level: number; max?: number; active: boolean }) {
@@ -4966,7 +4997,7 @@ function TrainCatalogModal({
   }, []);
   return (
     <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-6">
-      <div className="w-full max-w-5xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[92vh] overflow-y-auto">
+      <div className="w-full max-w-6xl bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter max-h-[92vh] overflow-y-auto">
         <div className="px-6 py-5 border-b border-line">
           <h2 className="font-display text-2xl">Catalogue du matériel roulant</h2>
           <p className="text-sm text-slate2 font-body mt-1">
@@ -4978,7 +5009,8 @@ function TrainCatalogModal({
           <h3 className="font-display text-xl">Voyageurs</h3>
           <p className="text-sm text-slate2 font-body mt-0.5">Pour vos lignes. Les voitures s'ajoutent ensuite, rame par rame.</p>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-line">
+        {/* 2.2 : cinq modèles voyageurs, sur une seule rangée en grand écran */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 divide-y md:divide-y-0 md:divide-x divide-line">
           {CATALOG.map((model) => {
             const noLicence = !!model.needsLicence && !hasLicence;
             const locked = (model.minGradeId ?? 0) > gradeId || noLicence;
@@ -5818,8 +5850,11 @@ function NetworkMap({
               <g key={l.id}>
                 {running && <path d={path} fill="none" stroke="rgb(var(--c-navy-950))" strokeWidth={5 * k} strokeLinecap="round" opacity="0.9" />}
                 <path d={path} fill="none" stroke={color} strokeWidth={(running ? 2.8 : 1.4) * k} strokeLinecap="round" strokeDasharray={running ? undefined : `${3 * k} ${4 * k}`} opacity={running ? 1 : 0.5}>
-                  <title>{`${l.name}${running ? "" : " · sans rame"}`}</title>
+                  <title>{`${l.name}${running ? "" : " · sans rame"}${hslOpen(l) ? " · grande vitesse" : hslBuilding(l) ? " · LGV en chantier" : ""}`}</title>
                 </path>
+                {/* 2.2 : la LGV, un filet clair au cœur du trait ; en chantier, des tirets ambre */}
+                {hslOpen(l) && <path d={path} fill="none" stroke="rgb(var(--c-offwhite))" strokeWidth={0.7 * k} strokeLinecap="round" opacity="0.9" pointerEvents="none" />}
+                {hslBuilding(l) && <path d={path} fill="none" stroke="rgb(var(--c-amber))" strokeWidth={1 * k} strokeDasharray={`${1.5 * k} ${2.5 * k}`} opacity="0.95" pointerEvents="none" />}
               </g>
             );
           })}
@@ -5949,6 +5984,7 @@ function NetworkMap({
 
           {/* 2.1.2 : le Train des 200, en direct */}
           <Train200MapLayer k={k} />
+          <HalloweenMapLayer k={k} />
 
           {/* les rames : couleur de leur ligne, une traînée derrière elles */}
           {trains.map((t) => {

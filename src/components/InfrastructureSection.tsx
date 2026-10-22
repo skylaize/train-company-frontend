@@ -39,7 +39,16 @@ interface Rules {
   maxYards?: number;
   yardPay?: number;
   yardTime?: number;
+  // 2.2 : grande vitesse
+  hsl?: {
+    minKm: number; perKm: number; minCost: number; kmPerDay: number; minDays: number; maxDays: number;
+    minGrade: number; minGradeName: string; gradeOk: boolean;
+    building: { lineId: string; route: string[]; openAt: string } | null;
+    tgv: { cost: number; seats: number; speed: number; fare: number; wear: number; minGrade: number };
+  };
 }
+
+type HslInfo = { state: "aucune" | "chantier" | "ouverte"; openAt: string | null; cost: number; days: number; blocker: string | null };
 
 interface OwnedStation {
   station: string;
@@ -73,7 +82,7 @@ interface InfraData {
   stations: OwnedStation[];
   market: MarketStation[];
   workshops: { id: string; station: string; createdAt: string; lines: number }[];
-  lines: { id: string; route: string[]; km: number; electrified: boolean; cost: number; doubleTrack?: boolean; doubleCost?: number; trains?: number }[];
+  lines: { id: string; route: string[]; km: number; electrified: boolean; cost: number; doubleTrack?: boolean; doubleCost?: number; trains?: number; hsl?: HslInfo }[];
   yards?: { id: string; station: string; createdAt: string; served: boolean }[];
 }
 
@@ -486,7 +495,106 @@ export function InfrastructureSection({
           </div>
         </section>
       )}
+
+      {/* ---------------- 2.2 : lignes à grande vitesse ---------------- */}
+      {rules.hsl && <HighSpeedPanel rules={rules.hsl} lines={data.lines} balance={balance} busy={busy} act={act} />}
     </div>
+  );
+}
+
+/* ============================================================
+   2.2 : les lignes à grande vitesse. Une ligne par rangée, ce qu'il
+   manque pour poser la LGV (ou le chantier en cours), et le bouton.
+   ============================================================ */
+function HighSpeedPanel({
+  rules,
+  lines,
+  balance,
+  busy,
+  act,
+}: {
+  rules: NonNullable<Rules["hsl"]>;
+  lines: InfraData["lines"];
+  balance: number;
+  busy: string | null;
+  act: (key: string, url: string, body: object, done: string) => Promise<void>;
+}) {
+  const open = lines.filter((l) => l.hsl?.state === "ouverte");
+  const km = open.reduce((a, l) => a + l.km, 0);
+  // les lignes assez longues d'abord, les plus longues en tête
+  const sorted = [...lines].sort((a, b) => Number(b.km >= rules.minKm) - Number(a.km >= rules.minKm) || b.km - a.km);
+  const site = rules.building;
+  const siteProgress = (l: InfraData["lines"][number]) => {
+    if (!l.hsl?.openAt) return 0;
+    const end = new Date(l.hsl.openAt).getTime();
+    const start = end - l.hsl.days * 86_400_000;
+    return Math.min(1, Math.max(0, (Date.now() - start) / (end - start)));
+  };
+  return (
+    <section>
+      <SectionTitle n="06" title="Grande vitesse" aside={open.length ? `${open.length} LGV · ${fmt(km)} km` : "aucune LGV"} />
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] mb-4">
+        <p className="text-[13px] text-slate2 font-body max-w-3xl">
+          Le dernier étage de l'infrastructure. Sur une ligne électrifiée, à double voie et longue d'au moins {rules.minKm} km, posez une ligne à grande vitesse :{" "}
+          {fmt(rules.perKm)} pi. du kilomètre ({fmt(rules.minCost)} au moins) et un chantier d'un jour pour {rules.kmPerDay} km, de {rules.minDays} à {rules.maxDays} jours. La ligne
+          continue de rouler pendant les travaux, mais ses gares ne peuvent plus changer. Un seul chantier à la fois.
+        </p>
+        <div className="border border-line px-4 py-3">
+          <div className="font-display text-lg leading-tight">La rame TGV</div>
+          <p className="text-[12.5px] text-slate2 font-body mt-1">
+            {fmt(rules.tgv.cost)} pi., {rules.tgv.seats} places. Sur une LGV ouverte, trajets {pct(1 - rules.tgv.speed)} plus courts, billet +{pct(rules.tgv.fare - 1)}, usure +
+            {pct(rules.tgv.wear - 1)}. Au catalogue du matériel.
+          </p>
+        </div>
+      </div>
+      {!rules.gradeOk && (
+        <p className="mb-3 text-[13px] font-body text-amber">Les LGV et la rame TGV s'ouvrent au grade « {rules.minGradeName} ».</p>
+      )}
+      <div className="border border-line divide-y divide-line">
+        {lines.length === 0 && <p className="px-4 py-4 text-[13px] text-slate2 font-body">Aucune ligne pour l'instant.</p>}
+        {sorted.map((l) => {
+          const h = l.hsl;
+          if (!h) return null;
+          const name = `${l.route[0]} – ${l.route[l.route.length - 1]}`;
+          const ready = !h.blocker && rules.gradeOk && !site;
+          return (
+            <div key={l.id} className="px-4 py-3">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                <div className="flex-1 min-w-[220px]">
+                  <div className="text-[13.5px] font-body text-offwhite">{l.route.join(" – ")}</div>
+                  <div className="text-[12px] font-body text-slate2">
+                    {fmt(l.km)} km
+                    {h.state === "aucune" && h.blocker && l.km >= rules.minKm && <span> · {h.blocker}</span>}
+                    {h.state === "aucune" && !h.blocker && <span> · {h.days} jours de chantier</span>}
+                  </div>
+                </div>
+                {h.state === "ouverte" ? (
+                  <span className="font-mono2 text-[11px] uppercase text-cobalt w-52 text-right">» LGV ouverte</span>
+                ) : h.state === "chantier" ? (
+                  <span className="font-mono2 text-[11px] uppercase text-amber w-52 text-right">Ouverture {when(h.openAt!)}</span>
+                ) : l.km < rules.minKm ? (
+                  <span className="font-body text-[12px] text-slate2 w-52 text-right">trop courte pour une LGV</span>
+                ) : (
+                  <button
+                    onClick={() => act("hsl" + l.id, "/infrastructure/high-speed", { lineId: l.id }, `Chantier de la LGV ${name} lancé`)}
+                    disabled={!ready || !!busy || balance < h.cost}
+                    title={site ? `Un chantier est déjà en cours (${site.route[0]} – ${site.route[site.route.length - 1]})` : undefined}
+                    className="w-52 text-[11px] font-mono2 uppercase text-cobalt border border-cobalt/40 px-2 py-1 hover:bg-cobalt/10 disabled:opacity-40"
+                  >
+                    Lancer le chantier · {fmt(h.cost)}
+                  </button>
+                )}
+              </div>
+              {h.state === "chantier" && (
+                <div className="mt-2 h-[4px] bg-navy-950 border border-line" role="progressbar" aria-valuenow={Math.round(siteProgress(l) * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`Chantier de la LGV ${name}`}>
+                  <div className="h-full bg-amber" style={{ width: `${siteProgress(l) * 100}%` }} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }
 
