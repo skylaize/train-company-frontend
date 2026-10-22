@@ -9,6 +9,7 @@ const ACTIONS: { id: string; label: string }[] = [
   { id: "ARGENT", label: "Pièces" },
   { id: "PREMIUM", label: "Premium" },
   { id: "OBJET", label: "Objets" },
+  { id: "RAME", label: "Rames" },
   { id: "BAN", label: "Suspensions" },
   { id: "RENOMMER", label: "Noms" },
   { id: "SAISON", label: "Saison" },
@@ -18,7 +19,7 @@ const ACTIONS: { id: string; label: string }[] = [
   { id: "ANNONCE", label: "Annonces" },
 ];
 const LABEL = Object.fromEntries(ACTIONS.map((a) => [a.id, a.label]));
-const PLAYER_ACTIONS = new Set(["ARGENT", "PREMIUM", "OBJET", "BAN", "RENOMMER"]);
+const PLAYER_ACTIONS = new Set(["ARGENT", "PREMIUM", "OBJET", "BAN", "RENOMMER", "RAME"]);
 
 export default function Logs() {
   const [action, setAction] = useState("");

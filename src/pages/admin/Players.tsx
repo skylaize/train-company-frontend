@@ -159,7 +159,11 @@ type Detail = {
   isPremium: boolean; premiumTrialUntil: string | null; pioneerNumber: number | null; referralCode: string; createdAt: string; lastActiveAt: string | null;
   division: string;
   owner: { id: string; email: string; pseudo: string; createdAt: string; discordId: string | null; discordName: string | null; bannedAt: string | null; bannedReason: string | null };
-  trains: { id: string; name: string; model: string; status: string; wear: number; broken: string | null; line: string | null }[];
+  trains: {
+    id: string; name: string; model: string; status: string; wear: number; broken: string | null; line: string | null;
+    progress: number; departedAt: string | null; workshopUntil: string | null; partsEta: string | null; freight: number; purchasedAt: string;
+    purchase: number; resale: number;
+  }[];
   lines: { id: string; name: string; route: string[]; priceRatio: number; trains: number }[];
   purchases: { itemId: string; name: string; amountCents: number; purchasedAt: string; giftFrom: string | null; paid: boolean }[];
   transactions: { id: string; type: string; amount: number; description: string; createdAt: string }[];
@@ -241,7 +245,7 @@ function PlayerDrawer({ id, onChanged }: { id: string; onChanged: () => void }) 
             </div>
             <div className="p-5">
               {tab === "Résumé" && <Summary d={d} />}
-              {tab === "Flotte" && <Fleet d={d} />}
+              {tab === "Flotte" && <Fleet d={d} onChanged={refresh} />}
               {tab === "Achats" && <Purchases d={d} onChanged={refresh} />}
               {tab === "Historique" && <History d={d} />}
               {tab === "Actions" && <Actions d={d} onChanged={refresh} />}
@@ -298,23 +302,32 @@ function Summary({ d }: { d: Detail }) {
 
 const STATUS: Record<string, string> = { IDLE: "à quai", EN_ROUTE: "en route", MAINTENANCE: "à l'atelier" };
 
-function Fleet({ d }: { d: Detail }) {
+function Fleet({ d, onChanged }: { d: Detail; onChanged: () => Promise<void> }) {
+  const [open, setOpen] = useState<string | null>(null);
   return (
     <>
-      <h3 className="font-display text-[16px] mb-2">Rames</h3>
+      <h3 className="font-display text-[16px] mb-1">Rames</h3>
+      <p className="font-body text-[12.5px] text-slate2 mb-2">Une rame qui bug : ouvrez-la pour la remettre au dépôt, ou la retirer et rembourser le joueur.</p>
       {d.trains.length === 0 ? (
         <p className="font-body text-[14px] text-slate2 mb-6">Aucune rame.</p>
       ) : (
         <ul className="divide-y divide-line border-y border-line mb-6">
           {d.trains.map((t) => (
-            <li key={t.id} className="flex items-baseline gap-3 py-2 font-body text-[13.5px]">
-              <span className="flex-1 min-w-0 truncate">
-                {t.name} <span className="text-slate2">{t.model.toLowerCase().replace(/_/g, " ")}</span>
-              </span>
-              <span className="text-slate2 truncate max-w-[40%]">{t.line ?? STATUS[t.status] ?? t.status}</span>
-              <span className={`font-mono2 text-[12.5px] w-12 text-right ${t.broken ? "text-rail-red" : t.wear > 70 ? "text-amber" : "text-slate2"}`}>
-                {t.broken ? "panne" : `${t.wear} %`}
-              </span>
+            <li key={t.id}>
+              <button
+                onClick={() => setOpen(open === t.id ? null : t.id)}
+                aria-expanded={open === t.id}
+                className="w-full flex items-baseline gap-3 py-2 font-body text-[13.5px] text-left hover:bg-navy-800/40 -mx-1 px-1"
+              >
+                <span className="flex-1 min-w-0 truncate">
+                  {t.name} <span className="text-slate2">{t.model.toLowerCase().replace(/_/g, " ")}</span>
+                </span>
+                <span className="text-slate2 truncate max-w-[40%]">{t.line ?? STATUS[t.status] ?? t.status}</span>
+                <span className={`font-mono2 text-[12.5px] w-12 text-right ${t.broken ? "text-rail-red" : t.wear > 70 ? "text-amber" : "text-slate2"}`}>
+                  {t.broken ? "panne" : `${t.wear} %`}
+                </span>
+              </button>
+              {open === t.id && <TrainTools d={d} t={t} onDone={async () => { setOpen(null); await onChanged(); }} />}
             </li>
           ))}
         </ul>
@@ -338,6 +351,103 @@ function Fleet({ d }: { d: Detail }) {
         </ul>
       )}
     </>
+  );
+}
+
+type RefundMode = "achat" | "revente" | "montant" | "aucun";
+
+/* Les outils d'une rame : son état exact, la remettre au dépôt, la retirer en remboursant. */
+function TrainTools({ d, t, onDone }: { d: Detail; t: Detail["trains"][number]; onDone: () => Promise<void> }) {
+  const { run, busy } = useAction();
+  const confirm = useConfirm();
+  const [mode, setMode] = useState<RefundMode>("achat");
+  const [amount, setAmount] = useState(String(t.purchase));
+  const [reason, setReason] = useState("");
+  const refund = mode === "achat" ? t.purchase : mode === "revente" ? t.resale : mode === "montant" ? Math.max(0, Math.round(Number(amount) || 0)) : 0;
+  const options: { id: RefundMode; label: string; value?: number }[] = [
+    { id: "achat", label: "Prix d'achat", value: t.purchase },
+    { id: "revente", label: "Prix de reprise du jour", value: t.resale },
+    { id: "montant", label: "Autre montant" },
+    { id: "aucun", label: "Sans remboursement" },
+  ];
+  const facts: [string, string][] = [
+    ["Statut", `${STATUS[t.status] ?? t.status}${t.line ? `, ligne ${t.line}` : ""}`],
+    ["Trajet", t.departedAt ? `${t.progress} %, parti ${since(t.departedAt)}` : "à l'arrêt"],
+    ["Atelier", t.workshopUntil ? `jusqu'au ${dateTime(t.workshopUntil)}` : t.partsEta ? `pièce attendue ${dateTime(t.partsEta)}` : "non"],
+    ["Fret à bord", t.freight ? `${t.freight} contrat${t.freight > 1 ? "s" : ""}` : "aucun"],
+    ["Achetée", dateOnly(t.purchasedAt)],
+  ];
+  return (
+    <div className="mb-3 border border-line bg-navy-900 px-3 py-3 space-y-4">
+      <dl className="grid grid-cols-[110px_1fr] gap-x-3 gap-y-1 font-body text-[12.5px]">
+        {facts.map(([k, v]) => (
+          <div key={k} className="contents">
+            <dt className="text-slate2">{k}</dt>
+            <dd>{v}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <div>
+        <div className="font-body text-[13px] mb-1.5">Remettre au dépôt</div>
+        <p className="font-body text-[12px] text-slate2 mb-2">Pour une rame coincée : elle revient à quai, sans ligne, prête à repartir. Le fret à bord retourne au marché.</p>
+        <div className="flex flex-wrap gap-2">
+          <Btn disabled={busy} onClick={() => run(() => api.post(`/admin/players/${d.id}/trains/${t.id}/reset`, {}), `${t.name} remise au dépôt`, onDone)}>
+            Remettre au dépôt
+          </Btn>
+          <Btn disabled={busy} onClick={() => run(() => api.post(`/admin/players/${d.id}/trains/${t.id}/reset`, { repair: true }), `${t.name} remise au dépôt et réparée`, onDone)}>
+            Remettre au dépôt et réparer
+          </Btn>
+        </div>
+      </div>
+
+      <div className="border-t border-line pt-3">
+        <div className="font-body text-[13px] mb-1.5">Retirer la rame et rembourser</div>
+        <fieldset className="grid sm:grid-cols-2 gap-1.5 mb-2">
+          <legend className="sr-only">Remboursement</legend>
+          {options.map((o) => (
+            <label key={o.id} className={`flex items-center gap-2 border px-2.5 py-1.5 font-body text-[12.5px] cursor-pointer ${mode === o.id ? "border-amber" : "border-line"}`}>
+              <input type="radio" name={`refund-${t.id}`} checked={mode === o.id} onChange={() => setMode(o.id)} className="accent-amber" />
+              <span className="flex-1">{o.label}</span>
+              {o.value !== undefined && <span className="font-mono2 text-[12px]">{nf(o.value)} pi.</span>}
+            </label>
+          ))}
+        </fieldset>
+        <div className="grid sm:grid-cols-[130px_1fr] gap-2">
+          {mode === "montant" && (
+            <Field label="Montant">
+              <input value={amount} onChange={(e) => setAmount(e.target.value)} inputMode="numeric" className={inputCls} />
+            </Field>
+          )}
+          <div className={mode === "montant" ? "" : "sm:col-span-2"}>
+            <Field label="Raison" hint="Visible dans l'historique du joueur et la notification">
+              <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="ex. rame bloquée en route" maxLength={120} className={inputCls} />
+            </Field>
+          </div>
+        </div>
+        <Btn
+          tone="danger"
+          className="mt-2"
+          disabled={busy}
+          onClick={async () => {
+            const r = await confirm({
+              title: `Retirer ${t.name} ?`,
+              body: `La rame disparaît du parc de ${d.name}. ${refund > 0 ? `Le joueur est remboursé de ${nf(refund)} pi.` : "Aucun remboursement."}${t.freight ? " Le fret à bord retourne au marché." : ""}`,
+              confirm: refund > 0 ? `Retirer et rembourser ${nf(refund)} pi.` : "Retirer",
+              danger: true,
+            });
+            if (r.ok)
+              await run(
+                () => api.delete(`/admin/players/${d.id}/trains/${t.id}`, { data: { refund: mode, amount: refund, reason: reason || undefined } }),
+                refund > 0 ? `${t.name} retirée, ${nf(refund)} pi. remboursées` : `${t.name} retirée`,
+                onDone
+              );
+          }}
+        >
+          {refund > 0 ? `Retirer et rembourser ${nf(refund)} pi.` : "Retirer la rame"}
+        </Btn>
+      </div>
+    </div>
   );
 }
 
