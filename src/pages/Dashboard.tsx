@@ -323,6 +323,11 @@ export default function Dashboard() {
   const [lines, setLines] = useState<Line[]>([]);
   const [trains, setTrains] = useState<Train[]>([]);
   const [loading, setLoading] = useState(true);
+  // 2.2 : lien vers le panneau d'administration, pour les comptes de l'équipe
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    api.get("/me").then(({ data }) => setIsAdmin(Boolean(data?.isAdmin))).catch(() => undefined);
+  }, []);
   // 2.1.2 : le premier chargement a échoué (serveur lent, réseau coupé)
   const [loadFailed, setLoadFailed] = useState(false);
   // 2.1.2 : la fenêtre des 200 pionniers
@@ -1206,6 +1211,9 @@ export default function Dashboard() {
             <a href={DISCORD.url} target="_blank" rel="noopener noreferrer" title="Rejoindre le serveur Discord de Réseau" aria-label="Réseau sur Discord" className="hover:text-offwhite">
               <DiscordMark size={14} />
             </a>
+            {isAdmin && (
+              <a href="/admin" className="text-amber hover:text-offwhite">Admin</a>
+            )}
             <button onClick={logout} className="ml-auto hover:text-offwhite">Quitter</button>
           </div>
         </div>
@@ -1242,6 +1250,7 @@ export default function Dashboard() {
           ...(!install.installed ? [{ id: "install", label: "Installer l'app", onClick: () => (install.canPrompt ? void install.prompt() : setShowInstallGuide(true)) }] : []),
           { id: "aide", label: "Aide", onClick: () => setShowTutorial(true) },
           { id: "notes", label: `Nouveautés de la v${CURRENT_VERSION}`, onClick: () => setShowWhatsNew(true) },
+          ...(isAdmin ? [{ id: "admin", label: "Panneau admin", onClick: () => { window.location.href = "/admin"; } }] : []),
           { id: "quitter", label: "Quitter", onClick: logout },
         ]}
       />
