@@ -9,41 +9,6 @@ import { api } from "../api/client";
 import "./landing.css";
 import { LandingCab } from "../components/LandingCab";
 import { TrainPicture } from "../components/TrainPicture";
-import { train200State, TRAIN200_GOLD, Train200Data } from "../components/Train200";
-
-/* 2.1.2 : la fête des 200 — ce que renvoie /celebration, sans compte */
-interface Celebration {
-  pioneers: { taken: number; total: number };
-  train: { startsAt: string; endsAt: string; route: { station: string; at: string }[]; painted: number } | null;
-}
-
-function whenFr(iso: string) {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} à ${d.getHours()} h${d.getMinutes() ? String(d.getMinutes()).padStart(2, "0") : ""}`;
-}
-
-/* le panneau du Train des 200 : où il est, à la minute */
-function Train200Board({ c, now }: { c: Celebration | null; now: number }) {
-  const data: Train200Data | null = c?.train ? { exists: true, route: c.train.route } : null;
-  const st = train200State(data, now);
-  let line = "Le Train des 200 se prépare au dépôt.";
-  if (st && c?.train) {
-    if (st.phase === "attente") line = `Départ de ${st.from.station} ${whenFr(st.from.at)}.`;
-    else if (st.phase === "route") line = `En ce moment entre ${st.from.station} et ${st.to.station}. Gare ${Math.min(st.passed, st.total)} sur ${st.total}, ${c.train.painted} compagnies déjà peintes sur ses voitures.`;
-    else line = `Arrivé à ${st.to.station} après 48 h de tournée, avec ${c.train.painted} compagnies sur ses voitures.`;
-  }
-  return (
-    <div className="lp-200-board" aria-live="polite">
-      <span className="lp-200-dot" data-live={st?.phase === "route" ? "1" : undefined} aria-hidden="true" />
-      <span>{line}</span>
-      {st && st.phase !== "attente" && (
-        <span className="lp-200-bar" aria-hidden="true">
-          <span style={{ width: `${st.progress * 100}%` }} />
-        </span>
-      )}
-    </div>
-  );
-}
 
 /* ============================================================
    Page d'accueil (2.0, refaite) — le papier imprimé reste, mais la page
@@ -262,10 +227,19 @@ function StationClock({ now }: { now: Date }) {
   );
 }
 
+/* 2.3 : les nouveautés, sur la section du haut */
+const NOUVEAU_23 = [
+  { k: "Extension", t: "La Corse", b: "Bastia, Corte, Ajaccio, Calvi et L'Île-Rousse, le ferry de Marseille et de Nice, et l'autorail corse qui grimpe dans le maquis." },
+  { k: "Alliance", t: "Les objectifs de la semaine", b: "Chaque lundi, trois objectifs à remplir ensemble. Chacun voit sa part, et chaque contributeur est payé." },
+  { k: "Alliance", t: "Les régions", b: "Chaque région revient à l'alliance qui y dessert le plus de gares. Tenez-la, et vos billets y rapportent plus." },
+  { k: "Fret", t: "Le conteneur scellé", b: "Un contrat au contenu inconnu, payé au prix fort. On l'ouvre à l'arrivée : un trésor, ou des ennuis." },
+  { k: "Voyageurs", t: "La rame publicitaire", b: "Une marque loue votre rame pour une semaine et paie d'avance. Mais gare au scandale." },
+  { k: "Discord", t: "Merci aux boosters", b: "Boostez le serveur Discord : badge, livrée Nitro et emblème du cristal pour votre compagnie." },
+];
+
 export default function LandingPage() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<NetworkStats | null>(null);
-  const [fete, setFete] = useState<Celebration | null>(null);
   const [now, setNow] = useState(() => new Date());
   const [ville, setVille] = useState(VILLES[0]);
   const stampRef = useRef<SVGSVGElement | null>(null);
@@ -281,8 +255,6 @@ export default function LandingPage() {
       try {
         const { data } = await api.get("/network/stats");
         if (data && typeof data.activeCompanies === "number") setStats(data);
-        const { data: f } = await api.get("/celebration").catch(() => ({ data: null }));
-        if (f?.pioneers) setFete(f);
       } catch {
         // vitrine publique : si le backend dort, le panneau reste en attente
       }
@@ -335,7 +307,7 @@ export default function LandingPage() {
             <b>Réseau</b>
           </a>
           <nav className="lp-nav" aria-label="Sections">
-            <a href="#les-200">Les 200</a>
+            <a href="#nouveau">Nouveau</a>
             <a href="#nouveautes">La 2.0</a>
             <a href="#exploiter">Le jeu</a>
             <a href="#direct">En continu</a>
@@ -357,7 +329,7 @@ export default function LandingPage() {
       <section className="lp-hero" id="haut">
         <div className="lp-wrap lp-hero-grid">
           <div className="lp-hero-text">
-            <p className="lp-kicker">200 compagnies sur le réseau · jeu de gestion ferroviaire dans le navigateur</p>
+            <p className="lp-kicker">Plus de 350 joueurs sur le réseau · jeu de gestion ferroviaire dans le navigateur</p>
             <h1>Vos trains roulent même quand vous dormez.</h1>
             <p className="lp-lede">
               Tracez vos lignes, achetez vos rames, négociez le fret. Chaque mois, une nouvelle saison vous oppose à des
@@ -409,45 +381,25 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------- 2.1.2 : la fête des 200 ---------- */}
-      <section id="les-200" className="lp-200-sec">
+      {/* ---------- 2.3 : 350 joueurs, et ce qui arrive avec eux ---------- */}
+      <section id="nouveau" className="lp-200-sec">
         <div className="lp-wrap">
-          <p className="lp-200-kicker">Octobre 2026</p>
-          <h2 className="lp-h2">200 compagnies sur le réseau. Merci.</h2>
+          <p className="lp-200-kicker">Octobre 2026 · version 2.3</p>
+          <h2 className="lp-h2">Plus de 350 joueurs sur le réseau. Merci.</h2>
           <p className="lp-sub">
-            Pour fêter ça, un train spécial fait le tour de France, et les premières compagnies gardent une trace de leur arrivée.
+            Et pour vous accueillir, une île à desservir, des objectifs à remplir en alliance et des régions à se disputer.
           </p>
           <div className="lp-200-train" aria-hidden="true">
-            <TrainPicture model="STANDARD" livery={TRAIN200_GOLD} height={84} align="center" label="Train des 200" />
+            <TrainPicture model="AUTORAIL_CORSE" livery="#4f5d3a" height={84} align="center" label="Autorail corse" />
           </div>
-          <Train200Board c={fete} now={now.getTime()} />
           <div className="lp-200-grid">
-            <article className="lp-200-card">
-              <span className="lp-200-num">48 h</span>
-              <h3>Le Train des 200</h3>
-              <p>
-                Une tournée par toutes les gares du réseau, en direct sur la carte. Quand il passe par une de vos gares, vous
-                touchez une prime et le nom de votre compagnie est peint sur ses voitures.
-              </p>
-            </article>
-            <article className="lp-200-card">
-              <span className="lp-200-num">n° 001</span>
-              <h3>Les billets de pionnier</h3>
-              <p>
-                Les 200 premières compagnies reçoivent un billet numéroté dans l'ordre de leur fondation. Ce numéro ne changera
-                jamais. {fete && fete.pioneers.taken < fete.pioneers.total
-                    ? `Il reste ${fete.pioneers.total - fete.pioneers.taken} place${fete.pioneers.total - fete.pioneers.taken > 1 ? "s" : ""} : fondez votre compagnie maintenant et recevez le vôtre.`
-                    : "Les 200 places sont prises. Merci à elles."}
-              </p>
-            </article>
-            <article className="lp-200-card">
-              <span className="lp-200-num">1 carte</span>
-              <h3>La grande carte des 200</h3>
-              <p>
-                Tous les réseaux superposés sur une seule carte de France, chacun à sa livrée, et les 200 noms en dessous. À
-                télécharger, à imprimer, à partager.
-              </p>
-            </article>
+            {NOUVEAU_23.map((n) => (
+              <article className="lp-200-card" key={n.t}>
+                <span className="lp-200-num">{n.k}</span>
+                <h3>{n.t}</h3>
+                <p>{n.b}</p>
+              </article>
+            ))}
           </div>
           <div className="lp-cta">
             <button className="lp-btn gold" onClick={register}>
