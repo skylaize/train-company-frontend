@@ -1,7 +1,8 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useState } from "react";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
-import { AllianceMap, MapMember, MapMode, bonusFor, buildNetwork } from "./AllianceMap";
+import { BoosterBadge } from "./BoosterBadge";
+import { AllianceMap, MapMember, MapMode, MapRegion, bonusFor, buildNetwork } from "./AllianceMap";
 
 /* ============================================================
    Alliances (2.0, page refaite en 2.3).
@@ -16,16 +17,35 @@ import { AllianceMap, MapMember, MapMode, bonusFor, buildNetwork } from "./Allia
    ============================================================ */
 
 interface Rules { max: number; cost: number; allyStep: number; allyMaxAllies: number; messageMax: number; colors: string[]; applyMax?: number; applyMessageMax?: number; pitchMax?: number }
+export interface Objectives {
+  weekStart: string;
+  endsAt: string;
+  bonus: { coins: number; points: number; paid: boolean };
+  objectives: { kind: string; label: string; target: number; coins: number; points: number; progress: number; done: boolean; shares: { companyId: string; value: number }[] }[];
+}
+export interface RegionRow {
+  id: string;
+  name: string;
+  stations: number;
+  locked: boolean;
+  holder: null | { id: string; name: string; color: string; mine: boolean; stations: number; weeks: number };
+  mine: number;
+  race: { allianceId: string; name: string; color: string; stations: number; mine: boolean }[];
+}
+export interface RegionsData { weekStart: string; nextAt: string; bonus: number; rules: { base: number; spreadFrom: number }; regions: RegionRow[] }
 interface RankRow { id: string; name: string; color: string; members: number; points: number; rank: number }
 export interface AllianceData {
   alliance: null | { id: string; name: string; color: string; discordUrl: string | null; recruiting?: boolean; pitch?: string | null; founder: boolean; rank: number | null; total: number; points: number; livery?: string | null };
   liveryChoices?: string[]; // 2.1 : coffret d'alliance
   rules: Rules;
   invites?: { id: string; alliance: string; color: string; at: string }[];
-  members?: { companyId: string; name: string; liveryColor: string; founder: boolean; isMe: boolean; points: number; joinedAt: string }[];
+  members?: { companyId: string; name: string; liveryColor: string; founder: boolean; isMe: boolean; points: number; joinedAt: string; booster?: boolean }[];
   lines?: { companyId: string; color: string; route: string[] }[];
   shared?: { station: string; members: number; bonus: number }[];
-  messages?: { id: string; name: string; color: string; text: string; at: string; mine: boolean }[];
+  messages?: { id: string; name: string; color: string; text: string; at: string; mine: boolean; system?: boolean; booster?: boolean }[];
+  // 2.3 : objectifs de la semaine et régions
+  objectives?: Objectives | null;
+  regions?: RegionsData | null;
   invited?: string[];
   // 2.0.2 : candidatures
   directory?: { id: string; name: string; color: string; pitch: string | null; founder: string; members: number; room: number; points: number; rank: number | null; applied: boolean }[];
@@ -321,11 +341,14 @@ function WithAlliance({ data, busy, run }: { data: AllianceData; busy: boolean; 
   const [pinned, setPinned] = useState<string | null>(null);
   const [peek, setPeek] = useState<string | null>(null);
   const [hover, setHover] = useState<string | null>(null);
+  const [hoverRegion, setHoverRegion] = useState<string | null>(null);
   const focus = peek ?? pinned;
+  const regionRows = data.regions?.regions ?? [];
+  const mapRegions: MapRegion[] = regionRows.map((r) => ({ id: r.id, name: r.name, color: r.holder?.color ?? null, mine: Boolean(r.holder?.mine), locked: r.locked }));
 
   const rawMembers = data.members ?? [];
   // l'ordre d'arrivée fixe les couleurs : elles ne changent pas quand le classement bouge
-  const members: (MapMember & { founder: boolean; points: number; liveryColor: string })[] = useMemo(() => {
+  const members: (MapMember & { founder: boolean; points: number; liveryColor: string; booster?: boolean })[] = useMemo(() => {
     const hues = theme === "papier" ? MEMBER_HUES.paper : MEMBER_HUES.dark;
     let i = 0;
     return [...rawMembers]
@@ -358,6 +381,7 @@ function WithAlliance({ data, busy, run }: { data: AllianceData; busy: boolean; 
     { id: "all", label: "Tout le réseau" },
     { id: "mine", label: "Mes gares communes" },
     { id: "conquer", label: "À conquérir" },
+    ...(data.regions ? [{ id: "regions" as MapMode, label: "Régions" }] : []),
   ];
   const sortedMembers = [...members].sort((x, y) => y.points - x.points);
   const topPoints = Math.max(1, ...members.map((m) => m.points));
@@ -445,13 +469,18 @@ function WithAlliance({ data, busy, run }: { data: AllianceData; busy: boolean; 
         </div>
       </section>
 
+      {/* 2.3 : les objectifs de la semaine */}
+      {data.objectives !== undefined && <WeekObjectives obj={data.objectives} members={members} />}
+
       {/* le réseau commun */}
       <Card>
         <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
           <div>
             <h2 className="font-display text-[20px] leading-tight">Le réseau commun</h2>
             <p className="text-[13.5px] text-slate2 font-body mt-1">
-              {sharedAll.length === 0
+              {mode === "regions" && data.regions
+                ? regionsLine(data.regions)
+                : sharedAll.length === 0
                 ? "Aucune gare desservie par deux membres pour l'instant."
                 : `${sharedAll.length} gare${sharedAll.length > 1 ? "s" : ""} en commun, dont ${mineShared.length} sur vos lignes. Survolez une gare pour voir qui la dessert.`}
             </p>
@@ -473,7 +502,22 @@ function WithAlliance({ data, busy, run }: { data: AllianceData; busy: boolean; 
 
         <div className="flex flex-wrap gap-4">
           <div className="flex-[999_1_460px] min-w-0 flex flex-col gap-3">
-            <AllianceMap net={net} members={members} mode={mode} focus={focus} hover={hover} onHover={setHover} step={rules.allyStep} maxAllies={rules.allyMaxAllies} />
+            <AllianceMap
+              net={net}
+              members={members}
+              mode={mode}
+              focus={focus}
+              hover={hover}
+              onHover={setHover}
+              step={rules.allyStep}
+              maxAllies={rules.allyMaxAllies}
+              regions={mapRegions}
+              hoverRegion={hoverRegion}
+              onHoverRegion={setHoverRegion}
+            />
+            {mode === "regions" ? (
+              <RegionLegend rows={regionRows} />
+            ) : (
             <div className="flex flex-wrap items-center gap-1.5" onMouseLeave={() => setPeek(null)}>
               {members.map((m) => {
                 const on = focus === m.companyId;
@@ -498,8 +542,12 @@ function WithAlliance({ data, busy, run }: { data: AllianceData; busy: boolean; 
                 gare commune, le chiffre compte les compagnies
               </span>
             </div>
+            )}
           </div>
 
+          {mode === "regions" && data.regions ? (
+            <RegionList data={data.regions} hover={hoverRegion} onHover={setHoverRegion} />
+          ) : (
           <div className="flex-[1_1_250px] min-w-0 flex flex-col gap-2">
             <div className="flex items-baseline justify-between gap-2">
               <h3 className="text-[14px] font-semibold font-body">{listTitle}</h3>
@@ -537,6 +585,7 @@ function WithAlliance({ data, busy, run }: { data: AllianceData; busy: boolean; 
               +{Math.round(rules.allyStep * 100)} % par allié qui dessert la même gare, jusqu'à +{maxBonus} %. Pas de redevance de quai entre alliés.
             </p>
           </div>
+          )}
         </div>
       </Card>
 
@@ -560,7 +609,7 @@ function Members({
   a, members, topPoints, data, room, busy, run,
 }: {
   a: NonNullable<AllianceData["alliance"]>;
-  members: (MapMember & { founder: boolean; points: number })[];
+  members: (MapMember & { founder: boolean; points: number; booster?: boolean })[];
   topPoints: number;
   data: AllianceData;
   room: number;
@@ -577,6 +626,7 @@ function Members({
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-2 min-w-0">
                 <span className={`text-[14px] font-body truncate ${m.isMe ? "font-semibold" : ""}`} title={m.name}>{m.name}</span>
+                {m.booster && <BoosterBadge className="self-center" />}
                 {(m.isMe || m.founder) && (
                   <span className="text-[12px] text-slate2 font-body shrink-0">{m.isMe ? (m.founder ? "vous, fondateur" : "vous") : "fondateur"}</span>
                 )}
@@ -688,13 +738,21 @@ function Board({ a, data, busy, run, colorOf }: { a: NonNullable<AllianceData["a
       <ul className="mt-3 flex flex-col gap-2">
         {(data.messages ?? []).length === 0 && <li className="text-[13px] text-slate2 font-body py-2">Rien d'affiché pour l'instant.</li>}
         {(data.messages ?? []).map((m) => (
-          <li key={m.id} className={`flex gap-3 rounded-control px-3 py-2.5 ${m.mine ? "bg-cobalt/[0.07]" : "bg-navy-950/40"}`}>
-            <Avatar name={m.name} color={m.mine ? "rgb(var(--c-cobalt))" : colorOf(m.name) ?? m.color} size={28} />
+          <li key={m.id} className={`flex gap-3 rounded-control px-3 py-2.5 ${m.system ? "bg-amber/[0.07] shadow-[inset_2px_0_0_rgb(var(--c-amber))]" : m.mine ? "bg-cobalt/[0.07]" : "bg-navy-950/40"}`}>
+            {m.system ? (
+              // 2.3 : les annonces du jeu (objectifs, régions) ont leur signal, pas d'initiales
+              <span className="shrink-0 w-7 h-7 rounded-full bg-amber text-navy-950 inline-flex items-center justify-center font-display text-[14px] font-bold" aria-hidden="true">
+                R
+              </span>
+            ) : (
+              <Avatar name={m.name} color={m.mine ? "rgb(var(--c-cobalt))" : colorOf(m.name) ?? m.color} size={28} />
+            )}
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-2 text-[12.5px] font-body">
-                <span className="font-semibold truncate">{m.mine ? "Vous" : m.name}</span>
+                <span className={`font-semibold truncate ${m.system ? "text-amber" : ""}`}>{m.mine ? "Vous" : m.name}</span>
+                {m.booster && <BoosterBadge className="self-center" />}
                 <span className="text-slate2 shrink-0">{ago(m.at)}</span>
-                {(m.mine || a.founder) && (
+                {(m.mine || a.founder) && !m.system && (
                   <button onClick={() => run(() => api.delete(`/alliance/messages/${m.id}`))} className="ml-auto shrink-0 text-slate2/80 hover:text-rail-red">
                     retirer
                   </button>
@@ -793,4 +851,182 @@ export async function loadAlliance(): Promise<AllianceData | null> {
   } catch {
     return null;
   }
+}
+
+/* ---------------- 2.3 : les objectifs de la semaine ---------------- */
+
+const untilText = (iso: string) => {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return "nouveaux objectifs dans un instant";
+  const h = Math.floor(ms / 3_600_000);
+  if (h < 24) return `encore ${h} h`;
+  const d = Math.floor(h / 24);
+  return `encore ${d} jour${d > 1 ? "s" : ""}${h % 24 ? ` et ${h % 24} h` : ""}`;
+};
+
+function WeekObjectives({ obj, members }: { obj: Objectives | null; members: (MapMember & { name: string })[] }) {
+  const colorOf = (id: string) => members.find((m) => m.companyId === id)?.color ?? "rgb(var(--c-slate2))";
+  const nameOf = (id: string) => {
+    const m = members.find((x) => x.companyId === id);
+    return m ? (m.isMe ? "vous" : m.name) : "un ancien membre";
+  };
+  if (!obj) {
+    return (
+      <Card title="Objectifs de la semaine">
+        <p className="text-[13.5px] text-slate2 font-body">Les objectifs sont tirés chaque lundi à minuit. Les vôtres arrivent au prochain tirage.</p>
+      </Card>
+    );
+  }
+  const doneCount = obj.objectives.filter((o) => o.done).length;
+  return (
+    <Card
+      title="Objectifs de la semaine"
+      aside={
+        <>
+          <span className="font-mono2 tabular-nums text-offwhite">{doneCount}/{obj.objectives.length}</span> atteints · {untilText(obj.endsAt)}
+        </>
+      }
+    >
+      <ol className="grid gap-3 md:grid-cols-3">
+        {obj.objectives.map((o, i) => {
+          const total = Math.max(1, o.target);
+          const shares = [...o.shares].filter((s) => s.value > 0).sort((x, y) => y.value - x.value);
+          const pct = Math.min(100, Math.round((o.progress / total) * 100));
+          return (
+            <li key={o.kind} className={`rounded-control border px-3.5 py-3 flex flex-col gap-2.5 ${o.done ? "border-rail-green/40 bg-rail-green/[0.06]" : "border-line bg-navy-950/35"}`}>
+              <div className="flex items-start gap-2.5">
+                <span className={`shrink-0 mt-0.5 w-5 h-5 rounded-full inline-flex items-center justify-center font-mono2 text-[11px] ${o.done ? "bg-rail-green text-navy-950" : "bg-offwhite/[0.08] text-slate2"}`} aria-hidden="true">
+                  {o.done ? "✓" : i + 1}
+                </span>
+                <p className="flex-1 text-[14px] font-body leading-snug">{o.label}</p>
+              </div>
+              {/* la jauge : chaque membre y pose sa part, à sa couleur */}
+              <div
+                className="h-2.5 rounded-full bg-offwhite/[0.07] overflow-hidden flex"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={o.target}
+                aria-valuenow={o.progress}
+                aria-label={o.label}
+              >
+                {shares.map((s) => (
+                  <span
+                    key={s.companyId}
+                    className="h-full first:rounded-l-full shadow-[inset_-1px_0_0_rgb(var(--c-navy-950)/0.6)]"
+                    style={{ width: `${Math.min(100, (s.value / total) * 100)}%`, background: colorOf(s.companyId) }}
+                    title={`${nameOf(s.companyId)} : ${fmt(s.value)}`}
+                  />
+                ))}
+              </div>
+              <div className="flex items-baseline justify-between gap-2 text-[12.5px] font-body">
+                <span className="font-mono2 tabular-nums">
+                  {fmt(o.progress)} <span className="text-slate2">/ {fmt(o.target)}</span>
+                </span>
+                <span className="text-slate2">{o.done ? "réussi" : `${pct} %`}</span>
+              </div>
+              {shares.length > 0 && (
+                <p className="text-[12px] text-slate2 font-body leading-snug">
+                  {shares.slice(0, 3).map((s, k) => (
+                    <span key={s.companyId}>
+                      {k > 0 && ", "}
+                      <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: colorOf(s.companyId) }} />
+                      {nameOf(s.companyId)} {Math.round((s.value / Math.max(1, o.progress)) * 100)} %
+                    </span>
+                  ))}
+                  {shares.length > 3 && ` et ${shares.length - 3} autre${shares.length > 4 ? "s" : ""}`}
+                </p>
+              )}
+              <p className="mt-auto text-[12px] font-body text-slate2 border-t border-line/70 pt-2">
+                <span className="text-amber font-mono2 tabular-nums">{fmt(o.coins)}</span> pièces et <span className="font-mono2 tabular-nums text-offwhite">{o.points}</span> pts à chaque membre qui y a contribué
+              </p>
+            </li>
+          );
+        })}
+      </ol>
+      <p className={`text-[12.5px] font-body mt-3 ${obj.bonus.paid ? "text-rail-green" : "text-slate2"}`}>
+        {obj.bonus.paid
+          ? `Les trois sont atteints : chaque membre a reçu ${fmt(obj.bonus.coins)} pièces et ${obj.bonus.points} pts de saison en plus.`
+          : `Les trois atteints avant lundi : ${fmt(obj.bonus.coins)} pièces et ${obj.bonus.points} pts de saison en plus pour tous les membres.`}
+      </p>
+    </Card>
+  );
+}
+
+/* ---------------- 2.3 : les régions ---------------- */
+
+function regionsLine(r: RegionsData) {
+  const held = r.regions.filter((x) => x.holder?.mine).length;
+  const next = new Date(r.nextAt).toLocaleDateString("fr-FR", { weekday: "long" });
+  if (held === 0) return `Votre alliance ne tient aucune région cette semaine. Le prochain décompte a lieu ${next} à minuit : la région revient à l'alliance qui y dessert le plus de gares.`;
+  return `Vous tenez ${held} région${held > 1 ? "s" : ""} : +${String(r.bonus).replace(".", ",")} % sur les billets des lignes qui y passent. Prochain décompte ${next} à minuit.`;
+}
+
+function RegionLegend({ rows }: { rows: RegionRow[] }) {
+  const holders = [...new Map(rows.filter((r) => r.holder).map((r) => [r.holder!.id, r.holder!])).values()];
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 text-[12.5px] font-body">
+      {holders.map((h) => (
+        <span key={h.id} className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 ${h.mine ? "border-offwhite/40" : "border-line"}`}>
+          <span className="w-3 h-3 rounded-[3px]" style={{ background: h.color }} />
+          {h.mine ? `${h.name} (vous)` : h.name}
+          <span className="text-slate2 tabular-nums">{rows.filter((r) => r.holder?.id === h.id).length}</span>
+        </span>
+      ))}
+      {holders.length === 0 && <span className="text-slate2">Aucune région tenue cette semaine.</span>}
+    </div>
+  );
+}
+
+function RegionList({ data, hover, onHover }: { data: RegionsData; hover: string | null; onHover: (id: string | null) => void }) {
+  return (
+    <div className="flex-[1_1_270px] min-w-0 flex flex-col gap-2">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-[14px] font-semibold font-body">Qui tient quoi</h3>
+        <span className="text-[12px] text-slate2 font-body">vos gares / le meneur</span>
+      </div>
+      <ul className="flex flex-col gap-0.5 max-h-[470px] overflow-y-auto pr-1 -mr-1" onMouseLeave={() => onHover(null)}>
+        {data.regions.map((r) => {
+          const lead = r.race[0];
+          const on = hover === r.id;
+          return (
+            <li key={r.id}>
+              <button
+                onMouseEnter={() => onHover(r.id)}
+                onFocus={() => onHover(r.id)}
+                onClick={() => onHover(on ? null : r.id)}
+                className={`w-full text-left rounded-control px-2.5 py-1.5 font-body transition-colors ${on ? "bg-cobalt/[0.1]" : "hover:bg-offwhite/[0.04]"}`}
+              >
+                <span className="flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-[3px] shrink-0" style={{ background: r.holder?.color ?? "transparent", boxShadow: r.holder ? undefined : "inset 0 0 0 1px rgb(var(--c-slate2) / 0.6)" }} />
+                  <span className={`flex-1 min-w-0 truncate text-[13.5px] ${r.holder?.mine ? "font-semibold" : ""}`}>{r.name}</span>
+                  {r.holder?.mine && !on && <span className="text-[11.5px] text-slate2">{r.holder.weeks} sem.</span>}
+                  {r.locked ? (
+                    <span className="text-[11.5px] text-slate2 rounded-full bg-offwhite/[0.06] px-2 py-0.5">extension</span>
+                  ) : (
+                    <span className="font-mono2 text-[12.5px] tabular-nums text-slate2">
+                      <span className={r.mine > 0 ? "text-offwhite" : ""}>{r.mine}</span>
+                      {lead && !lead.mine && <span> / {lead.stations}</span>}
+                    </span>
+                  )}
+                </span>
+                {on && (
+                  <span className="block pl-5 mt-0.5 text-[12px] text-slate2 leading-snug">
+                    {r.locked
+                      ? "Réservée aux compagnies qui ont l'extension Corse."
+                      : r.holder
+                        ? `${r.holder.mine ? "À vous" : r.holder.name} depuis ${r.holder.weeks} semaine${r.holder.weeks > 1 ? "s" : ""} (${r.holder.stations} gare${r.holder.stations > 1 ? "s" : ""} au décompte).`
+                        : "Personne ne la tient."}
+                    {!r.locked && lead && ` En ce moment : ${lead.mine ? "vous menez" : `${lead.name} mène`} avec ${lead.stations} gare${lead.stations > 1 ? "s" : ""}.`}
+                  </span>
+                )}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+      <p className="text-[12px] text-slate2 font-body leading-relaxed mt-1">
+        Chaque lundi, une région revient à l'alliance qui y dessert le plus de gares (à égalité, celle qui y a fait le plus de trajets). +{data.rules.base} % par région, un peu moins au-delà de {data.rules.spreadFrom}.
+      </p>
+    </div>
+  );
 }

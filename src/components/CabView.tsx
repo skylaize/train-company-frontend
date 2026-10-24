@@ -5,7 +5,7 @@ import { createCabScene } from "./cabScene";
 import { weatherAt, SCENE_KIND } from "../stationWeather";
 import { PremiumCTA, PremiumInfo } from "./PremiumCTA";
 import { api } from "../api/client";
-import { routeStations, routeTimeline, FOREIGN_COUNTRY } from "../geo";
+import { routeStations, routeTimeline, FOREIGN_COUNTRY, CORSICA_STATIONS } from "../geo";
 import { useHauntedStation } from "./Halloween";
 
 /* ============================================================
@@ -26,7 +26,7 @@ import { useHauntedStation } from "./Halloween";
 export interface CabTrain {
   id: string;
   name: string;
-  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE" | "TGV";
+  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "AUTORAIL_CORSE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE" | "TGV";
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
@@ -54,8 +54,8 @@ function tripPlan(t: CabTrain) {
   };
 }
 
-const CRUISE: Record<string, number> = { STANDARD: 430, EXPRESS: 560, FRET_LOURD: 380, COUCHETTES: 400, NUIT_EUROPE: 470, VAPEUR: 330, LUXE: 400, CREMAILLERE: 300, LOCOTRACTEUR: 300, FRET_RAPIDE: 470, FRET_ELECTRIQUE: 420, TGV: 720 }; // px/s à l'écran
-const KMH: Record<string, number> = { STANDARD: 220, EXPRESS: 300, FRET_LOURD: 160, COUCHETTES: 200, NUIT_EUROPE: 230, VAPEUR: 110, LUXE: 180, CREMAILLERE: 60, LOCOTRACTEUR: 80, FRET_RAPIDE: 200, FRET_ELECTRIQUE: 160, TGV: 320 };
+const CRUISE: Record<string, number> = { STANDARD: 430, EXPRESS: 560, FRET_LOURD: 380, COUCHETTES: 400, NUIT_EUROPE: 470, VAPEUR: 330, LUXE: 400, CREMAILLERE: 300, AUTORAIL_CORSE: 320, LOCOTRACTEUR: 300, FRET_RAPIDE: 470, FRET_ELECTRIQUE: 420, TGV: 720 }; // px/s à l'écran
+const KMH: Record<string, number> = { STANDARD: 220, EXPRESS: 300, FRET_LOURD: 160, COUCHETTES: 200, NUIT_EUROPE: 230, VAPEUR: 110, LUXE: 180, CREMAILLERE: 60, AUTORAIL_CORSE: 90, LOCOTRACTEUR: 80, FRET_RAPIDE: 200, FRET_ELECTRIQUE: 160, TGV: 320 };
 /* 2.1 : à l'échelle réelle, deux rames qui se croisent passent en une seconde ;
    on ralentit le croisement à l'écran (le moment où les têtes se croisent ne bouge pas) */
 const CROSS_SLOW = 0.4;
@@ -375,6 +375,8 @@ export function useCabScene(
       } else sc.border = null;
       sc.dep = dwelling ? "" : ph.from;
       sc.arr = ph.to;
+      // 2.3 : sur l'île, la mer à l'horizon et le viaduc du Vecchio
+      sc.corsica = CORSICA_STATIONS.includes(ph.from) || CORSICA_STATIONS.includes(ph.to);
       sc.depDist = dwelling ? 1e9 : rampDistance(segElapsed, cruise);
       sc.arrDist = rampDistance(segLeft, cruise);
       // vitesse : rampe au départ, freinage à l'arrivée, zéro à quai et en panne

@@ -7,6 +7,7 @@ import { playAlert, playChime } from "../sfx";
 import { ResaleOutlook, TrainSchedule } from "./PremiumTools";
 import { NamePlate, PLATE_STYLE_LABELS } from "./PrestigeArt";
 import { isFreightLoco } from "../freight";
+import { AdBadge, adActive } from "./AdBadge";
 
 /* ============================================================
    La fiche atelier d'une rame (2.0).
@@ -37,6 +38,9 @@ export interface SheetTrain {
   departedAt?: string | null;
   crew?: { id: string; name: string; role: string; level: number }[];
   heritage?: { label: string; serial: string; history: string; prestige: number } | null; // 2.0 : rame de collection
+  adBrand?: string | null; // 2.3 : rame publicitaire
+  adColor?: string | null;
+  adUntil?: string | null;
 }
 
 export interface CrewMember {
@@ -160,6 +164,12 @@ export function TrainSheet({
           </button>
         </div>
 
+        {adActive(train) && (
+          <p className="px-5 py-3 border-b border-line text-[13px] font-body text-slate2 flex flex-wrap items-center gap-2">
+            <AdBadge t={train} long />
+            Elle roule aux couleurs de la marque ; la semaine est déjà payée, mais les billets de sa ligne coûtent 7 % de moins.
+          </p>
+        )}
         {train.heritage && (
           <p className="px-5 py-3 border-b border-line text-[13px] font-body text-slate2 italic">
             {train.heritage.history} Rame de collection : billet +{Math.round((train.heritage.prestige - 1) * 100)} %, usure un peu plus rapide.

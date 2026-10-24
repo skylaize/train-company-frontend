@@ -63,6 +63,12 @@ export const STATION_COORDS: Record<string, { x: number; y: number }> = {
   "Bourg-Saint-Maurice": { x: 299.7, y: 235.3 },
   "Briançon": { x: 295.9, y: 266.2 },
   "Font-Romeu": { x: 159.8, y: 369.3 },
+  // 2.3 — extension Corse, même projection
+  "Bastia": { x: 379.04, y: 360.88 },
+  "Corte": { x: 370.14, y: 377.67 },
+  "Ajaccio": { x: 357.97, y: 394.3 },
+  "Calvi": { x: 358.53, y: 366.45 },
+  "L'Île-Rousse": { x: 363.86, y: 363.59 },
 };
 
 /* Géométrie d'une ligne sur la carte : un léger arc (courbe de Bézier
@@ -241,6 +247,22 @@ export function setMountainOwned(owned: boolean) {
 }
 export function hasMountain() {
   return mountainOwned;
+}
+
+/* 2.3 : les gares de l'extension Corse. Un réseau à part : une ligne qui y
+   touche reste sur l'île (le serveur le vérifie aussi). */
+export const CORSICA_STATIONS = ["Bastia", "Corte", "Ajaccio", "Calvi", "L'Île-Rousse"];
+let corsicaOwned = false;
+export function hasCorsica() {
+  return corsicaOwned;
+}
+
+/* La lecture du réseau dit, gare par gare, de quelle extension elle dépend et
+   si la compagnie la possède : on en tire les deux drapeaux d'un coup. */
+export function setDlcOwnership(stations: { dlc?: { id: string; owned: boolean } | null }[]) {
+  const owned = (id: string) => Boolean(stations.find((s) => s.dlc?.id === id)?.dlc?.owned);
+  mountainOwned = owned("dlc-montagne");
+  corsicaOwned = owned("dlc-corse");
 }
 
 /* 2.1.1 : les pays des gares étrangères, pour le poste-frontière de la vue cabine */

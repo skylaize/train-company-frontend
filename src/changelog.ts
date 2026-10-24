@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.2.1";
+export const CURRENT_VERSION = "2.3.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,23 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.3.0",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Extension Corse (3,99 €, dans la Boutique) : Bastia, Corte, Ajaccio, Calvi et L'Île-Rousse. Des lignes sur l'île uniquement, mais le ferry fait correspondance : si vous desservez à la fois Marseille ou Nice et un port corse (Bastia, Ajaccio, Calvi, L'Île-Rousse), les lignes qui passent par ces ports gagnent 8 %. Fréquentation ×1,7 l'été et ×1,2 au printemps" },
+      { type: "nouveau", text: "L'autorail corse « U Trinichellu » (450 pi., 180 places) : lent, mais il s'use peu, ce qui compte sur une voie qui use deux fois plus que sur le continent. Avec l'emblème de la tête de Maure et la livrée Maquis" },
+      { type: "nouveau", text: "En vue cabine sur l'île : la mer et ses voiliers d'un côté, le maquis de l'autre, et le viaduc du Vecchio" },
+      { type: "nouveau", text: "Les objectifs d'alliance : chaque lundi à minuit, trois objectifs pour la semaine, à la taille de l'alliance et de sa semaine passée. La jauge montre la part de chaque membre, chaque contributeur touche des pièces et des points de saison, et les trois atteints rapportent 800 pi. et 60 pts de plus à tous" },
+      { type: "nouveau", text: "Les régions d'alliance : chaque lundi, chaque région revient à l'alliance qui y dessert le plus de gares. +5 % sur les billets des lignes qui y passent (un peu moins au-delà de trois régions). Nouvelle vue « Régions » sur la carte de l'alliance, avec qui tient quoi et depuis combien de semaines. La Corse se dispute entre compagnies qui ont l'extension" },
+      { type: "nouveau", text: "Le conteneur scellé : de temps en temps, un contrat au contenu inconnu arrive sur le marché du fret, payé au prix fort. Un seul à la fois, premier arrivé premier servi. On découvre à la livraison si c'était un trésor, une pièce pour l'atelier, de la casse… ou de la contrebande" },
+      { type: "nouveau", text: "La rame publicitaire : une marque propose de louer une de vos rames pour une semaine. Elle paie d'avance et la rame roule à ses couleurs, mais les billets de sa ligne baissent de 7 %. Et une fois sur cinq, la marque fait scandale : à vous de retirer la pub ou d'assumer" },
+      { type: "nouveau", text: "Merci aux boosters du serveur Discord ! Liez votre compte (Paramètres → Discord) et boostez le serveur avec Nitro : badge Booster à côté de votre nom (classements, alliance), livrée Nitro et emblème du cristal tant que le boost dure. À 90 jours de boost cumulés, livrée et emblème sont à vous pour toujours ; à 180 jours, le titre « Mécène du Réseau ». Que du cosmétique, et tout arrive tout seul" },
+      { type: "ameliore", text: "Le tableau d'affichage de l'alliance reçoit les annonces du réseau : objectifs tirés, objectifs atteints, régions gagnées ou perdues. La Gazette et Discord en parlent aussi" },
+      { type: "corrige", text: "La révision programmée (Atelier → « auto ») ne marchait que sur les rames voyageurs : les locomotives de fret dépassaient leur seuil sans jamais passer à l'atelier. Elles y vont maintenant en fin de tournée, comme les autres" },
+      { type: "corrige", text: "Une locomotive pouvait rester « en tournée de fret » pour toujours : quand deux rames prenaient le même contrat au même instant, la seconde le volait à la première, qui roulait alors sans rien à livrer. Un contrat ne se prend plus qu'une fois, et une locomotive en tournée sans contrat rentre d'elle-même au dépôt" },
+    ],
+  },
   {
     version: "2.2.1",
     date: "Octobre 2026",

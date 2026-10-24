@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { STATION_COORDS } from "../geo";
 import { COUNTRIES } from "./europeMap";
+import { REGION_SHAPES } from "./regionsMap";
 
 /* ============================================================
    La carte du réseau commun (2.3).
@@ -22,7 +23,18 @@ import { COUNTRIES } from "./europeMap";
 const FRANCE_D = COUNTRIES.find((c) => c.id === "France")?.d ?? "";
 const NEIGHBOURS = COUNTRIES.filter((c) => c.id !== "France");
 
-export type MapMode = "all" | "mine" | "conquer";
+export type MapMode = "all" | "mine" | "conquer" | "regions";
+
+/* 2.3 : une région vue par la carte : sa couleur (celle de l'alliance qui la
+   tient, ou rien), et si c'est la nôtre. */
+export type MapRegion = { id: string; name: string; color: string | null; mine: boolean; locked: boolean };
+
+// l'emprise de la France métropolitaine, pour la vue des régions
+const FRANCE_FRAME = (() => {
+  const nums = REGION_SHAPES.flatMap((r) => (r.d.match(/-?\d+(\.\d+)?/g) ?? []).map(Number));
+  const xs = nums.filter((_, i) => i % 2 === 0), ys = nums.filter((_, i) => i % 2 === 1);
+  return { minX: Math.min(...xs) - 10, maxX: Math.max(...xs) + 10, minY: Math.min(...ys) - 10, maxY: Math.max(...ys) + 10 };
+})();
 export type MapMember = { companyId: string; name: string; isMe: boolean; color: string };
 type Line = { companyId: string; route: string[] };
 
@@ -68,8 +80,15 @@ export function buildNetwork(lines: Line[], members: MapMember[]): AllianceNetwo
 
 type Box = { x1: number; y1: number; x2: number; y2: number };
 
+// les noms courts des régions, pour la carte
+const REGION_SHORT: Record<string, string> = {
+  hdf: "Hauts-de-France", normandie: "Normandie", idf: "Île-de-France", "grand-est": "Grand Est", bretagne: "Bretagne",
+  pdl: "Pays de la Loire", cvl: "Centre", bfc: "Bourgogne-F.-C.", "nouvelle-aquitaine": "Nouvelle-Aquitaine",
+  occitanie: "Occitanie", ara: "Auvergne-Rhône-Alpes", paca: "PACA", corse: "Corse",
+};
+
 export function AllianceMap({
-  net, members, mode, focus, hover, onHover, step, maxAllies,
+  net, members, mode, focus, hover, onHover, step, maxAllies, regions = [], hoverRegion = null, onHoverRegion,
 }: {
   net: AllianceNetwork;
   members: MapMember[];
@@ -79,6 +98,9 @@ export function AllianceMap({
   onHover: (station: string | null) => void;
   step: number;
   maxAllies: number;
+  regions?: MapRegion[];
+  hoverRegion?: string | null;
+  onHoverRegion?: (id: string | null) => void;
 }) {
   const wrap = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ w: 720, h: 480 });
@@ -96,11 +118,14 @@ export function AllianceMap({
   const count = (s: string) => net.served.get(s)?.length ?? 0;
 
   // cadrage : les gares de l'alliance, avec une marge ; la carte suit leur emprise
+  const regionsMode = mode === "regions";
   const frame = useMemo(() => {
     const pts = net.stations.map((s) => STATION_COORDS[s]);
     const pad = 24;
     let minX = Math.min(...pts.map((p) => p.x)) - pad, maxX = Math.max(...pts.map((p) => p.x)) + pad;
     let minY = Math.min(...pts.map((p) => p.y)) - pad, maxY = Math.max(...pts.map((p) => p.y)) + pad;
+    // 2.3 : la vue des régions montre toute la France, Corse comprise
+    if (regionsMode) ({ minX, maxX, minY, maxY } = FRANCE_FRAME);
     // jamais plus serré que 200 × 170 : une alliance naissante reste lisible
     if (maxX - minX < 200) { const c = (minX + maxX) / 2; minX = c - 100; maxX = c + 100; }
     if (maxY - minY < 170) { const c = (minY + maxY) / 2; minY = c - 85; maxY = c + 85; }
@@ -109,7 +134,7 @@ export function AllianceMap({
     const ratio = box.w / box.h;
     if (w / h < ratio) { const nw = h * ratio; minX -= (nw - w) / 2; w = nw; } else { const nh = w / ratio; minY -= (nh - h) / 2; h = nh; }
     return { minX, minY, w, h };
-  }, [net, box.w, box.h]);
+  }, [net, box.w, box.h, regionsMode]);
 
   if (net.stations.length === 0) {
     return (
@@ -133,7 +158,8 @@ export function AllianceMap({
     sg.ids.forEach((id, i) => {
       const o = (i - (n - 1) / 2) * 3 * k;
       let look: { color: string; width: number; z: number; op: number };
-      if (focus) look = id === focus ? { color: colorOf(id), width: 2.6, z: 2, op: 1 } : { color: muted, width: 1.5, z: 0, op: 1 };
+      if (regionsMode) look = { color: colorOf(id), width: 1.1, z: id === me ? 1 : 0, op: 0.35 };
+      else if (focus) look = id === focus ? { color: colorOf(id), width: 2.6, z: 2, op: 1 } : { color: muted, width: 1.5, z: 0, op: 1 };
       else if (mode === "mine") look = id === me ? { color: colorOf(id), width: 2.6, z: 2, op: 1 } : { color: muted, width: 1.5, z: 0, op: 1 };
       else if (mode === "conquer") look = id === me ? { color: colorOf(id), width: 2.2, z: 1, op: 0.9 } : { color: colorOf(id), width: 1.5, z: 0, op: 0.3 };
       else look = { color: colorOf(id), width: 1.9, z: id === me ? 1 : 0, op: 0.85 };
@@ -157,6 +183,11 @@ export function AllianceMap({
       r = 2.7 * k; kind = "plain";
       if (mode !== "all") op = 0.45;
     }
+    if (regionsMode) {
+      // en vue régions, les gares s'effacent derrière les couleurs des régions
+      r = Math.min(r, (shared ? 2.8 : 1.8) * k);
+      op = Math.min(op, 0.5);
+    }
     if (focus && !(net.served.get(s) ?? []).includes(focus)) op = Math.min(op, 0.28);
     if (hover === s) op = 1;
     boxes.push({ x1: p.x - r - k, y1: p.y - r - k, x2: p.x + r + k, y2: p.y + r + k });
@@ -166,7 +197,8 @@ export function AllianceMap({
 
   /* ---- les noms : ceux qui comptent, jamais l'un sur l'autre ---- */
   let cand: string[];
-  if (focus) cand = net.stations.filter((s) => (net.served.get(s) ?? []).includes(focus) && count(s) >= 2);
+  if (regionsMode) cand = [];
+  else if (focus) cand = net.stations.filter((s) => (net.served.get(s) ?? []).includes(focus) && count(s) >= 2);
   else if (mode === "mine") cand = net.stations.filter((s) => meIn(s) && count(s) >= 2);
   else if (mode === "conquer") cand = net.stations.filter((s) => !meIn(s) && count(s) >= 2);
   // vue d'ensemble : d'abord les gares à trois compagnies et plus, puis les autres s'il reste de la place
@@ -231,6 +263,31 @@ export function AllianceMap({
           ))}
           <path d={FRANCE_D} fill="rgb(var(--c-navy-900))" stroke="rgb(var(--c-slate2))" strokeOpacity="0.35" strokeWidth={1.1 * k} strokeLinejoin="round" />
         </g>
+        {/* 2.3 : les régions, à la couleur de l'alliance qui les tient */}
+        {regionsMode && (
+          <g>
+            {REGION_SHAPES.map((rs) => {
+              const info = regions.find((x) => x.id === rs.id);
+              const on = hoverRegion === rs.id;
+              return (
+                <path
+                  key={rs.id}
+                  d={rs.d}
+                  fill={info?.color ?? "rgb(var(--c-slate2))"}
+                  fillOpacity={info?.color ? (on ? 0.55 : info.mine ? 0.42 : 0.28) : on ? 0.14 : 0.05}
+                  stroke={info?.mine ? info.color ?? "rgb(var(--c-offwhite))" : "rgb(var(--c-navy-950))"}
+                  strokeOpacity={info?.mine ? 0.9 : 0.8}
+                  strokeWidth={(info?.mine ? 1.8 : 1.2) * k}
+                  strokeLinejoin="round"
+                  style={{ cursor: "pointer", transition: "fill-opacity 160ms" }}
+                  onMouseEnter={() => onHoverRegion?.(rs.id)}
+                  onMouseLeave={() => onHoverRegion?.(null)}
+                  onClick={() => onHoverRegion?.(on ? null : rs.id)}
+                />
+              );
+            })}
+          </g>
+        )}
         <g aria-hidden="true">
           {segs.map((sg) => (
             <line key={sg.key} x1={sg.x1} y1={sg.y1} x2={sg.x2} y2={sg.y2} stroke={sg.color} strokeOpacity={sg.op} strokeWidth={sg.width * k} strokeLinecap="round" style={{ transition: "stroke 160ms, stroke-opacity 160ms" }} />
@@ -274,8 +331,33 @@ export function AllianceMap({
             </text>
           ))}
         </g>
+        {regionsMode && (
+          <g aria-hidden="true" fontFamily="var(--font-body), sans-serif" pointerEvents="none">
+            {REGION_SHAPES.map((rs) => {
+              const info = regions.find((x) => x.id === rs.id);
+              return (
+                <text
+                  key={rs.id}
+                  x={rs.cx}
+                  y={rs.cy}
+                  textAnchor="middle"
+                  fontSize={(hoverRegion === rs.id ? 12 : 10.5) * k}
+                  fontWeight={info?.mine || hoverRegion === rs.id ? 700 : 600}
+                  fill="rgb(var(--c-offwhite))"
+                  fillOpacity={info?.color || hoverRegion === rs.id ? 0.95 : 0.6}
+                  paintOrder="stroke"
+                  stroke="rgb(var(--c-navy-950))"
+                  strokeWidth={3 * k}
+                  strokeLinejoin="round"
+                >
+                  {REGION_SHORT[rs.id] ?? rs.name}
+                </text>
+              );
+            })}
+          </g>
+        )}
         {/* zones de survol, au-dessus de tout : une gare se vise sans viser le pixel */}
-        <g>
+        <g style={{ pointerEvents: regionsMode ? "none" : undefined }}>
           {dots.map((d) => (
             <circle
               key={d.s}

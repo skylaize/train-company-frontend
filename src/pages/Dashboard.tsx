@@ -6,7 +6,7 @@ import { TrainPicture } from "../components/TrainPicture";
 import { COUNTRIES, COUNTRY_LABELS, SEA_LABELS } from "../components/europeMap";
 import { RIVERS, RELIEF, RELIEF_LABELS, GRATICULE } from "../components/mapDecor";
 import { useMapCamera } from "../components/useMapCamera";
-import { MOUNTAIN_STATIONS, setMountainOwned, hasMountain } from "../geo";
+import { MOUNTAIN_STATIONS, hasMountain, CORSICA_STATIONS, hasCorsica, setDlcOwnership } from "../geo";
 import { stationVisible, setTunnelOpen, STATION_COORDS, lineCurve, pointOnCurve, LINE_PALETTE, distanceKm, durationFromKm, lengthYieldPct, routeStations, routeMinutes, routeKm, positionOnRoute, routePath, MAX_STOPS } from "../geo";
 
 import { UpdateBanner } from "../components/UpdateBanner";
@@ -52,6 +52,8 @@ import { SeasonSection, SeasonData, loadSeason, seasonLead, DIVISION_COLORS } fr
 import { NavRow, NavGroup, MobileTabBar, CompanyBadge } from "../components/AppNav";
 import { TrainStage, TrainArrival } from "../components/TrainStage";
 import { TrainSheet, PartsStore } from "../components/TrainSheet";
+import { AdBadge, adActive } from "../components/AdBadge";
+import { BoosterBadge } from "../components/BoosterBadge";
 import { GazetteData, loadGazette } from "../components/Gazette";
 import { modelLabel, hhmm, minutesLeft, PART_LABEL, PART_NEED, modelSpeed, hslOpen, hslBuilding } from "../models";
 import { playChime, playAlert, vibrate, soundsOn, setSoundsOn, setSoundPack } from "../sfx";
@@ -86,7 +88,7 @@ import { WreckYard, loadWrecks, RARITY_COLOR, type Wreck as WreckInfo } from "..
 interface Train {
   id: string;
   name: string;
-  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE" | "TGV";
+  model: "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "AUTORAIL_CORSE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE" | "TGV";
   status: "IDLE" | "EN_ROUTE" | "MAINTENANCE";
   progress: number;
   wear: number;
@@ -110,6 +112,10 @@ interface Train {
   crew?: { id: string; name: string; role: string; level: number }[];
   // 2.0 : rame de collection restaurée depuis une épave
   heritage?: { label: string; serial: string; rarity: string; skin: string; livery: string; prestige: number; year: number; history: string } | null;
+  // 2.3 : rame publicitaire
+  adBrand?: string | null;
+  adColor?: string | null;
+  adUntil?: string | null;
 }
 
 interface Weather {
@@ -255,6 +261,28 @@ interface Contract {
   train?: { id: string; name: string; progress: number } | null;
   // 2.0 : l'ordre de donneur d'ordre que cette livraison fera avancer
   forOrder?: { ref: string; client: string; progress: number; target: number; more: number } | null;
+  // 2.3 : le conteneur scellé, et ce qu'on y a trouvé ("CODE|ce qu'il y avait")
+  sealed?: boolean;
+  sealedOutcome?: string | null;
+}
+
+/* 2.3 : ce que le conteneur scellé contenait, pour la liste des livraisons */
+const SEALED_TONE: Record<string, { label: string; cls: string }> = {
+  TRESOR: { label: "Jackpot", cls: "text-amber" },
+  PIECES: { label: "Pièce détachée", cls: "text-cobalt" },
+  CASSE: { label: "Casse", cls: "text-[#fca5a5]" },
+  SAISIE: { label: "Saisie", cls: "text-rail-red" },
+  ORDINAIRE: { label: "Rien de spécial", cls: "text-slate2" },
+};
+function SealedMark({ size = 14, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="1.5" y="4" width="13" height="9" rx="1" />
+      <path d="M4.5 4v9M8 4v9M11.5 4v9" opacity=".45" />
+      <circle cx="8" cy="8.5" r="2.1" fill="currentColor" stroke="none" />
+      <path d="M8 2.2v1.8" />
+    </svg>
+  );
 }
 
 function OrderTag({ o }: { o: NonNullable<Contract["forOrder"]> }) {
@@ -292,6 +320,7 @@ interface LeaderEntry {
   grade: string;
   title: string | null;
   plate?: string | null; // 1.7 : plaque d'honneur
+  booster?: boolean; // 2.3 : booste le serveur Discord
   trains: number;
   lines: number;
   metric: number;
@@ -501,7 +530,7 @@ export default function Dashboard() {
     .map((l) => `${l.id}:${l.departureStation}>${l.arrivalStation}:${(l as { trains?: unknown[] }).trains?.length ?? 0}:${l.priceRatio ?? 1}:${l.autoPrice ? 1 : 0}`)
     .join("|");
   useEffect(() => {
-    const load = () => api.get("/network/map").then(({ data }) => { setTunnelOpen(Boolean(data?.tunnel?.open)); setMountainOwned(Boolean((data?.stations ?? []).find((st: { dlc?: { owned: boolean } | null }) => st.dlc)?.dlc?.owned)); setNetwork(data); }).catch(() => undefined);
+    const load = () => api.get("/network/map").then(({ data }) => { setTunnelOpen(Boolean(data?.tunnel?.open)); setDlcOwnership(data?.stations ?? []); setNetwork(data); }).catch(() => undefined);
     load();
     const t = setInterval(load, 60_000);
     return () => clearInterval(t);
@@ -1789,7 +1818,7 @@ const PAGE_COPY = {
   alliance: { title: "Alliance", subtitle: "Jusqu'à cinq compagnies qui jouent ensemble." },
   carriere: { title: "Progression", subtitle: "Votre carrière grade après grade, et les étapes franchies par la compagnie." },
   cours: { title: "Cours du fret", subtitle: "Ce que valent les marchandises aujourd'hui, et ce que vous en faites." },
-  boutique: { title: "Boutique", subtitle: "Le Pass de saison, deux extensions, des couleurs, des emblèmes, des titres. Rien qui rende plus fort, et tout s'offre." },
+  boutique: { title: "Boutique", subtitle: "Le Pass de saison, trois extensions, des couleurs, des emblèmes, des titres. Rien qui rende plus fort, et tout s'offre." },
   appels: { title: "Appels d'offres", subtitle: "Chaque semaine, les régions cherchent une compagnie pour exploiter une liaison." },
 };
 
@@ -2550,6 +2579,21 @@ function StationPicker({
               {s}
             </button>
           ))}
+          {/* 2.3 : l'extension Corse, un réseau à part sur l'île */}
+          <div className="px-3 py-1.5 bg-navy-950 border-b border-line font-body text-[11.5px] text-slate2">
+            Corse{hasCorsica() ? ", lignes sur l'île uniquement" : ", extension requise"}
+          </div>
+          {CORSICA_STATIONS.filter((s) => !excluded.has(s)).map((s) => (
+            <button
+              key={s}
+              type="button"
+              disabled={!hasCorsica()}
+              onClick={(e) => handlePick(e, s)}
+              className="w-full text-left px-3 py-2 text-xs font-body text-offwhite hover:bg-cobalt/15 hover:text-cobalt transition-colors border-b border-line last:border-0 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-offwhite disabled:cursor-not-allowed"
+            >
+              {s}
+            </button>
+          ))}
         </div>
       </details>
     </div>
@@ -3106,7 +3150,7 @@ function PriceControl({ line, ridership, premium, onChange }: { line: Line; ride
 /* ---------------- 1.7 : composition des rames ---------------- */
 
 // doit rester aligné sur ridership.service.ts
-const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, NUIT_EUROPE: 200, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220, TGV: 500 };
+const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, NUIT_EUROPE: 200, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220, AUTORAIL_CORSE: 180, TGV: 500 };
 const CAR_TYPES: { id: string; label: string; short: string; seats: number; first: boolean; price: number; unique?: boolean; blurb: string }[] = [
   { id: "SECONDE", label: "Voiture de 2de classe", short: "2", seats: 100, first: false, price: 150, blurb: "+100 places. Pour les lignes où des voyageurs restent à quai." },
   { id: "PREMIERE", label: "Voiture de 1re classe", short: "1", seats: 60, first: true, price: 300, blurb: "+60 places payées 1,8 fois le billet. Rentable sur les lignes chargées." },
@@ -3397,7 +3441,7 @@ function TrainsSection({
         <CabView
           train={cabTrain}
           weatherType={weatherType}
-          livery={company.liveryColor}
+          livery={adActive(cabTrain) ? cabTrain.adColor! : company.liveryColor}
           skin={company.cabSkin ?? null}
           stationSkin={company.stationSkin ?? null}
           others={trains}
@@ -3526,6 +3570,7 @@ function TrainsSection({
                   ) : (
                     <span className={t.model === "STANDARD" ? "" : "text-amber"}>{modelLabel(t.model)}</span>
                   )}
+                  <AdBadge t={t} />
                   {t.model === "COUCHETTES" && (
                     <span className={`inline-flex items-center gap-1 ${isParisNight() ? "text-cobalt" : ""}`} title="Recette ×3 de 22 h à 6 h (heure de Paris), ×0,8 le jour">
                       <MoonMark size={11} />
@@ -3541,7 +3586,7 @@ function TrainsSection({
                   {/* 1.7 : composition de la rame */}
                   <button onClick={() => setCompoId(t.id)} className="flex items-center gap-1.5 whitespace-nowrap hover:text-cobalt transition-colors" title={isFreightLoco(t.model) ? "Composition : atteler ou dételer des wagons" : "Composition : ajouter ou retirer des voitures"}>
                     <span className="inline-block w-[92px]">
-                      <TrainPicture model={t.model} skin={t.heritage?.skin} livery={t.heritage?.livery ?? company.liveryColor} cars={t.cars ?? []} firstLivery={company.isPremium && !t.heritage} height={30} track={false} fit={false} align="right" label={`Composition de ${t.name}`} />
+                      <TrainPicture model={t.model} skin={t.heritage?.skin} livery={adActive(t) ? t.adColor! : t.heritage?.livery ?? company.liveryColor} cars={t.cars ?? []} firstLivery={company.isPremium && !t.heritage && !adActive(t)} height={30} track={false} fit={false} align="right" label={`Composition de ${t.name}`} />
                     </span>
                     {isFreightLoco(t.model)
                       ? `${(t.cars ?? []).filter((c) => c.startsWith("W_")).length}/${freightModel(t.model)?.maxWagons ?? 0} wagons`
@@ -3889,12 +3934,22 @@ function FreightSection({
               const on = picked.includes(c.id);
               const load = loadFor(locoCars, c.cargoType);
               return (
-                <li key={c.id} className={`py-3.5 border-b border-line grid gap-x-6 gap-y-2 sm:grid-cols-[minmax(0,1fr)_150px_100px_180px] items-center ${on ? "bg-cobalt/[0.05]" : ""}`}>
+                <li
+                  key={c.id}
+                  className={`py-3.5 border-b border-line grid gap-x-6 gap-y-2 sm:grid-cols-[minmax(0,1fr)_150px_100px_180px] items-center ${on ? "bg-cobalt/[0.05]" : c.sealed ? "bg-amber/[0.045] shadow-[inset_3px_0_0_rgb(var(--c-amber))] pl-3" : ""}`}
+                >
                   <div className="min-w-0">
                     <div className="text-[15.5px] font-semibold font-body flex items-center gap-1.5">
                       {c.risky && <FragileMark size={13} className="text-rail-red shrink-0" />}
+                      {c.sealed && <SealedMark size={15} className="text-amber shrink-0" />}
                       {c.cargoType}
+                      {c.sealed && <span className="ml-1 text-[11.5px] font-normal text-amber rounded-full bg-amber/[0.12] px-2 py-0.5">contenu inconnu</span>}
                     </div>
+                    {c.sealed && (
+                      <p className="text-[12.5px] text-slate2 font-body mt-0.5 leading-snug">
+                        Payé d'avance au prix fort. On découvre ce qu'il y a dedans à l'arrivée : un trésor, une pièce pour l'atelier, de la casse, ou des ennuis avec la douane.
+                      </p>
+                    )}
                     <div className="text-[12.5px] text-slate2 font-body mt-0.5">
                       {c.originStation} → {c.destinationStation}, {c.durationMinutes} min
                       {c.risky && <span className="text-[#fca5a5]">, fragile</span>}
@@ -4035,12 +4090,27 @@ function FreightSection({
         <div>
           <h2 className="font-display text-[20px] mb-3">Dernières livraisons</h2>
           <div className="space-y-1">
-            {deliveredContracts.map((c) => (
-              <div key={c.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-line last:border-0 text-slate2 flex-wrap">
-                <span className="font-body text-sm">{c.cargoType} — <span className="font-mono2 text-xs">{c.originStation} → {c.destinationStation}</span></span>
-                <span className="text-rail-green font-mono2 text-sm shrink-0">+{c.reward} pi.</span>
-              </div>
-            ))}
+            {deliveredContracts.map((c) => {
+              const [code, what] = (c.sealedOutcome ?? "").split("|");
+              const tone = SEALED_TONE[code];
+              return (
+                <div key={c.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-line last:border-0 text-slate2 flex-wrap">
+                  <span className="font-body text-sm min-w-0">
+                    {c.sealed && <SealedMark size={13} className="inline -mt-0.5 mr-1.5 text-amber" />}
+                    {c.cargoType} — <span className="font-mono2 text-xs">{c.originStation} → {c.destinationStation}</span>
+                    {tone && what && (
+                      <span className="block text-[12.5px] mt-0.5">
+                        <span className={`font-semibold ${tone.cls}`}>{tone.label}</span> : il contenait {what}.
+                      </span>
+                    )}
+                  </span>
+                  <span className={`font-mono2 text-sm shrink-0 ${c.reward < 0 ? "text-rail-red" : c.reward === 0 ? "text-slate2" : "text-rail-green"}`}>
+                    {c.reward < 0 ? "" : "+"}
+                    {c.reward} pi.
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -4746,6 +4816,7 @@ function LeaderRowView({ c, fmt }: { c: LeaderEntry; fmt: (v: number) => string 
             {c.emblem && <Emblem id={c.emblem} size={13} className={c.plate ? "" : "text-slate2"} />}
             {c.name}
           </Plate>
+          {c.booster && <BoosterBadge />}
           {c.title && (
             <span className="text-[12px] text-amber font-body border border-amber/40 px-1.5 font-medium rounded-control">
               {c.title}
@@ -6926,7 +6997,7 @@ function SettingsSection({
 
       <NotificationsPanel />
 
-      <DiscordPanel />
+      <DiscordPanel onChange={onChange} />
 
       <InstallPanel />
 

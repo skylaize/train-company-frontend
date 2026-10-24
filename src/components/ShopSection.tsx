@@ -635,13 +635,21 @@ export function ShopSection({
 function ExtensionCard({ item, focused, enabled, busy, onBuy }: { item: ShopItem; focused: boolean; enabled: boolean; busy: boolean; onBuy: () => void }) {
   const d = item.dlc!;
   const mountain = item.id === "dlc-montagne";
+  const corsica = item.id === "dlc-corse"; // 2.3
   const price = (item.priceCents / 100).toFixed(2).replace(".", ",");
   return (
     <article className={`border rounded-card ${focused ? "border-amber" : "border-line"} bg-navy-900/60 flex flex-col`} id={`ext-${item.id}`}>
       <div className="relative h-[150px] overflow-hidden border-b border-line" aria-hidden="true">
-        {mountain ? <MountainArt /> : <LegendArt />}
+        {corsica ? <CorsicaArt /> : mountain ? <MountainArt /> : <LegendArt />}
         <div className="absolute inset-x-0 bottom-0">
-          <TrainPicture model={mountain ? "CREMAILLERE" : "VAPEUR"} livery="#d4a017" height={mountain ? 100 : 104} fit={false} align={mountain ? "center" : "right"} label={item.name} />
+          <TrainPicture
+            model={corsica ? "AUTORAIL_CORSE" : mountain ? "CREMAILLERE" : "VAPEUR"}
+            livery={corsica ? "#4f5d3a" : "#d4a017"}
+            height={mountain || corsica ? 100 : 104}
+            fit={false}
+            align={mountain || corsica ? "center" : "right"}
+            label={item.name}
+          />
         </div>
       </div>
       <div className="p-5 flex flex-col flex-1">
@@ -721,6 +729,31 @@ function MountainArt() {
       <path d="M0 96 L60 42 L96 66 L160 10 L222 70 L276 30 L336 78 L400 46 V120 H0 Z" fill="#8aa1b8" />
       <path d="M140 28 L160 10 L180 28 L170 26 L162 34 L152 26 Z M264 40 L276 30 L289 42 L280 40 Z M50 50 L60 42 L70 52 L62 50 Z" fill="#f8fafc" />
       <path d="M0 104 C80 92 150 106 240 96 S350 92 400 98 V120 H0 Z" fill="#5f8f69" />
+    </svg>
+  );
+}
+
+/* 2.3 : la Corse, la mer et le maquis, et le viaduc du Vecchio au loin */
+function CorsicaArt() {
+  return (
+    <svg viewBox="0 0 400 120" preserveAspectRatio="xMidYMid slice" className="w-full h-full">
+      <defs>
+        <linearGradient id="co-sky" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#f2b880" />
+          <stop offset="1" stopColor="#fbe3c4" />
+        </linearGradient>
+      </defs>
+      <rect width="400" height="120" fill="url(#co-sky)" />
+      <path d="M0 70 L40 48 L78 58 L120 30 L170 54 L210 40 L262 62 L300 44 L340 60 L400 50 V120 H0 Z" fill="#a98f7a" />
+      <path d="M0 84 C60 70 120 86 190 78 S320 70 400 80 V120 H0 Z" fill="#5f6f45" />
+      {/* le viaduc du Vecchio : cinq arches de pierre */}
+      <g fill="#cdbba4" transform="translate(230 66)">
+        <rect x="0" y="0" width="120" height="4" />
+        {[0, 1, 2, 3, 4].map((i) => (
+          <path key={i} d={`M${i * 24} 4 h24 v22 h-4 a8 10 0 0 0 -16 0 h-4 z`} />
+        ))}
+      </g>
+      <path d="M0 100 C70 94 140 104 220 98 S340 94 400 100 V120 H0 Z" fill="#2f7fa8" opacity="0.85" />
     </svg>
   );
 }

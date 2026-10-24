@@ -9,6 +9,7 @@ export const MODEL_LABEL: Record<string, string> = {
   VAPEUR: "Vapeur",
   LUXE: "Grand luxe",
   CREMAILLERE: "Crémaillère",
+  AUTORAIL_CORSE: "Autorail corse", // 2.3
   // 2.1 : le fret
   LOCOTRACTEUR: "Locotracteur",
   FRET_RAPIDE: "Messagerie rapide",
@@ -16,7 +17,7 @@ export const MODEL_LABEL: Record<string, string> = {
   TGV: "TGV", // 2.2
 };
 export const modelLabel = (m: string) => MODEL_LABEL[m] ?? "Standard";
-export const DLC_MODEL_IDS = new Set(["VAPEUR", "LUXE", "CREMAILLERE"]);
+export const DLC_MODEL_IDS = new Set(["VAPEUR", "LUXE", "CREMAILLERE", "AUTORAIL_CORSE"]);
 
 export const ORGAN_LABEL: Record<string, string> = { FREINS: "Freins", BOGIES: "Bogies", MOTEUR: "Moteur", CAISSE: "Caisse" };
 export const PART_LABEL: Record<string, string> = {
@@ -35,7 +36,7 @@ export function minutesLeft(iso: string | Date, now = Date.now()) {
 
 /* Durée relative d'un trajet selon le matériel (aligné sur le serveur). */
 /* 2.2 : la rame TGV ne roule que sur une LGV ouverte, où elle va à ×0,55 */
-export const MODEL_SPEED: Record<string, number> = { EXPRESS: 0.7, VAPEUR: 1.3, LUXE: 1.1, CREMAILLERE: 1.35, TGV: 0.55 };
+export const MODEL_SPEED: Record<string, number> = { EXPRESS: 0.7, VAPEUR: 1.3, LUXE: 1.1, CREMAILLERE: 1.35, AUTORAIL_CORSE: 1.25, TGV: 0.55 };
 
 /* 2.2 : une ligne dont la LGV est ouverte */
 export const hslOpen = (l?: { highSpeedAt?: string | null } | null) => Boolean(l?.highSpeedAt && new Date(l.highSpeedAt).getTime() <= Date.now());

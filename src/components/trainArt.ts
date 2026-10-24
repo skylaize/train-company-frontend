@@ -813,6 +813,72 @@ function rackCar(c: Ctx, x: number, w: number, head: boolean) {
   return { x: x + w * 0.3, y: bottom - 10 * u, r: 7 * u, lamp: { x: x + w + 1 * u, y: bottom - 8 * u } };
 }
 
+/* 2.3 : l'autorail corse (« U Trinichellu »). Une caisse blanche courte et
+   haute, un nez arrondi à grand pare-brise, un bandeau à la livrée et une
+   jupe gris granit : celui qui grimpe la voie métrique entre Bastia et Ajaccio.
+   Pas de pantographe : c'est un autorail diesel. */
+function corsicanRailcar(c: Ctx, x: number, w: number, head: boolean) {
+  const { ctx, u, base, lit, livery } = c;
+  const bottom = base - LIFT * u, top = bottom - 46 * u;
+  const white = c.night ? "#c9cdd2" : "#f3f1ea";
+  const granite = c.night ? "#3b4048" : "#5d636b";
+  underframe(ctx, x, w, bottom - 1 * u, u);
+  // caisse : arrière droit, nez arrondi côté tête
+  ctx.beginPath();
+  if (head) {
+    ctx.moveTo(x, top + 4 * u);
+    ctx.quadraticCurveTo(x, top, x + 4 * u, top);
+    ctx.lineTo(x + w - 26 * u, top);
+    ctx.quadraticCurveTo(x + w + 2 * u, top + 2 * u, x + w + 4 * u, top + 26 * u);
+    ctx.lineTo(x + w + 4 * u, bottom);
+    ctx.lineTo(x, bottom);
+  } else {
+    ctx.moveTo(x - 4 * u, top + 26 * u);
+    ctx.quadraticCurveTo(x - 2 * u, top + 2 * u, x + 26 * u, top);
+    ctx.lineTo(x + w - 4 * u, top);
+    ctx.quadraticCurveTo(x + w, top, x + w, top + 4 * u);
+    ctx.lineTo(x + w, bottom);
+    ctx.lineTo(x - 4 * u, bottom);
+  }
+  ctx.closePath();
+  ctx.fillStyle = bodyGradient(ctx, top, bottom, white);
+  ctx.fill();
+  // jupe et bandeau à la livrée, qui remonte en vague vers le nez
+  ctx.fillStyle = granite;
+  ctx.fillRect(x - (head ? 0 : 4 * u), bottom - 7 * u, w + 4 * u, 7 * u);
+  ctx.fillStyle = livery;
+  ctx.beginPath();
+  const x0 = x - (head ? 0 : 4 * u), x1 = x + w + (head ? 4 * u : 0);
+  ctx.moveTo(x0, bottom - 7 * u);
+  ctx.lineTo(x0, bottom - 13 * u);
+  if (head) {
+    ctx.lineTo(x + w - 40 * u, bottom - 13 * u);
+    ctx.quadraticCurveTo(x + w - 14 * u, bottom - 14 * u, x1, bottom - 26 * u);
+  } else {
+    ctx.quadraticCurveTo(x + 14 * u, bottom - 14 * u, x + 40 * u, bottom - 13 * u);
+    ctx.lineTo(x1, bottom - 13 * u);
+  }
+  ctx.lineTo(x1, bottom - 7 * u);
+  ctx.closePath();
+  ctx.fill();
+  // grandes vitres de voyageurs
+  const left = head ? x + 10 * u : x + 30 * u;
+  const right = head ? x + w - 34 * u : x + w - 10 * u;
+  const n = 4, gap = 5 * u, ww = (right - left - gap * (n - 1)) / n;
+  for (let k = 0; k < n; k++) glass(ctx, left + k * (ww + gap), top + 8 * u, ww, 19 * u, 3 * u, lit, u);
+  // pare-brise panoramique et porte de cabine
+  if (head) glass(ctx, x + w - 24 * u, top + 6 * u, 22 * u, 16 * u, 6 * u, false, u * 0.6);
+  else glass(ctx, x - 1 * u, top + 6 * u, 20 * u, 16 * u, 6 * u, false, u * 0.6);
+  door(ctx, head ? x + w - 30 * u : x + 22 * u, top + 6 * u, bottom - 8 * u, u, white, lit);
+  // pot d'échappement sur le toit
+  ctx.fillStyle = c.night ? "#2a2f36" : "#454b53";
+  rr(ctx, x + w * (head ? 0.35 : 0.6), top - 5 * u, 7 * u, 6 * u, 1.5 * u);
+  ctx.fill();
+  bogie(ctx, x + w * 0.2, base, u, c.spin);
+  bogie(ctx, x + w * 0.8, base, u, c.spin);
+  return { x: x + w * 0.42, y: bottom - 20 * u, r: 7 * u, lamp: { x: (head ? x + w + 3 * u : x - 3 * u), y: bottom - 10 * u } };
+}
+
 /* motrice à deux niveaux */
 function duplexHead(c: Ctx, x: number, w: number) {
   const { ctx, u, base, livery, lit } = c;
@@ -1572,6 +1638,9 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
         return [...wagons, { w: 215, kind: "modern", arg: [o.livery, "#f4b13e", true] }];
       case "CREMAILLERE":
         return [...extra.map((k) => ({ w: 150, kind: "coach", arg: k })), { w: 150, kind: "rack", arg: false }, { w: 150, kind: "rack", arg: true }];
+      // 2.3 : l'autorail corse, deux caisses courtes
+      case "AUTORAIL_CORSE":
+        return [...extra.map((k) => ({ w: 150, kind: "coach", arg: k })), { w: 160, kind: "corse", arg: false }, { w: 160, kind: "corse", arg: true }];
       default:
         return [...extra.map((k) => ({ w: L, kind: "coach", arg: k })), { w: L, kind: "coach" }, { w: L, kind: "coach" }, { w: 200, kind: "regional" }];
     }
@@ -1693,6 +1762,9 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
         break;
       case "rack":
         head = rackCar(c, x, w, !!p.arg) || head;
+        break;
+      case "corse":
+        head = corsicanRailcar(c, x, w, !!p.arg) || head;
         break;
       case "duplexHead":
         head = duplexHead(c, x, w);

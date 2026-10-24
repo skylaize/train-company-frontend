@@ -8,7 +8,7 @@
 export const WAGON_TYPES: { id: string; label: string; short: string; cargos: string[]; price: number }[] = [
   { id: "W_TREMIE", label: "Wagon-trémie", short: "Trémie", cargos: ["Céréales"], price: 140 },
   { id: "W_PLAT", label: "Wagon plat", short: "Plat", cargos: ["Acier", "Bois"], price: 120 },
-  { id: "W_CONTENEUR", label: "Wagon porte-conteneurs", short: "Conteneurs", cargos: ["Conteneurs"], price: 150 },
+  { id: "W_CONTENEUR", label: "Wagon porte-conteneurs", short: "Conteneurs", cargos: ["Conteneurs", "Conteneur scellé"], price: 150 },
   { id: "W_PORTE_AUTOS", label: "Wagon porte-autos", short: "Porte-autos", cargos: ["Automobiles"], price: 190 },
   { id: "W_CITERNE", label: "Wagon-citerne", short: "Citerne", cargos: ["Produits chimiques"], price: 180 },
   { id: "W_CAPITONNE", label: "Wagon couvert capitonné", short: "Capitonné", cargos: ["Verre soufflé", "Œuvres d'art"], price: 220 },

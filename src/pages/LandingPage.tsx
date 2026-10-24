@@ -199,7 +199,7 @@ const NOUVEAUTES = [
   { id: "chantier", t: "Le Grand Chantier", b: "Tout le réseau creuse le tunnel du Mont-Blanc. Chaque trajet de chaque joueur le fait avancer ; à son ouverture, Turin et Zurich rejoignent la carte." },
   { id: "atelier", t: "L'atelier", b: "Freins, bogies, moteur, caisse : chaque organe s'use à son rythme. Une rame négligée casse, et il faut commander la pièce. Et les vieilles épaves se restaurent." },
   { id: "equipages", t: "Les équipages", b: "Un contrôleur à bord fait payer les fraudeurs ; un conducteur chevronné évite les incidents sur la voie. À vous de choisir quelles rames en profitent." },
-  { id: "extensions", t: "Deux extensions", b: "La vapeur du week-end et le grand luxe des longues lignes, puis Chamonix, Briançon, la crémaillère et la saison de ski." },
+  { id: "extensions", t: "Trois extensions", b: "La vapeur du week-end et le grand luxe des longues lignes, Chamonix, Briançon et la crémaillère, puis la Corse, son autorail et le ferry de Marseille." },
 ];
 
 const SYSTEMES = [

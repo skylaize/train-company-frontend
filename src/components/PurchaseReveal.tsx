@@ -69,7 +69,7 @@ const KIND_LINE: Record<string, [string, string]> = {
 const GOLD = "#e0b44a";
 
 function accentOf(item: RevealItem) {
-  if (item.kind === "DLC") return item.id === "dlc-montagne" ? "#7fb2d9" : GOLD;
+  if (item.kind === "DLC") return item.id === "dlc-montagne" ? "#7fb2d9" : item.id === "dlc-corse" ? "#e0a96d" : GOLD;
   if (item.kind === "PASS") return "#f59e0b";
   if (item.liveries?.length) return item.liveries[0];
   if (item.kind === "PLAQUE") return "#c98a4b";
@@ -106,10 +106,11 @@ function wearPatch(item: RevealItem): { patch: Record<string, string>; label: st
 /* ---------- ce qui surgit au centre ---------- */
 function Hero({ item, companyName, liveryColor }: { item: RevealItem; companyName: string; liveryColor: string }) {
   if (item.kind === "DLC") {
-    const legend = item.id !== "dlc-montagne";
+    const legend = item.id === "dlc-legende";
+    const model = legend ? "VAPEUR" : item.id === "dlc-corse" ? "AUTORAIL_CORSE" : "CREMAILLERE";
     return (
       <div className="w-[min(720px,92vw)]">
-        <TrainPicture model={legend ? "VAPEUR" : "CREMAILLERE"} livery={legend ? "#24493a" : liveryColor} lit height={156} track fit />
+        <TrainPicture model={model} livery={legend ? "#24493a" : liveryColor} lit height={156} track fit />
       </div>
     );
   }

@@ -34,6 +34,8 @@ export function createCabScene(ctx) {
     // 2.2 : Halloween — citrouilles le long de la voie, chauves-souris, et le fantôme sur sa gare
     halloween: false,
     haunted: null as string | null,
+    // 2.3 : une ligne corse — la mer remplace les collines lointaines, et le viaduc du Vecchio passe au loin
+    corsica: false,
   };
   const oncomingW = new Map(); // longueur de chaque rame croisée, mesurée à l'image précédente
   const puffs = []; // fumée de la locomotive à vapeur
@@ -643,15 +645,69 @@ export function createCabScene(ctx) {
       }
     }
 
+    // 2.3 : en Corse, la mer à l'horizon, ses reflets, et quelques voiles
+    if (sc.corsica) {
+      const seaTop = groundY - H * 0.21;
+      const sg = ctx.createLinearGradient(0, seaTop, 0, groundY);
+      sg.addColorStop(0, night(mix(weather === "canicule" ? "#4aa3c8" : "#3a8dbd", bot, 0.3)));
+      sg.addColorStop(1, night("#1d5d86"));
+      ctx.fillStyle = sg; ctx.fillRect(0, seaTop, W, groundY - seaTop);
+      ctx.fillStyle = `rgba(255,255,255,${0.28 * (1 - dark) + (dark > 0.5 && !overcast ? 0.12 : 0)})`;
+      for (let i = 0; i < 46; i++) {
+        const gx = ((((i * 137.5 - s * 0.03 + t * 5 * ((i % 3) + 1)) % W) + W) % W);
+        const gy = seaTop + 3 + ((i * 53) % Math.max(1, groundY - seaTop - 30));
+        ctx.fillRect(gx, gy, 5 + (i % 4) * 3, 1);
+      }
+      if (dark < 0.6) {
+        ctx.fillStyle = night("#f4f1e8");
+        for (let i = 0; i < 2; i++) {
+          const bx = ((((i * 0.53 + 0.2) * W - s * 0.02 - t * 3) % (W * 1.3)) + W * 1.3) % (W * 1.3) - W * 0.15;
+          const by = seaTop + 10 + i * 9;
+          ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + 7, by); ctx.lineTo(bx + 3, by - 13 + i * 3); ctx.closePath(); ctx.fill();
+        }
+      }
+    }
     // plans successifs : plus ils sont loin, plus ils défilent lentement
-    const layers = [
-      { k: 0.06, base: groundY - H * 0.26, amp: H * 0.08, f: 0.004, seed: 1, c: pal.far },
-      { k: 0.18, base: groundY - H * 0.12, amp: H * 0.06, f: 0.007, seed: 4, c: pal.mid },
-    ];
+    const layers = sc.corsica
+      ? [{ k: 0.18, base: groundY - H * 0.09, amp: H * 0.07, f: 0.006, seed: 7, c: night(mix(land.mid, "#5f6f45", 0.55)) }]
+      : [
+          { k: 0.06, base: groundY - H * 0.26, amp: H * 0.08, f: 0.004, seed: 1, c: pal.far },
+          { k: 0.18, base: groundY - H * 0.12, amp: H * 0.06, f: 0.007, seed: 4, c: pal.mid },
+        ];
     for (const L of layers) {
       ctx.fillStyle = L.c; ctx.beginPath(); ctx.moveTo(0, groundY);
       for (let x = 0; x <= W + 8; x += 8) ctx.lineTo(x, L.base - Math.abs(hill(x + s * L.k, L.seed, L.amp, L.f)));
       ctx.lineTo(W, groundY); ctx.closePath(); ctx.fill();
+    }
+    /* 2.3 : le viaduc du Vecchio, pierre et arches, qui passe au loin tous les
+       quelques kilomètres de voie. Il défile au rythme des collines. */
+    if (sc.corsica) {
+      const P = 2600, k = 0.18, len = 360;
+      const vx = W - ((s * k) % P) + 300;
+      if (vx < W + 20 && vx + len > -20) {
+        const deck = groundY - H * 0.15, foot = groundY - H * 0.02;
+        const stone = night(weather === "neige" ? "#d9d4cb" : "#b9a68c");
+        const shade = night("#8d7c66");
+        ctx.fillStyle = stone;
+        ctx.fillRect(vx, deck, len, 7);
+        const n = 6, aw = len / n;
+        for (let i = 0; i < n; i++) {
+          const ax = vx + i * aw;
+          ctx.beginPath();
+          ctx.moveTo(ax, deck + 6);
+          ctx.lineTo(ax + aw, deck + 6);
+          ctx.lineTo(ax + aw, foot);
+          ctx.lineTo(ax + aw - 9, foot);
+          ctx.lineTo(ax + aw - 9, deck + aw * 0.55);
+          ctx.quadraticCurveTo(ax + aw / 2, deck + 4, ax + 9, deck + aw * 0.55);
+          ctx.lineTo(ax + 9, foot);
+          ctx.lineTo(ax, foot);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.fillStyle = shade;
+        ctx.fillRect(vx, deck + 6, len, 2);
+      }
     }
     // arbres et maisons du plan proche (enneigés quand il neige)
     const snowy = weather === "neige";

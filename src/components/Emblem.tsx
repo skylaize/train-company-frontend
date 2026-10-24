@@ -29,6 +29,8 @@ export const EMBLEM_LABELS: Record<string, string> = {
   // 2.0 : le Grand Chantier
   tunnel: "Bâtisseur du tunnel",
   sommet: "Sommet",
+  maure: "Tête de Maure", // 2.3 : extension Corse
+  cristal: "Cristal Nitro", // 2.3 : boosters du serveur Discord
   // 2.0 : Pass de saison
   feuille: "Feuille d'érable",
   givre: "Cristal de givre",
@@ -264,6 +266,24 @@ export function Emblem({ id, size = 14, className = "" }: { id: string; size?: n
           <path d="M1 11c1.6 0 2.2-1.6 3.5-1.6S6.4 11 8 11s2.2-1.6 3.5-1.6S13.4 11 15 11" />
           <path d="M1 14c1.6 0 2.2-1.6 3.5-1.6S6.4 14 8 14s2.2-1.6 3.5-1.6S13.4 14 15 14" />
           <path d="M2.5 8.2C3 4.5 6 2.2 9.4 2.6c2.2.3 3.4 2 2.6 3.4-.7 1.2-2.4.8-2.6-.4" />
+        </svg>
+      );
+    // 2.3 : le cristal des boosters du serveur Discord, taillé en losange
+    case "cristal":
+      return (
+        <svg {...common}>
+          <path d="M4.4 2.4h7.2L14.6 6 8 13.8 1.4 6z" />
+          <path d="M1.4 6h13.2M4.4 2.4 6.2 6 8 13.8 9.8 6l1.8-3.6M6.2 6 8 2.4 9.8 6" />
+        </svg>
+      );
+    // 2.3 : la tête de Maure de l'extension Corse, de profil, son bandeau noué derrière
+    case "maure":
+      return (
+        <svg {...common}>
+          <path d="M10.4 2.6C8 2 5.6 3.2 5 5.6L4.1 7l.9.6-.4 1.4.7.4-.2 1.3c.2.9 1.2 1.1 2.2.8l.4 2.1" />
+          <path d="M10.4 2.6c2 .6 3.1 2.6 2.8 4.6-.2 1.6-1 2.8-2.1 3.5l.3 2.9" />
+          <path d="M5.3 4.6c2.6-1 5.6-.9 7.8.3" />
+          <path d="M13.1 4.9l1.7-1M13.1 4.9l1.3 1.6" />
         </svg>
       );
     case "sommet":
