@@ -11,6 +11,7 @@ import Shop from "./Shop";
 import Giveaways from "./Giveaways";
 import Announcements from "./Announcements";
 import Logs from "./Logs";
+import Economy from "./Economy";
 
 /* ============================================================
    Panneau d'administration de Réseau (2.2).
@@ -24,6 +25,7 @@ const SECTIONS = [
   { to: "annonces", label: "Annonces" },
   { to: "giveaways", label: "Giveaways" },
   { to: "saisons", label: "Saisons et chantier" },
+  { to: "economie", label: "Économie" },
   { to: "alliances", label: "Alliances" },
   { to: "boutique", label: "Boutique" },
   { to: "journal", label: "Journal" },
@@ -121,6 +123,7 @@ export default function AdminPage() {
               <Route path="annonces" element={<Announcements />} />
               <Route path="giveaways" element={<Giveaways />} />
               <Route path="saisons" element={<Seasons />} />
+              <Route path="economie" element={<Economy />} />
               <Route path="alliances" element={<Alliances />} />
               <Route path="boutique" element={<Shop />} />
               <Route path="journal" element={<Logs />} />

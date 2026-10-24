@@ -41,8 +41,10 @@ function formatBuildHours(hours: number) {
   if (m === 0) return `${h} h`;
   return `${h} h ${String(m).padStart(2, "0")}`;
 }
-import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, ChartMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, TenderMark, ShopMark, MoonMark, InstallMark, LockMark, FragileMark, RankMark, AnnounceMark, StationMark, BankMark, SeasonMark, AllianceMark } from "../components/TrainMark";
+import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, ChartMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, TenderMark, ShopMark, MoonMark, InstallMark, LockMark, FragileMark, RankMark, AnnounceMark, StationMark, BankMark, SeasonMark, AllianceMark, EnergyMark } from "../components/TrainMark";
 import { InfrastructureSection } from "../components/InfrastructureSection";
+import { EconomySection } from "../components/EconomySection";
+import { TrackWearLayer } from "../components/TrackWearLayer";
 import { LineLoadModal } from "../components/LineLoadModal";
 import { adsEnabled, loadAds, showRewardedAd } from "../ads";
 import { AdBanner } from "../components/AdBanner";
@@ -212,6 +214,7 @@ interface Line {
 
 interface Company {
   adFree?: boolean; // 1.7 : billet sans pub
+  fuelBlocked?: boolean; // 2.4 : facture d'énergie impayée
   id: string;
   name: string;
   liveryColor: string;
@@ -1106,6 +1109,8 @@ export default function Dashboard() {
         { id: "lignes", label: "Lignes", icon: <TrackMark size={16} />, count: lines.length, active: view === "lignes", onClick: () => setView("lignes") },
         { id: "carte", label: "Carte", icon: <MapMark size={16} />, active: view === "carte", onClick: () => setView("carte"), dataTutorial: "nav-carte" },
         ...(lines.length > 0 ? [{ id: "infrastructures", label: "Infrastructures", icon: <StationMark size={16} />, active: view === "infrastructures", onClick: () => setView("infrastructures") }] : []),
+        // 2.4 : le vrai coût du rail
+        ...(lines.length > 0 ? [{ id: "energie", label: "Énergie & carbone", icon: <EnergyMark size={16} />, alert: Boolean(company?.fuelBlocked), active: view === "energie", onClick: () => setView("energie") }] : []),
       ],
     },
     {
@@ -1451,6 +1456,7 @@ export default function Dashboard() {
             {view === "bourse" && <StockMarketSection balance={company.balance} onChange={loadAll} />}
             {view === "musee" && <MuseumSection onGoShop={() => { setShopFocus("coffret-musee"); setView("boutique"); }} />}
             {view === "alertes" && <AlertsPanel isPremium={company.isPremium} trains={trains.map((t) => ({ id: t.id, name: t.name }))} onGoPremium={() => setView("boutique")} />}
+            {view === "energie" && <EconomySection balance={company.balance} onChange={loadAll} />}
             {view === "infrastructures" && (
               <InfrastructureSection
                 balance={company.balance}
@@ -1807,6 +1813,8 @@ const PAGE_COPY = {
   banque: { title: "Finances", subtitle: "Emprunter pour investir plus tôt, et rembourser heure par heure." },
   bourse: { title: "Finances", subtitle: "Les compagnies du réseau cotées entre joueurs : cours, dividendes et portefeuille." },
   infrastructures: { title: "Infrastructures", subtitle: "Gares, ateliers et caténaires : ce qui ne roule pas mais rapporte." },
+  // 2.4
+  energie: { title: "Énergie & carbone", subtitle: "Ce que coûtent vos trains, ce que vous paierez lundi, et ce qui peut vous faire payer moins." },
   alertes: { title: "Alertes", subtitle: "Ce qui mérite qu'on vous prévienne, avec votre seuil." },
   musee: { title: "Musée", subtitle: "Vos épaves restaurées, sous les projecteurs." },
   succes: { title: "Progression", subtitle: "Votre carrière grade après grade, et les étapes franchies par la compagnie." },
@@ -1834,6 +1842,7 @@ const PAGE_ICON: Partial<Record<DashboardView, (p: { size: number }) => JSX.Elem
   lignes: TrackMark,
   carte: MapMark,
   infrastructures: StationMark,
+  energie: EnergyMark,
   fret: CargoMark,
   missions: CargoMark,
   cours: SwapMark,
@@ -6064,6 +6073,9 @@ function NetworkMap({
           {/* 2.1.2 : le Train des 200, en direct */}
           <Train200MapLayer k={k} />
           <HalloweenMapLayer k={k} />
+
+          {/* 2.4 : voies usées et concessions */}
+          <TrackWearLayer k={k} />
 
           {/* les rames : couleur de leur ligne, une traînée derrière elles */}
           {trains.map((t) => {

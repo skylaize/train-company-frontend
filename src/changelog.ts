@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.3.0";
+export const CURRENT_VERSION = "2.4.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,23 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.4.0",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Le vrai coût du rail : une nouvelle page « Énergie & carbone ». Vos trains consomment maintenant du gazole sur les lignes non électrifiées et du courant sur les lignes électrifiées. La facture se règle à la fin de chaque heure, et vous la suivez heure par heure" },
+      { type: "nouveau", text: "Le gazole a son cours, qui bouge chaque heure, avec des crises pétrolières et des baisses de temps en temps. Installez des cuves au dépôt et remplissez-les quand c'est bon marché, ou signez un contrat à prix fixe pour une semaine" },
+      { type: "nouveau", text: "Le courant coûte plus cher aux heures de pointe (7-9 h, 17-20 h), moins cher la nuit et en plein soleil l'été, et flambe par vague de froid réelle. Pendant une alerte, laisser des rames au dépôt rapporte une prime" },
+      { type: "nouveau", text: "La taxe carbone : 50 t de CO₂ gratuites par semaine, puis chaque tonne se paie, d'autant plus cher que votre compagnie est grande (de 0 à 300 pi. la tonne, par tranches, comme l'impôt sur le revenu). Prélevée chaque lundi. La page vous dit quelles lignes électrifier pour payer moins" },
+      { type: "nouveau", text: "Les centrales : parc solaire dans le Sud, éoliennes sur la côte et dans le Nord, barrage en montagne, batteries partout. Elles produisent selon la vraie météo de leur gare, alimentent vos rames sans émettre de CO₂, et vous revendez le surplus aux autres joueurs, au prix que vous fixez, ou au réseau" },
+      { type: "nouveau", text: "Pannes de sous-station : de temps en temps, une région perd le courant pendant une heure. Ses rames électriques s'arrêtent, le diesel roule" },
+      { type: "nouveau", text: "Les pièces détachées ont un stock national : chaque commande le fait baisser, et en pleine pénurie le prix triple et la livraison double. Construisez une usine de pièces pour vous fournir, ou pour vendre aux autres joueurs" },
+      { type: "nouveau", text: "La voie s'use : chaque liaison a son état, qui baisse avec le trafic. Sous 60 %, les trains y roulent moins vite ; sous 30 %, encore moins vite et avec deux fois plus d'incidents. La rénovation est un chantier commun : chacun verse ce qu'il veut, et les gros financeurs touchent +3 % sur la liaison pendant un mois" },
+      { type: "nouveau", text: "Les concessions : devenez propriétaire d'une liaison. Les autres compagnies vous paient un péage (jusqu'à 15 % de leur recette, moitié pour vos alliés), mais vous devez l'entretenir, sous peine de la perdre" },
+      { type: "nouveau", text: "Sur la carte, les voies usées apparaissent en pointillés orange et rouges, et les liaisons concédées en doré" },
+      { type: "ameliore", text: "Deux semaines d'essai : pendant 14 jours, gazole, courant et taxe carbone sont calculés et affichés, mais rien n'est prélevé. Le temps de regarder ce que vous paieriez, et de vous préparer" },
+    ],
+  },
   {
     version: "2.3.0",
     date: "Octobre 2026",
