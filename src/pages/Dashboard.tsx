@@ -261,6 +261,7 @@ interface Contract {
   insured: boolean;
   status: "DISPONIBLE" | "EN_COURS" | "LIVREE";
   expiresAt?: string | null;
+  expiresInMs?: number | null; // 2.4 : temps restant selon le serveur
   train?: { id: string; name: string; progress: number } | null;
   // 2.0 : l'ordre de donneur d'ordre que cette livraison fera avancer
   forOrder?: { ref: string; client: string; progress: number; target: number; more: number } | null;
@@ -726,7 +727,15 @@ export default function Dashboard() {
       ]);
       setLines(l);
       if (mid) {
-        setMarket(mkt);
+        /* 2.4 : l'échéance est recalée sur l'horloge du téléphone à partir du
+           temps restant donné par le serveur : une horloge en retard ne fait
+           plus croire qu'une offre périmée est encore valable. */
+        const got = Date.now();
+        setMarket(
+          Array.isArray(mkt)
+            ? mkt.map((c: Contract) => (typeof c.expiresInMs === "number" ? { ...c, expiresAt: new Date(got + c.expiresInMs).toISOString() } : c))
+            : mkt
+        );
         setLeaderTotal(lb?.total ?? 0);
         setLeaderMe(lb?.me ?? null);
       }
@@ -3835,6 +3844,8 @@ function FreightSection({
       onChange();
     } catch (err: any) {
       showToast(err?.response?.data?.error || "Erreur lors du départ de la tournée", "error");
+      // 2.4 : un contrat pris par un autre joueur ou périmé disparaît tout de suite de la liste
+      if (err?.response?.status === 409) onChange();
     } finally {
       setSending(false);
     }

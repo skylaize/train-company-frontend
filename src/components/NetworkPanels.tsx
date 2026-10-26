@@ -355,8 +355,9 @@ export function RivalsDetail({
         {open ? "Masquer la concurrence" : "Voir la concurrence"}
       </button>
       {open && (
-        <div className="mt-2 border border-line bg-navy-900/40 rounded-card">
-          <table className="w-full text-[12px] font-body">
+        /* 2.4 : le tableau défile sur le côté au lieu d'être rogné (iPhone) */
+        <div className="mt-2 border border-line bg-navy-900/40 rounded-card overflow-x-auto overscroll-x-contain">
+          <table className="w-full min-w-max whitespace-nowrap text-[12px] font-body">
             <thead>
               <tr className="text-left text-slate2 font-body text-[12px] border-b border-line font-medium">
                 <th className="px-3 py-1.5 font-normal">Compagnie</th>
@@ -377,9 +378,14 @@ export function RivalsDetail({
                   <td className="px-3 py-1.5">Vous</td>
                   <td className="px-3 py-1.5 text-right font-mono2">{market.self.trains}</td>
                   <td className="px-3 py-1.5 text-right font-mono2">{Math.round(market.share ?? 0)} %</td>
-                  <td className="px-3 py-1.5 text-right font-mono2">{market.self.reputation} %</td>
-                  <td className="px-3 py-1.5 text-right font-mono2">{market.self.expressPct} %</td>
-                  <td className="px-3 py-1.5 text-right font-mono2">{market.self.comfortPct} %</td>
+                  {/* 2.4 : mêmes colonnes que l'en-tête (avant : trois cases de trop sans Premium) */}
+                  {premium && (
+                    <>
+                      <td className="px-3 py-1.5 text-right font-mono2">{market.self.reputation} %</td>
+                      <td className="px-3 py-1.5 text-right font-mono2">{market.self.expressPct} %</td>
+                      <td className="px-3 py-1.5 text-right font-mono2">{market.self.comfortPct} %</td>
+                    </>
+                  )}
                 </tr>
               )}
               {market.rivals.map((r) => (

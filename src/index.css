@@ -651,9 +651,14 @@ body:has([data-modal]:not([data-nav-sheet])) .app-tabbar {
    fond de l'enfant dépasse de l'arrondi. Les fenêtres font de même. */
 .rounded-card:not([class*="overflow-"]):has(> [class*="bg-"]:first-child),
 .rounded-card:not([class*="overflow-"]):has(> table),
-[data-modal] > .rounded-card:not([class*="overflow-"]) {
+[data-modal] > .rounded-card:not([class*="overflow-"]):not([role="dialog"]) {
   overflow: clip;
 }
+/* 2.4 : …sauf une fenêtre (role="dialog"), qui doit garder son défilement.
+   La règle ci-dessus, arrivée en 2.3, venait après celle du défilement et
+   l'écrasait : sur iPhone, la composition d'une rame était coupée en bas et
+   la dernière voiture impossible à atteindre. Son défilement arrondit déjà
+   les coins. */
 /* l'en-tête des tableaux devient une bande aux bouts arrondis */
 :where(main table thead tr) > :first-child { border-top-left-radius: var(--r-control); border-bottom-left-radius: var(--r-control); }
 :where(main table thead tr) > :last-child { border-top-right-radius: var(--r-control); border-bottom-right-radius: var(--r-control); }

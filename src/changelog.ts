@@ -28,6 +28,10 @@ const ALL_ENTRIES: ChangelogEntry[] = [
       { type: "nouveau", text: "La voie s'use : chaque liaison a son état, qui baisse avec le trafic. Sous 60 %, les trains y roulent moins vite ; sous 30 %, encore moins vite et avec deux fois plus d'incidents. La rénovation est un chantier commun : chacun verse ce qu'il veut, et les gros financeurs touchent +3 % sur la liaison pendant un mois" },
       { type: "nouveau", text: "Les concessions : devenez propriétaire d'une liaison. Les autres compagnies vous paient un péage (jusqu'à 15 % de leur recette, moitié pour vos alliés), mais vous devez l'entretenir, sous peine de la perdre" },
       { type: "nouveau", text: "Sur la carte, les voies usées apparaissent en pointillés orange et rouges, et les liaisons concédées en doré" },
+      { type: "ameliore", text: "Le serveur tient mieux la charge : la simulation du réseau est beaucoup plus rapide, les trains avancent et paient à l'heure même aux heures chargées" },
+      { type: "corrige", text: "La hausse de 10 % accordée au syndicat dure maintenant 4 jours, puis vos employés reviennent au salaire de leur niveau. Elle durait pour toujours au niveau 5 et s'empilait : les salaires déjà gonflés sont remis à leur niveau" },
+      { type: "corrige", text: "Fret : le compte à rebours des offres suit l'horloge du serveur, et une offre prise par une autre compagnie disparaît tout de suite de la liste. On ne se voit plus refuser un départ pour un contrat « expiré » qui semblait valable" },
+      { type: "corrige", text: "iPhone : la fenêtre de composition d'une rame défile de nouveau jusqu'en bas, et le tableau de la concurrence se fait défiler sur le côté" },
     ],
   },
   {
