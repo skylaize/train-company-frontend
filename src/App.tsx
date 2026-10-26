@@ -1,5 +1,6 @@
 import { lazy, Suspense } from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { isDesktopApp } from "./desktop";
 import { AuthProvider } from "./context/AuthContext";
 import { ToastProvider } from "./context/ToastContext";
 import LandingPage from "./pages/LandingPage";
@@ -16,7 +17,9 @@ export default function App() {
       <BrowserRouter>
         <AuthProvider>
           <Routes>
-            <Route path="/" element={<LandingPage />} />
+            {/* 2.4 : dans l'application Windows, pas de vitrine : le tableau de bord
+                (ou la connexion, pour qui n'a pas encore de session) */}
+            <Route path="/" element={isDesktopApp() ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
             <Route path="/auth" element={<AuthPage />} />
             <Route
               path="/dashboard"

@@ -30,6 +30,8 @@ use serde::Deserialize;
 use tauri::{Url, WebviewUrl, WebviewWindowBuilder};
 
 const GAME_URL: &str = "https://compagnie.skhost.fr/";
+// la fenêtre s'ouvre sur le tableau de bord, comme l'application web installée
+const START_URL: &str = "https://compagnie.skhost.fr/dashboard";
 // identifiant de l'application Discord (public), fourni à la compilation
 const DISCORD_CLIENT_ID: Option<&str> = option_env!("DISCORD_CLIENT_ID");
 
@@ -166,7 +168,7 @@ fn main() {
             open_external
         ])
         .setup(|app| {
-            let start: Url = GAME_URL.parse().expect("adresse du jeu");
+            let start: Url = START_URL.parse().expect("adresse du jeu");
             WebviewWindowBuilder::new(app, "main", WebviewUrl::External(start))
                 .title("Réseau")
                 .inner_size(1280.0, 820.0)
