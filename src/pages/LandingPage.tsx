@@ -227,14 +227,14 @@ function StationClock({ now }: { now: Date }) {
   );
 }
 
-/* 2.3 : les nouveautés, sur la section du haut */
-const NOUVEAU_23 = [
-  { k: "Extension", t: "La Corse", b: "Bastia, Corte, Ajaccio, Calvi et L'Île-Rousse, le ferry de Marseille et de Nice, et l'autorail corse qui grimpe dans le maquis." },
-  { k: "Alliance", t: "Les objectifs de la semaine", b: "Chaque lundi, trois objectifs à remplir ensemble. Chacun voit sa part, et chaque contributeur est payé." },
-  { k: "Alliance", t: "Les régions", b: "Chaque région revient à l'alliance qui y dessert le plus de gares. Tenez-la, et vos billets y rapportent plus." },
-  { k: "Fret", t: "Le conteneur scellé", b: "Un contrat au contenu inconnu, payé au prix fort. On l'ouvre à l'arrivée : un trésor, ou des ennuis." },
-  { k: "Voyageurs", t: "La rame publicitaire", b: "Une marque loue votre rame pour une semaine et paie d'avance. Mais gare au scandale." },
-  { k: "Discord", t: "Merci aux boosters", b: "Boostez le serveur Discord : badge, livrée Nitro et emblème du cristal pour votre compagnie." },
+/* 2.4 : les nouveautés, sur la section du haut */
+const NOUVEAU_24 = [
+  { k: "Énergie", t: "Gazole et courant", b: "Vos trains consomment pour de vrai. Le gazole a son cours, le courant flambe aux heures de pointe : remplissez vos cuves au bon moment." },
+  { k: "Carbone", t: "La taxe carbone", b: "50 tonnes gratuites par semaine, puis chaque tonne se paie. Le jeu vous dit quelles lignes électrifier pour payer moins." },
+  { k: "Énergie", t: "Vos centrales", b: "Solaire dans le Sud, éoliennes sur la côte, barrage en montagne. Elles suivent la vraie météo, et vous revendez le surplus." },
+  { k: "Voies", t: "La voie s'use", b: "Chaque liaison s'abîme avec le trafic et ralentit les trains. Sa rénovation est un chantier commun, et les gros financeurs y gagnent." },
+  { k: "Voies", t: "Les concessions", b: "Devenez propriétaire d'une liaison : les autres compagnies vous paient un péage, mais à vous de l'entretenir." },
+  { k: "Atelier", t: "Le marché des pièces", b: "Un stock national, des pénuries qui font tripler les prix, et des usines à construire pour s'en protéger." },
 ];
 
 export default function LandingPage() {
@@ -329,7 +329,7 @@ export default function LandingPage() {
       <section className="lp-hero" id="haut">
         <div className="lp-wrap lp-hero-grid">
           <div className="lp-hero-text">
-            <p className="lp-kicker">Plus de 350 joueurs sur le réseau · jeu de gestion ferroviaire dans le navigateur</p>
+            <p className="lp-kicker">Près de 400 joueurs sur le réseau · jeu de gestion ferroviaire dans le navigateur</p>
             <h1>Vos trains roulent même quand vous dormez.</h1>
             <p className="lp-lede">
               Tracez vos lignes, achetez vos rames, négociez le fret. Chaque mois, une nouvelle saison vous oppose à des
@@ -381,19 +381,20 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------- 2.3 : 350 joueurs, et ce qui arrive avec eux ---------- */}
+      {/* ---------- 2.4 : le vrai coût du rail ---------- */}
       <section id="nouveau" className="lp-200-sec">
         <div className="lp-wrap">
-          <p className="lp-200-kicker">Octobre 2026 · version 2.3</p>
-          <h2 className="lp-h2">Plus de 350 joueurs sur le réseau. Merci.</h2>
+          <p className="lp-200-kicker">Octobre 2026 · version 2.4</p>
+          <h2 className="lp-h2">Le vrai coût du rail.</h2>
           <p className="lp-sub">
-            Et pour vous accueillir, une île à desservir, des objectifs à remplir en alliance et des régions à se disputer.
+            Près de 400 joueurs, et un réseau qui coûte enfin ce qu'il coûte : du gazole, du courant, du carbone, des voies à
+            entretenir. Ceux qui gèrent bien leur énergie passent devant.
           </p>
           <div className="lp-200-train" aria-hidden="true">
-            <TrainPicture model="AUTORAIL_CORSE" livery="#4f5d3a" height={84} align="center" label="Autorail corse" />
+            <TrainPicture model="TGV" livery="#d39f18" height={84} align="center" label="Rame à grande vitesse" />
           </div>
           <div className="lp-200-grid">
-            {NOUVEAU_23.map((n) => (
+            {NOUVEAU_24.map((n) => (
               <article className="lp-200-card" key={n.t}>
                 <span className="lp-200-num">{n.k}</span>
                 <h3>{n.t}</h3>

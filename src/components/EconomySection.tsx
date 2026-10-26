@@ -127,7 +127,7 @@ function HourBars({ meters }: { meters: Meter[] }) {
     <div>
       <div className="flex items-end gap-[3px] h-24" role="img" aria-label="Facture d'énergie, heure par heure">
         {last.map((m) => (
-          <div key={m.hour} className="flex-1 flex flex-col justify-end h-full" title={`${hourLabel(m.hour)} h : ${fmt(m.cost)} pi. payés, ${fmt(m.income)} pi. encaissés${m.settled ? "" : " (heure en cours)"}`}>
+          <div key={m.hour} className="flex-1 flex flex-col justify-end h-full" title={`${hourLabel(m.hour)} h : ${fmt(m.liters)} L, ${fmt(m.kwh)} kWh, ${money(m.co2, 2)} t de CO₂ · ${fmt(m.cost)} pi. payés, ${fmt(m.income)} pi. encaissés${m.settled ? "" : " (heure en cours)"}`}>
             {m.income > 0 && <div className="bg-rail-green/70 rounded-t-sm" style={{ height: `${(m.income / max) * 100}%` }} />}
             <div className={`${m.settled ? "bg-amber/80" : "bg-amber/30"} rounded-t-sm`} style={{ height: `${Math.max(2, (m.cost / max) * 100)}%` }} />
           </div>
@@ -141,6 +141,71 @@ function HourBars({ meters }: { meters: Meter[] }) {
         </span>
         <span>{hourLabel(last[last.length - 1].hour)} h</span>
       </div>
+      <Consumption meters={last} />
+    </div>
+  );
+}
+
+/* 2.4 : ce que la compagnie consomme vraiment (litres, kWh, CO₂), et pas
+   seulement ce que ça coûte. Le détail heure par heure se déplie : sur
+   téléphone, l'infobulle des barres ne s'affiche pas. */
+function Consumption({ meters }: { meters: Meter[] }) {
+  const total = (k: "liters" | "kwh" | "produced" | "co2") => meters.reduce((a, m) => a + (m[k] ?? 0), 0);
+  const rows = [...meters].reverse();
+  return (
+    <div className="mt-5">
+      <div className="font-body text-[13px] text-slate2 mb-2">Consommation, dernières 24 h</div>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Figure label="Gazole" value={`${fmt(total("liters"))} L`} />
+        <Figure label="Courant" value={`${fmt(total("kwh"))} kWh`} />
+        <Figure label="Produit par vos centrales" value={`${fmt(total("produced"))} kWh`} />
+        <Figure label="CO₂ émis" value={`${money(total("co2"), 1)} t`} />
+      </div>
+      <details className="mt-3 group">
+        <summary className="cursor-pointer select-none font-body text-[13px] text-cobalt hover:underline underline-offset-[3px] list-none">
+          <span className="group-open:hidden">Voir le détail heure par heure</span>
+          <span className="hidden group-open:inline">Masquer le détail</span>
+        </summary>
+        <div className="mt-2 border border-line rounded-card overflow-x-auto overscroll-x-contain">
+          <table className="w-full min-w-max whitespace-nowrap text-[12.5px] font-body tabular-nums">
+            <thead>
+              <tr className="text-left text-slate2 border-b border-line">
+                <th className="px-3 py-1.5 font-normal">Heure</th>
+                <th className="px-3 py-1.5 font-normal text-right">Gazole</th>
+                <th className="px-3 py-1.5 font-normal text-right">Courant</th>
+                <th className="px-3 py-1.5 font-normal text-right">Produit</th>
+                <th className="px-3 py-1.5 font-normal text-right">CO₂</th>
+                <th className="px-3 py-1.5 font-normal text-right">Facture</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((m) => (
+                <tr key={m.hour} className="border-b border-line last:border-0">
+                  <td className="px-3 py-1.5">
+                    {hourLabel(m.hour)} h{!m.settled && <span className="ml-1.5 text-[11.5px] text-amber">en cours</span>}
+                  </td>
+                  <td className="px-3 py-1.5 text-right font-mono2">{fmt(m.liters)} L</td>
+                  <td className="px-3 py-1.5 text-right font-mono2">{fmt(m.kwh)} kWh</td>
+                  <td className="px-3 py-1.5 text-right font-mono2">{fmt(m.produced)} kWh</td>
+                  <td className="px-3 py-1.5 text-right font-mono2">{money(m.co2, 2)} t</td>
+                  <td className="px-3 py-1.5 text-right font-mono2">
+                    {m.settled || m.cost ? `${fmt(m.cost - m.income)} pi.` : "à la fin de l'heure"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </div>
+  );
+}
+
+function Figure({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="border border-line rounded-card bg-navy-900/40 px-3 py-2">
+      <div className="font-body text-[12px] text-slate2">{label}</div>
+      <div className="font-mono2 text-[17px] tabular-nums text-offwhite">{value}</div>
     </div>
   );
 }
