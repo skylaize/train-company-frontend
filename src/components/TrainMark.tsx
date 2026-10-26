@@ -314,3 +314,12 @@ export function AllianceMark({ size = 20, className = "" }: { size?: number; cla
     </svg>
   );
 }
+
+/* 2.4 — Énergie & carbone : un éclair dans une prise de courant */
+export function EnergyMark({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+      <path d="M13 3 6 13.5h5L10 21l8-11h-5.2L13 3Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+    </svg>
+  );
+}
