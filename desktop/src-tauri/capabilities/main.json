@@ -1,0 +1,9 @@
+{
+  "identifier": "main",
+  "description": "La page du jeu peut seulement mettre à jour le statut Discord et ouvrir un lien dans le navigateur. Rien d'autre : ni fichiers, ni commandes système, ni autres fenêtres.",
+  "windows": ["main"],
+  "remote": {
+    "urls": ["https://compagnie.skhost.fr/*"]
+  },
+  "permissions": ["allow-set-presence", "allow-clear-presence", "allow-open-external"]
+}

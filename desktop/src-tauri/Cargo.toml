@@ -1,0 +1,23 @@
+[package]
+name = "reseau"
+version = "1.0.0"
+description = "Réseau, jeu de gestion ferroviaire : l'application Windows"
+authors = ["Skylaize"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+discord-rich-presence = "0.2"
+open = "5"
+
+# binaire le plus petit possible, sans symboles de débogage
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

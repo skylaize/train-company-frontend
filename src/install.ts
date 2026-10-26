@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { DESKTOP_DOWNLOAD_URL, isDesktopApp, isWindowsBrowser } from "./desktop";
 
 /* ============================================================
    Application installable (1.6).
@@ -50,11 +51,20 @@ export function useInstall() {
       listeners.delete(f);
     };
   }, []);
+  /* 2.4 : sur un PC Windows, on propose l'application Windows (statut
+     Discord) à la place de l'application web, même à ceux qui ont déjà
+     installé cette dernière. Dans l'application Windows, plus rien à proposer. */
+  const windowsApp = isWindowsBrowser();
   return {
-    installed: isStandalone(),
-    canPrompt: deferred !== null,
+    installed: isDesktopApp() || (isStandalone() && !windowsApp),
+    canPrompt: windowsApp || deferred !== null,
     ios: isIOS(),
+    windowsApp,
     async prompt() {
+      if (windowsApp) {
+        window.location.href = DESKTOP_DOWNLOAD_URL;
+        return true;
+      }
       if (!deferred) return false;
       const e = deferred;
       await e.prompt();

@@ -1,0 +1,4 @@
+# produits de la compilation et icônes générées par la CI
+src-tauri/target/
+src-tauri/gen/
+src-tauri/icons/

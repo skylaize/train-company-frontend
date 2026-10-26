@@ -5,9 +5,13 @@ import App from "./App";
 import "./index.css";
 import { applyTheme, readLocalTheme } from "./theme";
 import { captureReferral } from "./referral";
+import { installDesktopLinks } from "./desktop";
 
 // un lien de parrainage : le code est gardé jusqu'à la fondation de la compagnie
 captureReferral();
+
+// 2.4 : dans l'application Windows, les liens externes s'ouvrent dans le navigateur
+installDesktopLinks();
 
 // avant le premier rendu : évite le flash de thème au chargement
 applyTheme(readLocalTheme());

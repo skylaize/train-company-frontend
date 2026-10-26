@@ -12,6 +12,7 @@ import { stationVisible, setTunnelOpen, STATION_COORDS, lineCurve, pointOnCurve,
 import { UpdateBanner } from "../components/UpdateBanner";
 import { useInstall, isStandalone } from "../install";
 import { InstallGuide, InstallPanel } from "../components/InstallApp";
+import { setPresence } from "../desktop";
 import { InstagramMark } from "../components/InstagramMark";
 import { DiscordMark } from "../components/DiscordMark";
 import { DiscordPanel } from "../components/DiscordPanel";
@@ -481,6 +482,15 @@ export default function Dashboard() {
   // 1.6 : application installable
   const install = useInstall();
   const [showInstallGuide, setShowInstallGuide] = useState(false);
+  // 2.4 : statut Discord dans l'application Windows (ne fait rien dans un navigateur)
+  useEffect(() => {
+    if (!company) return;
+    const page = (PAGE_COPY as Record<string, { title: string } | undefined>)[view]?.title;
+    setPresence({
+      details: `Compagnie ${company.name}`,
+      state: `${trains.length} rame${trains.length > 1 ? "s" : ""} · ${lines.length} ligne${lines.length > 1 ? "s" : ""}${page ? ` · ${page}` : ""}`,
+    });
+  }, [company?.name, trains.length, lines.length, view]);
   // retour d'un achat : boutique rechargée, objet acheté en vitrine
   const [shopKey, setShopKey] = useState(0);
   const [shopFocus, setShopFocus] = useState<string | null>(null);
@@ -1243,7 +1253,7 @@ export default function Dashboard() {
               className="flex items-center gap-2.5 px-3 py-1.5 rounded-control text-[13.5px] font-body text-slate2 hover:text-offwhite hover:bg-offwhite/[0.05]"
             >
               <InstallMark size={15} />
-              Installer l'app
+              {install.windowsApp ? "Application Windows" : "Installer l'app"}
             </button>
           )}
           <div className="flex items-center gap-x-3 gap-y-1 flex-wrap px-3 pt-1 text-[12.5px] font-body text-slate2">

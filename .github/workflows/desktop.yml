@@ -1,0 +1,60 @@
+# Réseau pour Windows : compile l'application et publie l'installeur.
+# Se lance à la main (onglet Actions > Application Windows > Run workflow)
+# ou en poussant une étiquette desktop-vX.Y.Z. La version publiée est celle
+# de desktop/src-tauri/tauri.conf.json.
+name: Application Windows
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ["desktop-v*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop
+  cancel-in-progress: false
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "desktop/src-tauri -> target"
+
+      - name: Icônes (depuis l'icône du site)
+        run: npx --yes @tauri-apps/cli@2 icon ../public/icone-512.png
+
+      - name: Compilation
+        env:
+          # Paramètres du dépôt > Secrets and variables > Actions > Variables
+          DISCORD_CLIENT_ID: ${{ vars.DISCORD_CLIENT_ID }}
+        run: npx --yes @tauri-apps/cli@2 build
+
+      - name: Publication de l'installeur
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./src-tauri/tauri.conf.json').version")
+          EXE=$(ls src-tauri/target/release/bundle/nsis/*-setup.exe | head -n 1)
+          cp "$EXE" Reseau-Setup.exe
+          TAG="desktop-v$VERSION"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" --title "Réseau pour Windows $VERSION" --latest \
+              --notes "Installez Réseau sur votre PC : sa propre fenêtre, son icône, et votre partie affichée sur votre profil Discord. Téléchargez Reseau-Setup.exe ci-dessous."
+          fi
+          gh release upload "$TAG" Reseau-Setup.exe --clobber

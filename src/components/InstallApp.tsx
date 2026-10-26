@@ -70,10 +70,17 @@ export function InstallPanel() {
   }
   return (
     <div className="border-t border-line pt-6">
-      <h2 className="font-display text-xl mb-2">Installer l'application</h2>
+      <h2 className="font-display text-xl mb-2">{install.windowsApp ? "Réseau pour Windows" : "Installer l'application"}</h2>
       <p className="text-sm text-slate2 font-body mb-4">
-        Réseau sur votre écran d'accueil : son icône, sa propre fenêtre, et les notifications, y compris sur iPhone. Gratuit, sans passer par un store.
+        {install.windowsApp
+          ? "Réseau installé sur votre PC : son icône, sa propre fenêtre, et votre partie affichée sur votre profil Discord. Gratuit, et toujours à jour : c'est le même jeu que dans le navigateur."
+          : "Réseau sur votre écran d'accueil : son icône, sa propre fenêtre, et les notifications, y compris sur iPhone. Gratuit, sans passer par un store."}
       </p>
+      {install.windowsApp && (
+        <p className="text-[12.5px] text-slate2 font-body mb-4">
+          Au premier lancement, Windows peut afficher « Windows a protégé votre ordinateur » : cliquez sur <b className="text-offwhite">Informations complémentaires</b>, puis <b className="text-offwhite">Exécuter quand même</b>.
+        </p>
+      )}
       <InstallButton onGuide={() => setGuide(true)} />
       {guide && <InstallGuide onClose={() => setGuide(false)} />}
     </div>
@@ -92,7 +99,7 @@ export function InstallButton({ onGuide, compact = false }: { onGuide: () => voi
       onClick={go}
       className={`font-medium rounded-control${compact ? "px-3 py-1.5" : "px-4 py-2"} text-[12px] bg-amber text-onaccent font-body hover:bg-amber/90`}
     >
-      Installer Réseau
+      {install.windowsApp ? "Télécharger pour Windows" : "Installer Réseau"}
     </button>
   );
 }
