@@ -40,8 +40,9 @@ jobs:
 
       - name: Compilation
         env:
-          # Paramètres du dépôt > Secrets and variables > Actions > Variables
-          DISCORD_CLIENT_ID: ${{ vars.DISCORD_CLIENT_ID }}
+          # identifiant (public) de l'application Discord « Réseau » ; une variable
+          # DISCORD_CLIENT_ID du dépôt, si elle existe, passe devant
+          DISCORD_CLIENT_ID: ${{ vars.DISCORD_CLIENT_ID || '1551281342547894282' }}
         run: npx --yes @tauri-apps/cli@2 build
 
       - name: Publication de l'installeur

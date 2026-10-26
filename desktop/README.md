@@ -9,7 +9,7 @@ met l'application à jour.
 1. Une seule fois : dans Discord Developer Portal, ouvrez l'application
    « Réseau » (celle de la connexion Discord), copiez son *Application ID*,
    puis sur GitHub : Settings > Secrets and variables > Actions > Variables >
-   `DISCORD_CLIENT_ID`. Dans Rich Presence > Art Assets, ajoutez une image
+   `DISCORD_CLIENT_ID` (sinon, celui inscrit dans le workflow est utilisé). Dans Rich Presence > Art Assets, ajoutez une image
    nommée `logo` (512×512).
 2. Changez `version` dans `src-tauri/tauri.conf.json` si besoin.
 3. Onglet Actions > « Application Windows » > Run workflow.
