@@ -32,6 +32,7 @@ export interface SheetTrain {
   workshopUntil?: string | null;
   serviceAt?: number | null;
   resaleValue?: number;
+  scrapValue?: number; // 2.4.1 : mise à la casse, sans Premium
   serviceFrom?: number | null; // 2.1.1 (Premium) : horaires
   plateStyle?: string | null; // 2.1 : plaque nominative
   serviceTo?: number | null;
@@ -428,9 +429,42 @@ export function TrainSheet({
               </button>
             )
           ) : (
-            <button onClick={onGoPremium} className="mt-3 text-[13.5px] font-body text-amber border border-amber/40 px-3.5 py-2 hover:bg-amber/10 rounded-control">
-              La revente est réservée au Premium
-            </button>
+            /* 2.4.1 : sans Premium, la rame peut partir à la casse (au quart de sa valeur) pour libérer sa place au dépôt */
+            <>
+              {confirmSell ? (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button
+                    onClick={() =>
+                      post("sell", "/trains/sell", { trainId: train.id }, `${train.name} part à la casse : ${fmt(train.scrapValue ?? 0)} pi.`, () => {
+                        playAlert();
+                        onClose();
+                      })
+                    }
+                    disabled={!!busy || Boolean(train.partsEta) || onFreight}
+                    className="text-[14px] font-semibold font-body bg-rail-red text-white px-3.5 py-2 disabled:opacity-40 rounded-control"
+                  >
+                    Mettre {train.name} à la casse pour {fmt(train.scrapValue ?? 0)} pi.
+                  </button>
+                  <button onClick={() => setConfirmSell(false)} className="text-[14px] font-body text-slate2 border border-line px-3.5 py-2 rounded-control">
+                    Garder la rame
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-2 mt-3">
+                  <button
+                    onClick={() => setConfirmSell(true)}
+                    disabled={Boolean(train.partsEta) || onFreight}
+                    title={train.partsEta ? "Une pièce est en commande pour cette rame" : onFreight ? "Elle livre du fret : attendez son retour" : "Libère sa place au dépôt pour une rame plus moderne"}
+                    className="text-[14px] font-body text-slate2 border border-line px-3.5 py-2 hover:text-rail-red hover:border-rail-red/60 disabled:opacity-40 rounded-control"
+                  >
+                    Mettre à la casse, {fmt(train.scrapValue ?? 0)} pi.
+                  </button>
+                  <button onClick={onGoPremium} className="text-[13.5px] font-body text-amber border border-amber/40 px-3.5 py-2 hover:bg-amber/10 rounded-control">
+                    Premium : revente à {fmt(train.resaleValue ?? 0)} pi.
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </section>
       </div>

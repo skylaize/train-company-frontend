@@ -74,7 +74,7 @@ const fmt = (n: number) => Math.abs(Math.round(n)).toLocaleString("fr-FR");
 
 function tripMs(t: HBTrain) {
   const base = (t.line?.durationMinutes ?? 10) * 60_000;
-  return base * modelSpeed(t.model) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1) * (t.line?.doubleTrack ? 0.93 : 1);
+  return base * modelSpeed(t.model, (t.line ?? null) as { highSpeedAt?: string | null } | null) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1) * (t.line?.doubleTrack ? 0.93 : 1);
 }
 
 // où en est la rame de son trajet, de 0 à 1, calculé à la seconde près
@@ -109,7 +109,7 @@ function ArrivalsBoard({ trains, onOpenMap }: { trains: HBTrain[]; onOpenMap: ()
     .map((t) => ({ t, left: Math.max(0, tripMs(t) * (1 - ratioOf(t, now))) }))
     .sort((a, b) => a.left - b.left)
     .slice(0, 5);
-  const hhmm = (ms: number) => new Date(now + ms).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+  const hhmm = (ms: number) => new Date(now + ms).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   const fromOf = (t: HBTrain) => (t.direction === 1 ? t.line!.arrivalStation : t.line!.departureStation);
   const countdown = (ms: number) => {
     if (ms < 45_000) return "à quai";

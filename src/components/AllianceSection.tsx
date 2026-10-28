@@ -47,6 +47,7 @@ export interface AllianceData {
   objectives?: Objectives | null;
   regions?: RegionsData | null;
   invited?: string[];
+  invites?: { companyId: string; name: string; at: string }[]; // 2.4.1 : pour pouvoir les retirer
   // 2.0.2 : candidatures
   directory?: { id: string; name: string; color: string; pitch: string | null; founder: string; members: number; room: number; points: number; rank: number | null; applied: boolean }[];
   myApplications?: { id: string; allianceId: string; alliance: string; color: string; message: string; at: string }[];
@@ -650,10 +651,26 @@ function Members({
             )}
           </li>
         ))}
-        {(data.invited ?? []).map((name) => (
-          <li key={name} className="flex items-center gap-3 rounded-control px-2 py-2 text-[13px] text-slate2 font-body">
-            <span className="w-[34px] h-[34px] rounded-control border border-dashed border-line" aria-hidden="true" />
-            {name}, invitation envoyée
+        {(data.invites ?? (data.invited ?? []).map((name) => ({ companyId: "", name, at: "" }))).map((inv) => (
+          <li key={inv.companyId || inv.name} className="flex items-center gap-3 rounded-control px-2 py-2 text-[13px] text-slate2 font-body">
+            <span className="w-[34px] h-[34px] rounded-control border border-dashed border-line shrink-0" aria-hidden="true" />
+            <span className="flex-1 min-w-0">
+              {inv.name}, invitation envoyée
+              {/* 2.4.1 : une invitation tombe d'elle-même au bout de 7 jours */}
+              {inv.at && <span className="text-slate2/70"> · expire dans {Math.max(0, 7 - Math.floor((Date.now() - Date.parse(inv.at)) / 86_400_000))} j</span>}
+            </span>
+            {inv.companyId && (
+              <button
+                onClick={() => run(() => api.delete(`/alliance/invited/${inv.companyId}`), `Invitation de ${inv.name} retirée`)}
+                className="shrink-0 -mr-1 w-7 h-7 inline-flex items-center justify-center rounded-control text-slate2/70 hover:text-rail-red hover:bg-rail-red/[0.08]"
+                title={`Retirer l'invitation de ${inv.name}`}
+                aria-label={`Retirer l'invitation de ${inv.name}`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
+            )}
           </li>
         ))}
       </ul>

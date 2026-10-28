@@ -17,7 +17,7 @@ interface LoadData {
   peak: string | null;
 }
 
-const hh = (iso: string) => `${Number(new Intl.DateTimeFormat("fr-FR", { hour: "numeric", hourCycle: "h23", timeZone: "Europe/Paris" }).formatToParts(new Date(iso)).find((p) => p.type === "hour")?.value ?? 0)} h`;
+const hh = (iso: string) => `${Number(new Intl.DateTimeFormat("fr-FR", { hour: "numeric", hourCycle: "h23" }).formatToParts(new Date(iso)).find((p) => p.type === "hour")?.value ?? 0)} h`;
 
 export function LineLoadModal({ lineId, title, isPremium, onClose }: { lineId: string; title: string; isPremium: boolean; onClose: () => void }) {
   const [data, setData] = useState<LoadData | null>(null);

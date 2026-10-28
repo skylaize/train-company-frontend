@@ -89,8 +89,8 @@ export function useHauntedStation() {
   return { active: data?.phase === "pendant", station: haunt?.station ?? null };
 }
 
-const hm = (iso: string) => new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" }).format(new Date(iso)).replace(":", " h ");
-const day = (iso: string) => new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", weekday: "long", day: "numeric", month: "long" }).format(new Date(iso));
+const hm = (iso: string) => new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-digit" }).format(new Date(iso)).replace(":", " h ");
+const day = (iso: string) => new Intl.DateTimeFormat("fr-FR", { weekday: "long", day: "numeric", month: "long" }).format(new Date(iso));
 
 /* le petit fantôme, dessiné au trait (même grille que les emblèmes) */
 export function GhostGlyph({ size = 16, className = "" }: { size?: number; className?: string }) {

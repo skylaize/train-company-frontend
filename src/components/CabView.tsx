@@ -42,7 +42,7 @@ export interface CabTrain {
    à l'échelle de la durée réelle du trajet (modèle, voitures, électrification). */
 function tripPlan(t: CabTrain) {
   const duration =
-    (t.line?.durationMinutes ?? 10) * 60 * modelSpeed(t.model) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1) * (t.line?.doubleTrack ? 0.93 : 1);
+    (t.line?.durationMinutes ?? 10) * 60 * modelSpeed(t.model, (t.line ?? null) as { highSpeedAt?: string | null } | null) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1) * (t.line?.doubleTrack ? 0.93 : 1);
   const base = t.line ? routeStations(t.line) : [];
   const route = t.direction === 1 ? [...base].reverse() : base;
   const { phases, total } = routeTimeline(route, 0);

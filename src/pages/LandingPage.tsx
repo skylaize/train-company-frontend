@@ -9,6 +9,7 @@ import { api } from "../api/client";
 import "./landing.css";
 import { LandingCab } from "../components/LandingCab";
 import { TrainPicture } from "../components/TrainPicture";
+import { LandingEverywhere, LandingFaq, LandingShowcase, LandingSteps, SeasonCountdown, SeasonInfo } from "../components/LandingExtras";
 
 /* ============================================================
    Page d'accueil (2.0, refaite) — le papier imprimé reste, mais la page
@@ -23,6 +24,8 @@ interface NetworkStats {
   trainsInService: number;
   punctuality: number;
   activeIncidents: number;
+  season?: SeasonInfo; // 2.4.1 : la saison en cours, pour le compte à rebours
+  tunnelOpen?: boolean; // 2.4.1 : le Grand Chantier est-il terminé ?
 }
 
 /* Jeu de caractères du panneau : les palettes défilent dans cet ordre,
@@ -167,6 +170,12 @@ const NOUVEAUTES = [
   { id: "extensions", t: "Trois extensions", b: "La vapeur du week-end et le grand luxe des longues lignes, Chamonix, Briançon et la crémaillère, puis la Corse, son autorail et le ferry de Marseille." },
 ];
 
+const CHANTIER_FINI = {
+  id: "chantier",
+  t: "Le tunnel du Mont-Blanc",
+  b: "Tout le réseau l'a creusé ensemble, trajet après trajet. Il est ouvert : Turin et Zurich sont sur la carte, et vos lignes peuvent passer les Alpes.",
+};
+
 const SYSTEMES = [
   { t: "Le dépôt", b: "Deux places pour commencer, aucun plafond. Chaque agrandissement est un chantier, plus long et plus cher que le précédent." },
   { t: "Les lignes", b: "Trente-huit gares en France et six à l'étranger. Les grandes gares attirent plus de voyageurs, et sur une ligne partagée, la meilleure compagnie les prend aux autres." },
@@ -308,10 +317,11 @@ export default function LandingPage() {
           </a>
           <nav className="lp-nav" aria-label="Sections">
             <a href="#nouveau">Nouveau</a>
-            <a href="#nouveautes">La 2.0</a>
-            <a href="#exploiter">Le jeu</a>
-            <a href="#direct">En continu</a>
+            <a href="#apercu">Le jeu</a>
+            <a href="#nouveautes">Saisons</a>
+            <a href="#partout">Où jouer</a>
             <a href="#billets">Billets</a>
+            <a href="#questions">Questions</a>
           </nav>
           <a className="lp-social" href={INSTAGRAM.url} target="_blank" rel="noopener noreferrer" aria-label={`Réseau sur Instagram (@${INSTAGRAM.handle})`}>
             <InstagramMark size={18} />
@@ -329,7 +339,10 @@ export default function LandingPage() {
       <section className="lp-hero" id="haut">
         <div className="lp-wrap lp-hero-grid">
           <div className="lp-hero-text">
-            <p className="lp-kicker">Près de 400 joueurs sur le réseau · jeu de gestion ferroviaire dans le navigateur</p>
+            {/* 2.4.1 : le vrai nombre de compagnies, plutôt qu'un chiffre écrit à la main */}
+            <p className="lp-kicker">
+              {stats ? `${stats.activeCompanies.toLocaleString("fr-FR")} compagnies sur le réseau` : "Plus de 400 joueurs sur le réseau"} · jeu de gestion ferroviaire gratuit
+            </p>
             <h1>Vos trains roulent même quand vous dormez.</h1>
             <p className="lp-lede">
               Tracez vos lignes, achetez vos rames, négociez le fret. Chaque mois, une nouvelle saison vous oppose à des
@@ -343,6 +356,7 @@ export default function LandingPage() {
                 J'ai déjà une compagnie
               </button>
             </div>
+            <SeasonCountdown season={stats?.season} />
           </div>
           <div className="lp-hero-window">
             <LandingCab />
@@ -381,42 +395,62 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ---------- 2.4 : le vrai coût du rail ---------- */}
-      <section id="nouveau" className="lp-200-sec">
+      {/* ---------- 2.4.1 : comment ça marche, et le jeu tel qu'il est ---------- */}
+      <LandingSteps onStart={register} />
+      <LandingShowcase />
+
+      {/* ---------- 2.4 : le vrai coût du rail, en avis imprimé ----------
+          2.4.1 : plus de bloc sombre à halo doré ni de cartes en série : un avis
+          aux exploitants, sur papier, comme le reste de la page. */}
+      <section id="nouveau" className="lp-avis-sec">
         <div className="lp-wrap">
-          <p className="lp-200-kicker">Octobre 2026 · version 2.4</p>
-          <h2 className="lp-h2">Le vrai coût du rail.</h2>
-          <p className="lp-sub">
-            Près de 400 joueurs, et un réseau qui coûte enfin ce qu'il coûte : du gazole, du courant, du carbone, des voies à
-            entretenir. Ceux qui gèrent bien leur énergie passent devant.
-          </p>
-          <div className="lp-200-train" aria-hidden="true">
-            <TrainPicture model="TGV" livery="#d39f18" height={84} align="center" label="Rame à grande vitesse" />
-          </div>
-          <div className="lp-200-grid">
-            {NOUVEAU_24.map((n) => (
-              <article className="lp-200-card" key={n.t}>
-                <span className="lp-200-num">{n.k}</span>
-                <h3>{n.t}</h3>
-                <p>{n.b}</p>
-              </article>
-            ))}
-          </div>
-          <div className="lp-cta">
-            <button className="lp-btn gold" onClick={register}>
-              Monter à bord
-            </button>
-          </div>
+          <article className="lp-avis">
+            <header className="lp-avis-hd">
+              <span>Avis aux exploitants · n° 2.4</span>
+              <span>Octobre 2026</span>
+            </header>
+            <div className="lp-avis-top">
+              <h2 className="lp-h2">Le vrai coût du rail.</h2>
+              <p className="lp-sub">
+                Plus de 400 joueurs, et un réseau qui coûte enfin ce qu'il coûte : du gazole, du courant, du carbone, des voies à
+                entretenir. Ceux qui gèrent bien leur énergie passent devant.
+              </p>
+            </div>
+            <ol className="lp-avis-list">
+              {NOUVEAU_24.map((n, i) => (
+                <li key={n.t}>
+                  <span className="lp-avis-n">{String(i + 1).padStart(2, "0")}</span>
+                  <div>
+                    <span className="lp-avis-k">{n.k}</span>
+                    <h3>{n.t}</h3>
+                    <p>{n.b}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
+            <div className="lp-avis-train" aria-hidden="true">
+              <TrainPicture model="TGV" livery="#1f5c4d" height={70} align="center" label="Rame à grande vitesse" />
+            </div>
+            <footer className="lp-avis-ft">
+              <button className="lp-btn" onClick={register}>
+                Monter à bord
+              </button>
+              <span>Applicable sur tout le réseau à compter de la version 2.4.</span>
+            </footer>
+          </article>
         </div>
       </section>
 
       {/* ---------- la 2.0, sous les arcades ---------- */}
       <section id="nouveautes" className="lp-arcade-sec">
         <div className="lp-wrap">
-          <h2 className="lp-h2">Ce qui change avec la 2.0</h2>
-          <p className="lp-sub">Une console refaite, et surtout des façons de jouer avec les autres compagnies du réseau.</p>
+          <h2 className="lp-h2">Saisons, alliances et grands chantiers</h2>
+          <p className="lp-sub">Le réseau se joue à plusieurs : des saisons à votre taille, des alliances, et des chantiers que tout le réseau mène ensemble.</p>
           <div className="lp-arcades">
-            {NOUVEAUTES.map((n, i) => (
+            {NOUVEAUTES.map((n0, i) => {
+              /* 2.4.1 : le tunnel est ouvert, la carte en parle au passé (sauf si le serveur dit le contraire) */
+              const n = n0.id === "chantier" && stats?.tunnelOpen !== false ? CHANTIER_FINI : n0;
+              return (
               <article className={`lp-arch t${i % 3}`} key={n.id}>
                 <div className="lp-arch-motif">
                   <Motif id={n.id} />
@@ -424,7 +458,8 @@ export default function LandingPage() {
                 <h3>{n.t}</h3>
                 <p>{n.b}</p>
               </article>
-            ))}
+              );
+            })}
           </div>
         </div>
       </section>
@@ -470,6 +505,9 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ---------- 2.4.1 : où jouer ---------- */}
+      <LandingEverywhere onStart={register} />
+
       {/* ---------- deux billets ---------- */}
       <section id="billets" className="lp-billets-sec">
         <div className="lp-wrap">
@@ -498,7 +536,7 @@ export default function LandingPage() {
                 <li>La vraie météo des villes, sur chaque ligne</li>
                 <li>Appels d'offres, correspondances, lignes internationales, trains de nuit</li>
                 <li>Gares à acheter, ateliers, électrification, banque et bourse entre joueurs</li>
-                <li>Application installable sur téléphone et ordinateur, sans store</li>
+                <li>Sur ordinateur, sur téléphone, et en application Windows</li>
                 <li>Un aperçu de la vue cabine sur chaque rame</li>
                 <li>Publicité discrète : une bannière en bas de quelques pages, et des vidéos facultatives contre des pièces</li>
               </ul>
@@ -519,29 +557,50 @@ export default function LandingPage() {
                   dès 5,99 €<small>prix libre, 7,99 € conseillés</small>
                 </div>
               </div>
-              <ul className="cols">
-                {RELEASE_171 && <li>Aucune publicité, nulle part</li>}
-                <li>L'extension « Trains de légende » incluse</li>
-                <li>Revente de vos rames, cote du jour et meilleur jour pour vendre</li>
-                <li>Horaires par rame et alertes personnalisées</li>
-                <li>À offrir à une autre compagnie</li>
-                <li>Vue cabine en direct sur chaque rame</li>
-                <li>Veille concurrentielle et événements de gare annoncés une heure avant</li>
-                <li>Appels d'offres de la semaine suivante dès le dimanche</li>
-                <li>Licence internationale une semaine avant tout le monde</li>
-                <li>Rentabilité de chaque ligne et de chaque rame</li>
-                <li>Prix du billet automatique, recalé en continu</li>
-                <li>Remplissage heure par heure et heure de pointe</li>
-                <li>Rapport de la semaine exportable en tableur</li>
-                <li>Ordres de bourse automatiques et alertes de cours</li>
-                <li>Alertes de rachat de gare et d'échéance</li>
-                <li>Bilan de votre absence et résumé de la nuit</li>
-                <li>File de chantiers qui démarre seule</li>
-                <li>Six contrats de fret au lieu de quatre</li>
-                <li>−20 % sur chaque place de dépôt</li>
-                <li>Cargaisons fragiles deux fois moins exposées</li>
-                <li>Huit livrées réservées, vos gares à vos couleurs</li>
-              </ul>
+              {/* 2.4.1 : la liste, rangée en quatre familles, se lit d'un coup d'œil */}
+              <div className="lp-tk-groups">
+                <div>
+                  <h4>Sans pub, et en plus</h4>
+                  <ul>
+                    {RELEASE_171 && <li>Aucune publicité, nulle part</li>}
+                    <li>L'extension « Trains de légende » incluse</li>
+                    <li>Huit livrées réservées, vos gares à vos couleurs</li>
+                    <li>Vue cabine en direct sur chaque rame</li>
+                    <li>À offrir à une autre compagnie</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4>Gérer finement</h4>
+                  <ul>
+                    <li>Rentabilité de chaque ligne et de chaque rame</li>
+                    <li>Prix du billet automatique, recalé en continu</li>
+                    <li>Remplissage heure par heure et heure de pointe</li>
+                    <li>Horaires par rame</li>
+                    <li>Revente de vos rames, cote du jour et meilleur jour pour vendre</li>
+                    <li>Rapport de la semaine exportable en tableur</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4>Être prévenu avant les autres</h4>
+                  <ul>
+                    <li>Veille concurrentielle et événements de gare annoncés une heure avant</li>
+                    <li>Appels d'offres de la semaine suivante dès le dimanche</li>
+                    <li>Licence internationale une semaine avant tout le monde</li>
+                    <li>Alertes personnalisées, de rachat de gare et d'échéance</li>
+                    <li>Ordres de bourse automatiques et alertes de cours</li>
+                    <li>Bilan de votre absence et résumé de la nuit</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4>Moins de corvées</h4>
+                  <ul>
+                    <li>File de chantiers qui démarre seule</li>
+                    <li>Six contrats de fret au lieu de quatre</li>
+                    <li>−20 % sur chaque place de dépôt</li>
+                    <li>Cargaisons fragiles deux fois moins exposées</li>
+                  </ul>
+                </div>
+              </div>
               <div className="lp-tk-ft">
                 <button className="lp-btn vert wide" onClick={register}>
                   Prendre ce billet
@@ -558,6 +617,9 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* ---------- 2.4.1 : les questions ---------- */}
+      <LandingFaq />
+
       <footer className="lp-footer">
         <svg className="lp-quai" viewBox="0 0 1440 60" preserveAspectRatio="none" aria-hidden="true">
           <path d="M0 60 V30 C240 4 480 4 720 22 C960 40 1200 44 1440 18 V60 Z" />
@@ -566,7 +628,7 @@ export default function LandingPage() {
           <div className="lp-wrap lp-ft">
             <div className="left">
               <h2>Le quai vous attend.</h2>
-              <p>Création de compagnie en trente secondes. Aucune installation, rien à télécharger.</p>
+              <p>Création de compagnie en trente secondes, sans rien installer. Jouez dans le navigateur, sur téléphone ou dans l'application Windows.</p>
               <button className="lp-btn light" onClick={register}>
                 Fonder ma compagnie
               </button>

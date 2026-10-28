@@ -1,3 +1,4 @@
+import { PARIS_NOTE } from "../models";
 import { useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
@@ -171,6 +172,7 @@ export function TrainSchedule({
       </div>
       <p className="text-[13px] text-slate2 font-body mt-0.5">
         Hors de sa plage, la rame termine son trajet et se gare au terminus, sans s'user ; elle repart à l'heure de reprise.
+        {PARIS_NOTE && " Les horaires suivent l'heure de Paris, comme tout le réseau."}
         {sleeper ? " Pour un train de nuit, « la nuit » évite les trajets de jour qui rapportent peu." : ""}
       </p>
       <div className="mt-3 grid grid-cols-[repeat(24,minmax(0,1fr))] gap-px" aria-hidden="true">
@@ -317,7 +319,7 @@ export function AlertsPanel({ isPremium, trains, onGoPremium }: { isPremium: boo
               <span className={`w-2 h-2 rounded-full shrink-0 ${a.active ? "bg-amber" : "bg-line"}`} title={a.active ? "Condition vérifiée en ce moment" : "En veille"} />
               <span className="text-[14px] font-body flex-1 min-w-[200px]">{describeAlert(a, trainName)}</span>
               <span className="text-[12px] font-body text-slate2">
-                {a.firedAt ? `dernière : ${new Date(a.firedAt).toLocaleString("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}` : "jamais déclenchée"}
+                {a.firedAt ? `dernière : ${new Date(a.firedAt).toLocaleString("fr-FR", { weekday: "short", hour: "2-digit", minute: "2-digit" })}` : "jamais déclenchée"}
               </span>
               <button onClick={() => remove(a.id)} className="text-[12.5px] font-body text-slate2 hover:text-rail-red">
                 Supprimer

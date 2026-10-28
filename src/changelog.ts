@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.4.0";
+export const CURRENT_VERSION = "2.4.1";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
   {
+    version: "2.4.1",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "Plus besoin du Premium pour se séparer d'une vieille rame : mettez-la à la casse (reprise au quart de sa valeur) et libérez sa place au dépôt pour un matériel plus moderne. La revente au prix de reprise reste réservée au Premium" },
+      { type: "nouveau", text: "La rame TGV peut aussi rouler sur une ligne classique électrifiée : 10 % plus rapide qu'une rame ordinaire, mais billet −20 %. Sur LGV, rien ne change" },
+      { type: "nouveau", text: "Alliances : une invitation restée sans réponse peut être retirée, et elle tombe d'elle-même au bout de 7 jours. Elle ne bloque plus une place pour toujours" },
+      { type: "ameliore", text: "La page d'accueil fait peau neuve : trois gestes pour démarrer, un aperçu du jeu, le compte à rebours de la saison, où jouer, et les questions qu'on nous pose le plus" },
+      { type: "corrige", text: "Facture de gazole impayée : vos rames thermiques restaient figées pour toujours. Le blocage dure désormais jusqu'à la facture suivante, et un bandeau l'explique sur la flotte" },
+      { type: "corrige", text: "Une locomotive usée à 100 % pendant une tournée de fret n'est plus affichée « en panne » avec un bouton Réparer impossible : elle finit sa livraison et passe à l'atelier à l'arrivée" },
+      { type: "corrige", text: "Premium : une rame qui sortait de l'atelier, était réparée ou changeait de ligne repartait même hors de ses horaires. Elle se gare maintenant jusqu'à l'heure de reprise" },
+      { type: "corrige", text: "Les heures (sortie d'atelier, pièce livrée, arrivées…) s'affichent à l'heure de votre appareil. Les règles à heure fixe du réseau (pointe, nuit, horaires des rames) restent à l'heure de Paris, et c'est indiqué quand vous n'êtes pas à l'heure française" },
+      { type: "corrige", text: "Carte : les gros traits dorés des concessions de tout le réseau ont disparu. Seules vos concessions sont marquées, d'un trait fin" },
+    ],
+  },
+  {
     version: "2.4.0",
     date: "Octobre 2026",
     changes: [
@@ -27,7 +42,7 @@ const ALL_ENTRIES: ChangelogEntry[] = [
       { type: "nouveau", text: "Les pièces détachées ont un stock national : chaque commande le fait baisser, et en pleine pénurie le prix triple et la livraison double. Construisez une usine de pièces pour vous fournir, ou pour vendre aux autres joueurs" },
       { type: "nouveau", text: "La voie s'use : chaque liaison a son état, qui baisse avec le trafic. Sous 60 %, les trains y roulent moins vite ; sous 30 %, encore moins vite et avec deux fois plus d'incidents. La rénovation est un chantier commun : chacun verse ce qu'il veut, et les gros financeurs touchent +3 % sur la liaison pendant un mois" },
       { type: "nouveau", text: "Les concessions : devenez propriétaire d'une liaison. Les autres compagnies vous paient un péage (jusqu'à 15 % de leur recette, moitié pour vos alliés), mais vous devez l'entretenir, sous peine de la perdre" },
-      { type: "nouveau", text: "Sur la carte, les voies usées apparaissent en pointillés orange et rouges, et les liaisons concédées en doré" },
+      { type: "nouveau", text: "Sur la carte, les voies usées apparaissent en pointillés orange et rouges, et vos liaisons concédées en doré" },
       { type: "nouveau", text: "Votre consommation en clair : sur la page « Énergie & carbone », les litres de gazole, les kWh de courant, ce que produisent vos centrales et le CO₂ émis sur 24 h, avec le détail heure par heure" },
       { type: "ameliore", text: "Le serveur tient mieux la charge : la simulation du réseau est beaucoup plus rapide, les trains avancent et paient à l'heure même aux heures chargées" },
       { type: "corrige", text: "La hausse de 10 % accordée au syndicat dure maintenant 4 jours, puis vos employés reviennent au salaire de leur niveau. Elle durait pour toujours au niveau 5 et s'empilait : les salaires déjà gonflés sont remis à leur niveau" },

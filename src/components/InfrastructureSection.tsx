@@ -89,7 +89,7 @@ interface InfraData {
 const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
 const pct = (x: number) => `${Math.round(x * 100)} %`;
 const when = (iso: string) =>
-  new Date(iso).toLocaleString("fr-FR", { weekday: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
+  new Date(iso).toLocaleString("fr-FR", { weekday: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
 /* 2.3 : plus de numéros « 01, 02… » devant les titres : la page n'est pas un formulaire
    administratif. n reste dans la signature pour l'ordre de lecture du code. */

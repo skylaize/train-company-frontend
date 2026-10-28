@@ -1,3 +1,4 @@
+import { PARIS_NOTE } from "../models";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../api/client";
 import { useToast } from "../context/ToastContext";
@@ -52,8 +53,8 @@ export interface EnergyData {
 
 export const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
 export const money = (n: number, digits = 2) => n.toLocaleString("fr-FR", { minimumFractionDigits: digits, maximumFractionDigits: digits });
-export const dayHour = (iso: string) => new Date(iso).toLocaleString("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" });
-const hourLabel = (iso: string) => new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", timeZone: "Europe/Paris" }).replace(/\D/g, "");
+export const dayHour = (iso: string) => new Date(iso).toLocaleString("fr-FR", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+const hourLabel = (iso: string) => new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit" }).replace(/\D/g, "");
 export const compact = (n: number) => (Math.abs(n) >= 1_000_000 ? `${money(n / 1_000_000, 1)} M` : Math.abs(n) >= 10_000 ? `${fmt(n / 1000)} k` : fmt(n));
 
 export function SectionTitle({ title, aside }: { title: string; aside?: React.ReactNode }) {
@@ -347,10 +348,10 @@ function EnergyPanel({ data, balance, onDone }: { data: EnergyData; balance: num
             label={`Courant, ${data.prices.power.profile}`}
             value={`${money(data.prices.power.now, 3)} pi./kWh`}
             tone={data.prices.power.now > data.prices.power.base * 1.3 ? "red" : data.prices.power.now < data.prices.power.base * 0.8 ? "green" : undefined}
-            sub={data.prices.power.shock ?? (data.contracts.power ? `Votre contrat : ${money(data.contracts.power.price, 3)} pi./kWh` : "Plus cher de 7 h à 9 h et de 17 h à 20 h")}
+            sub={data.prices.power.shock ?? (data.contracts.power ? `Votre contrat : ${money(data.contracts.power.price, 3)} pi./kWh` : `Plus cher de 7 h à 9 h et de 17 h à 20 h${PARIS_NOTE}`)}
           />
           {data.prices.outage ? (
-            <Tile label="Panne de sous-station" value={data.prices.outage.region} tone="amber" sub={`Rames électriques arrêtées jusqu'à ${new Date(data.prices.outage.until).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Paris" })}`} />
+            <Tile label="Panne de sous-station" value={data.prices.outage.region} tone="amber" sub={`Rames électriques arrêtées jusqu'à ${new Date(data.prices.outage.until).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`} />
           ) : (
             <Tile label="Votre facture, 24 h" value={`${fmt(sum("cost") - sum("income"))} pi.`} sub={`${fmt(sum("liters"))} L · ${fmt(sum("kwh"))} kWh · ${money(sum("co2"), 1)} t de CO₂`} />
           )}

@@ -112,6 +112,7 @@ interface Train {
   workshopUntil?: string | null;
   serviceAt?: number | null;
   resaleValue?: number;
+  scrapValue?: number; // 2.4.1 : mise à la casse, sans Premium
   crew?: { id: string; name: string; role: string; level: number }[];
   // 2.0 : rame de collection restaurée depuis une épave
   heritage?: { label: string; serial: string; rarity: string; skin: string; livery: string; prestige: number; year: number; history: string } | null;
@@ -1977,7 +1978,7 @@ function TodaySummaryCard({ summary }: { summary: TodaySummary }) {
    abonné Premium ne charge même pas le script tant qu'il ne le demande pas. */
 /* 2.1 : Premium d'essai */
 function trialEnd(iso: string) {
-  return new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
+  return new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }).format(new Date(iso));
 }
 function trialLeft(iso: string) {
   const ms = new Date(iso).getTime() - Date.now();
@@ -3553,6 +3554,13 @@ function TrainsSection({
         </div>
       </div>
 
+      {/* 2.4.1 : sans cette explication, des rames thermiques figées à 0 % ressemblaient à un bug */}
+      {company.fuelBlocked && (
+        <div className="mb-4 border border-rail-red/40 bg-rail-red/[0.06] px-4 py-3 rounded-card font-body text-[13.5px] text-[#fca5a5]">
+          <b>Facture de gazole impayée</b> : vos rames thermiques (lignes et fret) sont à l'arrêt jusqu'à la prochaine facture, à la fin de l'heure.
+          Les rames électriques roulent. Remplissez vos cuves ou gardez de la trésorerie pour l'énergie.
+        </div>
+      )}
       {trains.length === 0 && (
         <div className="flex flex-col items-center gap-2 text-slate2 py-10 border-y border-line">
           <TrainMark size={18} className="opacity-40" />
@@ -3562,7 +3570,11 @@ function TrainsSection({
       <ul className="border-t border-line">
         {trains.map((t) => {
           const inWorkshop = Boolean(t.workshopUntil);
-          const broken = !inWorkshop && (t.status === "MAINTENANCE" || t.wear >= 100);
+          /* 2.4.1 : une locomotive usée à 100 % pendant une tournée de fret n'est pas en
+             panne : elle finit sa livraison et passe à l'atelier à l'arrivée. Elle
+             affichait « En panne » et un bouton Réparer toujours refusé. */
+          const freightTour = t.status === "EN_ROUTE" && !t.line;
+          const broken = !inWorkshop && (t.status === "MAINTENANCE" || (t.wear >= 100 && !freightTour));
           const cost = Math.ceil(t.wear * repairCostPerPoint);
           const serviceCost = Math.ceil(t.wear * repairCostPerPoint * 0.6);
           const from = t.line ? (t.direction === 1 ? t.line.arrivalStation : t.line.departureStation) : "";
@@ -3676,6 +3688,11 @@ function TrainsSection({
                   <div className="text-[14px] text-amber flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber animate-pulse" />
                     En tournée de fret, {Math.round(t.progress ?? 0)} %
+                    {company.fuelBlocked && t.model !== "FRET_ELECTRIQUE" ? (
+                      <span className="text-[#fca5a5]">, à l'arrêt : gazole impayé</span>
+                    ) : t.wear >= 100 ? (
+                      <span className="text-[#fca5a5]">, usée : réparation à l'arrivée</span>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -3749,11 +3766,11 @@ function TrainsSection({
                       .filter((l) => (t.model !== "COUCHETTES" || l.durationMinutes >= 10) && (t.model !== "LUXE" || l.durationMinutes >= 12))
                       // 2.1.1 : le train de nuit international passe une frontière
                       .filter((l) => t.model !== "NUIT_EUROPE" || (l.durationMinutes >= 10 && [l.departureStation, ...(l.stops ?? []), l.arrivalStation].some((s) => INTL_STATIONS.includes(s))))
-                      // 2.2 : la rame TGV ne roule que sur une LGV ouverte
-                      .filter((l) => t.model !== "TGV" || hslOpen(l))
-                      .map((l) => ({ id: l.id, label: `${l.departureStation} → ${l.arrivalStation}${hslOpen(l) ? " · LGV" : ""}` }))}
+                      // 2.2 : la rame TGV roule sur LGV ; 2.4.1 : ou sur une ligne électrifiée, moins vite et moins rentable
+                      .filter((l) => t.model !== "TGV" || hslOpen(l) || l.electrified)
+                      .map((l) => ({ id: l.id, label: `${l.departureStation} → ${l.arrivalStation}${hslOpen(l) ? " · LGV" : t.model === "TGV" ? " · ligne classique" : ""}` }))}
                     onSelect={(lineId) => assign(t.id, lineId)}
-                    emptyText={t.model === "TGV" ? "Une rame TGV ne roule que sur une LGV ouverte. Construisez-en une dans Infrastructures." : undefined}
+                    emptyText={t.model === "TGV" ? "Une rame TGV demande une ligne électrifiée, ou mieux une LGV. Voir Infrastructures." : undefined}
                   />
                   </span>
                 ) : null}
@@ -5039,7 +5056,7 @@ const CATALOG = [
   {
     id: "TGV",
     name: "Rame TGV",
-    spec: "500 places, trajets presque deux fois plus courts et billet +15 % sur une ligne à grande vitesse, et seulement là. S'use 25 % plus vite. Rame indéformable",
+    spec: "500 places. Sur LGV : trajets presque deux fois plus courts et billet +15 %. Sur une ligne classique électrifiée : 10 % plus rapide qu'une rame ordinaire, mais billet −20 %. S'use 25 % plus vite. Rame indéformable",
     speedLevel: 3,
     capacityLevel: 3,
     price: 6000,
@@ -5634,7 +5651,7 @@ function FirstLineIdeas({ network, onPick }: { network: NetworkData | null; onPi
 /* 1.7 : durée réelle d'un trajet, comme la simulation la calcule : Express
    plus rapide, chaque voiture ajoutée ralentit, l'électrification fait gagner 10 %. */
 function tripDurationMs(t: { model: string; cars?: string[]; line?: { durationMinutes?: number; electrified?: boolean; doubleTrack?: boolean } | null }) {
-  return (t.line?.durationMinutes ?? 0) * 60_000 * modelSpeed(t.model) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1) * (t.line?.doubleTrack ? 0.93 : 1);
+  return (t.line?.durationMinutes ?? 0) * 60_000 * modelSpeed(t.model, (t.line ?? null) as { highSpeedAt?: string | null } | null) * (1 + 0.03 * (t.cars?.length ?? 0)) * (t.line?.electrified ? 0.9 : 1) * (t.line?.doubleTrack ? 0.93 : 1);
 }
 
 /* Recette horaire théorique d'une rame sur la ligne, réputation parfaite.

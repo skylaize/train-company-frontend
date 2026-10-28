@@ -3,7 +3,8 @@ import { api } from "../api/client";
 import { STATION_COORDS } from "../geo";
 
 /* 2.4 : sur la carte, les voies usées — orange sous 60 %, rouge sous 30 % —
-   et un trait doré sur les liaisons concédées. Relu toutes les deux minutes. */
+   et un trait doré sur vos liaisons concédées (2.4.1 : les vôtres seulement).
+   Relu toutes les deux minutes. */
 type Seg = { key: string; condition: number; concession: boolean };
 
 export function TrackWearLayer({ k }: { k: number }) {
@@ -32,7 +33,12 @@ export function TrackWearLayer({ k }: { k: number }) {
         const worn = s.condition < 60;
         return (
           <g key={s.key}>
-            {s.concession && <line x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke="#d4a017" strokeWidth={5 * k} strokeOpacity={0.25} strokeLinecap="round" />}
+            {/* 2.4.1 : vos concessions seulement (le serveur ne renvoie plus celles des autres), en trait fin */}
+            {s.concession && (
+              <line x1={p.x} y1={p.y} x2={q.x} y2={q.y} stroke="#d4a017" strokeWidth={2.2 * k} strokeOpacity={0.7} strokeLinecap="round">
+                <title>{`${a} – ${b} : votre concession`}</title>
+              </line>
+            )}
             {worn && (
               <line
                 x1={p.x}
