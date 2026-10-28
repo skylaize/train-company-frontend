@@ -47,7 +47,7 @@ export interface AllianceData {
   objectives?: Objectives | null;
   regions?: RegionsData | null;
   invited?: string[];
-  invites?: { companyId: string; name: string; at: string }[]; // 2.4.1 : pour pouvoir les retirer
+  sentInvites?: { companyId: string; name: string; at: string }[]; // 2.4.1 : pour pouvoir les retirer
   // 2.0.2 : candidatures
   directory?: { id: string; name: string; color: string; pitch: string | null; founder: string; members: number; room: number; points: number; rank: number | null; applied: boolean }[];
   myApplications?: { id: string; allianceId: string; alliance: string; color: string; message: string; at: string }[];
@@ -651,7 +651,7 @@ function Members({
             )}
           </li>
         ))}
-        {(data.invites ?? (data.invited ?? []).map((name) => ({ companyId: "", name, at: "" }))).map((inv) => (
+        {(data.sentInvites ?? (data.invited ?? []).map((name) => ({ companyId: "", name, at: "" }))).map((inv) => (
           <li key={inv.companyId || inv.name} className="flex items-center gap-3 rounded-control px-2 py-2 text-[13px] text-slate2 font-body">
             <span className="w-[34px] h-[34px] rounded-control border border-dashed border-line shrink-0" aria-hidden="true" />
             <span className="flex-1 min-w-0">
