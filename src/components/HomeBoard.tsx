@@ -90,7 +90,9 @@ function towardsOf(t: HBTrain) {
 
 function etaLabel(t: HBTrain, now: number) {
   const left = Math.max(0, tripMs(t) * (1 - ratioOf(t, now)));
-  if (left < 45_000) return "à quai dans un instant";
+  // 2.4.2 : décompte à la seconde sur la dernière minute, comme la vue cabine
+  if (left <= 0) return "dans un instant";
+  if (left < 60_000) return `dans ${Math.ceil(left / 1000)} s`;
   return `dans ${Math.ceil(left / 60_000)} min`;
 }
 
@@ -112,7 +114,8 @@ function ArrivalsBoard({ trains, onOpenMap }: { trains: HBTrain[]; onOpenMap: ()
   const hhmm = (ms: number) => new Date(now + ms).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   const fromOf = (t: HBTrain) => (t.direction === 1 ? t.line!.arrivalStation : t.line!.departureStation);
   const countdown = (ms: number) => {
-    if (ms < 45_000) return "à quai";
+    // 2.4.2 : affichait « à quai » 45 s avant l'arrivée, alors que la vue cabine montrait la rame encore en route
+    if (ms <= 0) return "à quai";
     const m = Math.floor(ms / 60_000), s = Math.floor((ms % 60_000) / 1000);
     return `${m}:${String(s).padStart(2, "0")}`;
   };

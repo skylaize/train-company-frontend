@@ -308,6 +308,9 @@ export function EconomySection({ balance, onChange }: { balance: number; onChang
 
 /* ---------------- Énergie ---------------- */
 
+// 2.4.2 : les centrales qui stockent sans produire
+const STORAGE = ["BATTERIE", "BATTERIE_XL", "STEP"];
+
 function EnergyPanel({ data, balance, onDone }: { data: EnergyData; balance: number; onDone: () => void }) {
   const { showToast } = useToast();
   const [busy, setBusy] = useState<string | null>(null);
@@ -447,7 +450,7 @@ function EnergyPanel({ data, balance, onDone }: { data: EnergyData; balance: num
                   <div className="font-body text-[12px] text-slate2">{p.label}</div>
                   <div className="font-display text-xl leading-tight truncate">{p.station}</div>
                   <div className="font-body text-[12.5px] text-slate2 tabular-nums">
-                    {p.kind === "BATTERIE" ? "stocke le surplus et le courant des heures creuses" : `${fmt(p.outputNow)} kWh/h en ce moment · ${fmt(p.produced)} kWh depuis la construction`}
+                    {STORAGE.includes(p.kind) ? "stocke le surplus et le courant des heures creuses" : `${fmt(p.outputNow)} kWh/h en ce moment · ${fmt(p.produced)} kWh depuis la construction`}
                   </div>
                 </div>
                 <Btn tone="danger" busy={busy === `sell-${p.id}`} onClick={() => act(`sell-${p.id}`, () => api.delete(`/economy/plants/${p.id}`), "Centrale revendue (moitié du prix)")}>
@@ -457,7 +460,8 @@ function EnergyPanel({ data, balance, onDone }: { data: EnergyData; balance: num
             ))}
           </div>
         )}
-        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        {/* 2.4.2 : six cartes, trois qui produisent puis trois qui stockent */}
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {data.catalog.map((c) => {
             const chosen = site[c.kind] ?? c.sites[0] ?? "";
             return (
@@ -468,6 +472,8 @@ function EnergyPanel({ data, balance, onDone }: { data: EnergyData; balance: num
                   {c.kind === "EOLIEN" && `Jusqu'à ${fmt(c.kwh)} kWh/h selon le vent réel. Sur la côte ou dans le Nord.`}
                   {c.kind === "BARRAGE" && `${fmt(c.kwh)} kWh/h jour et nuit. En montagne.`}
                   {c.kind === "BATTERIE" && `Stocke ${fmt(c.kwh)} kWh : le surplus du jour, ou le courant des heures creuses pour la pointe.`}
+                  {c.kind === "BATTERIE_XL" && `Stocke ${fmt(c.kwh)} kWh en une seule place de centrale. Un peu plus chère au kWh que trois batteries.`}
+                  {c.kind === "STEP" && `Stocke ${fmt(c.kwh)} kWh en remontant l'eau d'un lac de barrage : le stockage le moins cher au kWh. En montagne.`}
                 </div>
                 {c.sites.length ? (
                   <select
@@ -483,7 +489,7 @@ function EnergyPanel({ data, balance, onDone }: { data: EnergyData; balance: num
                     ))}
                   </select>
                 ) : (
-                  <p className="font-body text-[12.5px] text-slate2">Aucune de vos gares ne convient : {c.kind === "BARRAGE" ? "desservez une gare de montagne" : c.kind === "SOLAIRE" ? "desservez une gare du Sud" : "desservez une gare de la côte ou du Nord"}.</p>
+                  <p className="font-body text-[12.5px] text-slate2">Aucune de vos gares ne convient : {c.kind === "BARRAGE" || c.kind === "STEP" ? "desservez une gare de montagne" : c.kind === "SOLAIRE" ? "desservez une gare du Sud" : "desservez une gare de la côte ou du Nord"}.</p>
                 )}
                 <Btn
                   busy={busy === `build-${c.kind}`}

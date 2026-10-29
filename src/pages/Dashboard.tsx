@@ -1,7 +1,7 @@
 import { StaffFigure } from "../components/StaffFigure";
 import { MuseumSection } from "../components/MuseumSection";
 import { AlertsPanel, useAlertFeed } from "../components/PremiumTools";
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { TrainPicture } from "../components/TrainPicture";
 import { COUNTRIES, COUNTRY_LABELS, SEA_LABELS } from "../components/europeMap";
 import { RIVERS, RELIEF, RELIEF_LABELS, GRATICULE } from "../components/mapDecor";
@@ -240,6 +240,7 @@ interface Company {
   uniform?: string | null;
   unlocked?: {
     themes: string[]; emblems: string[]; titles: string[]; liveries: string[];
+    liveryNames?: Record<string, string>; // 2.4.2 : le nom de chaque livrée
     trainPlates?: string[]; sounds?: string[]; stationSkins?: string[]; uniforms?: string[]; posters?: string[]; museum?: boolean;
   };
   construction?: { id: string; label: string; endsAt: string } | null;
@@ -855,7 +856,15 @@ export default function Dashboard() {
         t.forEach((newTrain: Train) => {
           const prev = prevTrains.find((p) => p.id === newTrain.id);
           if (prev && prev.progress >= 90 && newTrain.progress < 20 && newTrain.line) {
-            notify("rames", `Arrivée de ${newTrain.name} à ${newTrain.line.arrivalStation}, repart aussitôt`, { label: "Voir la rame", view: "trains", trainId: newTrain.id });
+            /* 2.4.2 : « repart aussitôt » seulement si elle repart. Une rame qui entre
+               en révision programmée (ou qui se gare hors de ses horaires) ne repart pas. */
+            const next =
+              newTrain.status === "MAINTENANCE" && newTrain.workshopUntil
+                ? "entre à l'atelier pour sa révision"
+                : newTrain.status === "EN_ROUTE" && newTrain.departedAt
+                  ? "repart aussitôt"
+                  : "reste à quai";
+            notify("rames", `Arrivée de ${newTrain.name} à ${newTrain.line.arrivalStation}, ${next}`, { label: "Voir la rame", view: "trains", trainId: newTrain.id });
           }
         });
         // 2.0 : une rame qui vient de casser se fait entendre (et vibrer sur téléphone)
@@ -1022,6 +1031,10 @@ export default function Dashboard() {
     lineCount: lines.length,
     trainCount: trains.length,
     assignedCount: trains.filter((t) => !!t.line).length,
+    // 2.4.2 : de quoi personnaliser les conseils
+    balance: company.balance,
+    stations: lines[0] ? [lines[0].departureStation, ...(lines[0].stops ?? []), lines[0].arrivalStation] : [],
+    idleCount: trains.filter((t) => !t.line && t.status === "IDLE" && !String(t.model).startsWith("FRET") && t.model !== "LOCOTRACTEUR").length,
     unlocked: new Set(achievements.filter((a) => a.unlocked).map((a) => a.id)),
     hintsSeen: company.hintsSeen ?? "",
   };
@@ -1108,7 +1121,7 @@ export default function Dashboard() {
         return null;
     }
   })();
-  function goFirstStep(go: "lignes" | "catalogue" | "trains" | "fret") {
+  function goFirstStep(go: "lignes" | "catalogue" | "trains" | "fret" | "energie") {
     if (go === "catalogue") {
       setView("trains");
       setShowCatalog(true);
@@ -1130,7 +1143,7 @@ export default function Dashboard() {
         { id: "carte", label: "Carte", icon: <MapMark size={16} />, active: view === "carte", onClick: () => setView("carte"), dataTutorial: "nav-carte" },
         ...(lines.length > 0 ? [{ id: "infrastructures", label: "Infrastructures", icon: <StationMark size={16} />, active: view === "infrastructures", onClick: () => setView("infrastructures") }] : []),
         // 2.4 : le vrai coût du rail
-        ...(lines.length > 0 ? [{ id: "energie", label: "Énergie & carbone", icon: <EnergyMark size={16} />, alert: Boolean(company?.fuelBlocked), active: view === "energie", onClick: () => setView("energie") }] : []),
+        ...(lines.length > 0 ? [{ id: "energie", label: "Énergie & entretien", icon: <EnergyMark size={16} />, alert: Boolean(company?.fuelBlocked), active: view === "energie", onClick: () => setView("energie") }] : []),
       ],
     },
     {
@@ -1834,7 +1847,8 @@ const PAGE_COPY = {
   bourse: { title: "Finances", subtitle: "Les compagnies du réseau cotées entre joueurs : cours, dividendes et portefeuille." },
   infrastructures: { title: "Infrastructures", subtitle: "Gares, ateliers et caténaires : ce qui ne roule pas mais rapporte." },
   // 2.4
-  energie: { title: "Énergie & carbone", subtitle: "Ce que coûtent vos trains, ce que vous paierez lundi, et ce qui peut vous faire payer moins." },
+  // 2.4.2 : la page porte aussi les pièces détachées et les voies, « carbone » ne disait pas tout
+  energie: { title: "Énergie & entretien", subtitle: "Énergie, taxe carbone, pièces détachées et état des voies : ce que coûte de faire rouler vos trains, et comment payer moins." },
   alertes: { title: "Alertes", subtitle: "Ce qui mérite qu'on vous prévienne, avec votre seuil." },
   musee: { title: "Musée", subtitle: "Vos épaves restaurées, sous les projecteurs." },
   succes: { title: "Progression", subtitle: "Votre carrière grade après grade, et les étapes franchies par la compagnie." },
@@ -3324,6 +3338,29 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
   );
 }
 
+/* 2.4.2 : l'ordre de la flotte. « Achat » garde l'ordre du serveur (le plus
+   ancien en tête) ; les noms se comparent comme on les lit (« 2 » avant « 10 »).
+   Que des critères stables : un tri par usure réordonnerait la liste sous la
+   souris à chaque rafraîchissement (voir listMyTrains, 1.6). */
+const FLEET_SORTS = { achat: "date d'achat", nom: "nom", ligne: "ligne", materiel: "matériel" } as const;
+type FleetSort = keyof typeof FLEET_SORTS;
+const byName = (a: string, b: string) => a.localeCompare(b, "fr", { numeric: true, sensitivity: "base" });
+function sortFleet(trains: Train[], how: FleetSort): Train[] {
+  if (how === "achat") return trains;
+  const list = [...trains];
+  if (how === "nom") return list.sort((a, b) => byName(a.name, b.name));
+  if (how === "materiel") return list.sort((a, b) => byName(modelLabel(a.model), modelLabel(b.model)) || byName(a.name, b.name));
+  // par ligne : les rames d'une même ligne ensemble, celles sans ligne (fret, dépôt) à la fin
+  const lineOf = (t: Train) => (t.line ? `${t.line.departureStation} → ${t.line.arrivalStation}` : null);
+  return list.sort((a, b) => {
+    const la = lineOf(a), lb = lineOf(b);
+    if (la === lb) return byName(a.name, b.name);
+    if (!la) return 1;
+    if (!lb) return -1;
+    return byName(la, lb);
+  });
+}
+
 function TrainsSection({
   trains,
   lines,
@@ -3379,6 +3416,25 @@ function TrainsSection({
     }
   }, [composeId, trains, onComposeHandled]);
   const [expanding, setExpanding] = useState(false);
+  /* 2.4.2 : ranger sa flotte (demandé par les joueurs) : par nom, par ligne,
+     ou par matériel. Le choix est retenu sur l'appareil. */
+  const [fleetSort, setFleetSort] = useState<FleetSort>(() => {
+    try {
+      const v = localStorage.getItem("reseau.flotte.ordre") as FleetSort | null;
+      return v && v in FLEET_SORTS ? v : "achat";
+    } catch {
+      return "achat";
+    }
+  });
+  const pickFleetSort = (v: FleetSort) => {
+    setFleetSort(v);
+    try {
+      localStorage.setItem("reseau.flotte.ordre", v);
+    } catch {
+      /* stockage refusé : l'ordre vaut pour la visite */
+    }
+  };
+  const sortedTrains = useMemo(() => sortFleet(trains, fleetSort), [trains, fleetSort]);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const { showToast, showComposter } = useToast();
@@ -3524,7 +3580,23 @@ function TrainsSection({
             ) : null}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {trains.length > 1 && (
+            <label className="flex items-center gap-1.5 text-[12.5px] text-slate2 font-body">
+              Ranger par
+              <select
+                value={fleetSort}
+                onChange={(e) => pickFleetSort(e.target.value as FleetSort)}
+                className="bg-navy-900 border border-line text-offwhite text-[13px] px-2 py-1.5 rounded-control"
+              >
+                {(Object.keys(FLEET_SORTS) as FleetSort[]).map((k) => (
+                  <option key={k} value={k}>
+                    {FLEET_SORTS[k]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           {atCapacity && (
             <button
               onClick={expandFleet}
@@ -3568,7 +3640,7 @@ function TrainsSection({
         </div>
       )}
       <ul className="border-t border-line">
-        {trains.map((t) => {
+        {sortedTrains.map((t) => {
           const inWorkshop = Boolean(t.workshopUntil);
           /* 2.4.1 : une locomotive usée à 100 % pendant une tournée de fret n'est pas en
              panne : elle finit sa livraison et passe à l'atelier à l'arrivée. Elle
@@ -4321,8 +4393,8 @@ function ClientCardView({
             {c.locked
               ? "Verrouillé"
               : c.nextLevelAt
-              ? `${c.reputation} / ${c.reputationMax} — ${c.nextLevelName?.toLowerCase()} à ${c.nextLevelAt}`
-              : `${c.reputation} / ${c.reputationMax} — palier maximal`}
+              ? `Confiance ${c.reputation} / ${c.reputationMax} — ${c.nextLevelName?.toLowerCase()} à ${c.nextLevelAt}`
+              : `Confiance ${c.reputation} / ${c.reputationMax} — palier maximal`}
           </div>
         </div>
       </div>
@@ -4399,7 +4471,12 @@ function ClientCardView({
               <span className="text-[11px] font-mono2 text-slate2">Confiance retirée par le client</span>
             ) : (
               <span className="text-[13px] font-mono2 text-amber whitespace-nowrap">
-                +{m.reward} pi. <span className="text-slate2">· +{m.repReward} réputation</span>
+                +{m.reward} pi.{" "}
+                {/* 2.4.2 : c'est la confiance de CE chargeur (paliers de clientèle), pas la
+                    réputation de la compagnie que demandent les grades : « réputation » prêtait à confusion */}
+                <span className="text-slate2" title="Confiance de ce chargeur : elle fait monter votre palier de clientèle (et ses primes), pas la réputation de la compagnie">
+                  · +{m.repReward} de confiance
+                </span>
               </span>
             )}
 
@@ -4902,6 +4979,7 @@ function EditCompanyModal({
   const [name, setName] = useState(company.name);
   const [liveryColor, setLiveryColor] = useState(company.liveryColor);
   const [saving, setSaving] = useState(false);
+  const liveryLabel = (c: string) => company.unlocked?.liveryNames?.[c.toLowerCase()] ?? `Couleur ${c}`;
   const { showToast } = useToast();
 
   async function save() {
@@ -4935,7 +5013,11 @@ function EditCompanyModal({
           </div>
 
           <div>
-            <label className="block text-xs text-slate2 mb-2 font-body">Couleur de livrée</label>
+            <label className="block text-xs text-slate2 mb-2 font-body">
+              Couleur de livrée
+              {/* 2.4.2 : le nom de la livrée choisie (sur téléphone, pas de survol pour le lire) */}
+              {company.unlocked?.liveryNames?.[liveryColor.toLowerCase()] && <span className="text-offwhite"> · {liveryLabel(liveryColor)}</span>}
+            </label>
             <div className="flex gap-2 flex-wrap">
               {LIVERY_COLORS.map((c) => (
                 <button
@@ -4945,7 +5027,8 @@ function EditCompanyModal({
                     liveryColor === c ? "border-offwhite" : "border-transparent"
                   }`}
                   style={{ background: c }}
-                  aria-label={`Couleur ${c}`}
+                  aria-label={liveryLabel(c)}
+                  title={liveryLabel(c)}
                 />
               ))}
             </div>
@@ -4964,7 +5047,8 @@ function EditCompanyModal({
                         liveryColor.toLowerCase() === c ? "border-offwhite" : "border-transparent"
                       }`}
                       style={{ background: c }}
-                      aria-label={`Couleur ${c}`}
+                      aria-label={liveryLabel(c)}
+                  title={liveryLabel(c)}
                     />
                   ))}
                 </div>
@@ -4988,7 +5072,8 @@ function EditCompanyModal({
                       liveryColor === c ? "border-offwhite" : "border-transparent"
                     } ${!company.isPremium ? "opacity-35" : ""}`}
                     style={{ background: c }}
-                    aria-label={`Couleur ${c}`}
+                    aria-label={liveryLabel(c)}
+                  title={liveryLabel(c)}
                   />
                 ))}
               </div>
@@ -6305,7 +6390,8 @@ function NetworkMap({
         >
           {selStation && (() => {
             const st = stationOf(network, selStation);
-            const mine = lines.filter((l) => l.departureStation === selStation || l.arrivalStation === selStation);
+            // 2.4.2 : un arrêt intermédiaire dessert aussi la gare
+            const mine = lines.filter((l) => l.departureStation === selStation || l.arrivalStation === selStation || (l.stops ?? []).includes(selStation));
             const hub = network?.hubs?.find((h) => h.station === selStation);
             const rivals = (network?.pairs ?? []).filter((p) => (p.a === selStation || p.b === selStation) && !p.mine).length;
             return (

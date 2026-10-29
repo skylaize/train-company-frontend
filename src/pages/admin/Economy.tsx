@@ -203,7 +203,7 @@ export default function Economy() {
               <Field label="Prix">
                 <input className={inputCls} inputMode="numeric" value={v.cost} onChange={(e) => setPlants((p) => ({ ...p, [k]: { ...p[k], cost: e.target.value } }))} />
               </Field>
-              <Field label={k === "BATTERIE" ? "Capacité (kWh)" : "Production max (kWh/h)"}>
+              <Field label={["BATTERIE", "BATTERIE_XL", "STEP"].includes(k) ? "Capacité (kWh)" : "Production max (kWh/h)"}>
                 <input className={inputCls} inputMode="numeric" value={v.kwh} onChange={(e) => setPlants((p) => ({ ...p, [k]: { ...p[k], kwh: e.target.value } }))} />
               </Field>
             </div>

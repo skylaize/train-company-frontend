@@ -1588,25 +1588,37 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
   // 2.1 : les wagons de fret, de la queue à la tête ; chacun garde sa graine pour varier les chargements
   const wagons = extra.filter((k) => WAGON_KIND[k]).map((k, i) => ({ w: k === "W_PORTE_AUTOS" ? 190 : 165, kind: WAGON_KIND[k], arg: i + 1 }));
   const L = 200; // longueur d'une voiture à l'échelle 1
+  /* 2.4.2 : les voitures ajoutées prennent l'allure de la rame. Les rames de
+     collection et les habillages de boutique les oubliaient (voitures
+     invisibles), et les trains de nuit les peignaient en voitures de jour. */
+  const coaches = extra.filter((k) => !WAGON_KIND[k]);
+  const added = (look: "night" | "silver" | "deck2" | "heritage" | [string, string], w = L) =>
+    coaches.map((k) =>
+      look === "heritage"
+        ? { w, kind: "heritage" }
+        : Array.isArray(look)
+          ? { w, kind: "pullman", arg: [look[0], k === "BAR" ? "VOITURE-BAR" : look[1]] }
+          : { w, kind: "car", arg: [k, look] }
+    );
 
   // la composition, de la queue à la tête, en unités d'échelle
   const plan: { w: number; kind: string; arg?: any }[] = (() => {
     switch (kind) {
       case "vapeur":
       case "VAPEUR":
-        return [{ w: 170, kind: "heritage" }, { w: 170, kind: "heritage" }, { w: 66, kind: "tender" }, { w: 150, kind: "steam" }];
+        return [...added("heritage", 170), { w: 170, kind: "heritage" }, { w: 170, kind: "heritage" }, { w: 66, kind: "tender" }, { w: 150, kind: "steam" }];
       case "micheline":
-        return [{ w: 300, kind: "micheline" }];
+        return [...added("heritage", 170), { w: 300, kind: "micheline" }];
       case "pullman":
-        return [{ w: 190, kind: "pullman", arg: ["#5b1e2d", "PULLMAN"] }, { w: 190, kind: "pullman", arg: ["#5b1e2d", "PULLMAN"] }, { w: 150, kind: "box", arg: ["#2a1a1e", "#d9a441"] }];
+        return [...added(["#5b1e2d", "PULLMAN"], 190), { w: 190, kind: "pullman", arg: ["#5b1e2d", "PULLMAN"] }, { w: 190, kind: "pullman", arg: ["#5b1e2d", "PULLMAN"] }, { w: 150, kind: "box", arg: ["#2a1a1e", "#d9a441"] }];
       case "train-bleu": // 2.0 : épave restaurée, les voitures-lits bleu nuit
-        return [{ w: 190, kind: "pullman", arg: ["#1d2f5c", "VOITURE-LITS"] }, { w: 190, kind: "pullman", arg: ["#1d2f5c", "VOITURE-LITS"] }, { w: 150, kind: "box", arg: ["#141c33", "#d9a441"] }];
+        return [...added(["#1d2f5c", "VOITURE-LITS"], 190), { w: 190, kind: "pullman", arg: ["#1d2f5c", "VOITURE-LITS"] }, { w: 190, kind: "pullman", arg: ["#1d2f5c", "VOITURE-LITS"] }, { w: 150, kind: "box", arg: ["#141c33", "#d9a441"] }];
       case "LUXE":
-        return [...extra.map((k) => ({ w: L, kind: "coach", arg: k })), { w: 190, kind: "pullman", arg: ["#1c2a4a", "VOITURE-SALON"] }, { w: 190, kind: "pullman", arg: ["#1c2a4a", "VOITURE-SALON"] }, { w: 150, kind: "box", arg: ["#151d2e", "#d9a441"] }];
+        return [...added(["#1c2a4a", "VOITURE-SALON"], 190), { w: 190, kind: "pullman", arg: ["#1c2a4a", "VOITURE-SALON"] }, { w: 190, kind: "pullman", arg: ["#1c2a4a", "VOITURE-SALON"] }, { w: 150, kind: "box", arg: ["#151d2e", "#d9a441"] }];
       case "duplex":
-        return [{ w: L, kind: "deck2" }, { w: L, kind: "deck2" }, { w: 190, kind: "duplexHead" }];
+        return [...added("deck2"), { w: L, kind: "deck2" }, { w: L, kind: "deck2" }, { w: 190, kind: "duplexHead" }];
       case "grande-vitesse":
-        return [{ w: L, kind: "coachSilver" }, { w: L, kind: "coachSilver" }, { w: 230, kind: "express", arg: true }];
+        return [...added("silver"), { w: L, kind: "coachSilver" }, { w: L, kind: "coachSilver" }, { w: 230, kind: "express", arg: true }];
       // 2.2 : la rame TGV, une motrice à chaque bout et ses voitures argent à la livrée
       case "TGV":
         return [{ w: 230, kind: "tgvTail" }, { w: L, kind: "coachSilver" }, { w: L, kind: "coachSilver" }, { w: L, kind: "coachSilver" }, { w: 230, kind: "express", arg: true }];
@@ -1615,7 +1627,7 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
       // 2.1.1 : le train de nuit international — voitures-lits bleu nuit, voiture-restaurant, couchettes
       case "NUIT_EUROPE":
         return [
-          ...extra.map((k) => ({ w: L, kind: "coach", arg: k })),
+          ...added("night"),
           { w: L, kind: "sleeper" },
           { w: 190, kind: "pullman", arg: ["#1d2f5c", "VOITURES-LITS"] },
           { w: 190, kind: "pullman", arg: ["#5b1e2d", "RESTAURANT"] },
@@ -1623,7 +1635,7 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
           { w: 215, kind: "modern", arg: [o.livery, "#d9a441", false] },
         ];
       case "COUCHETTES":
-        return [...extra.map((k) => ({ w: L, kind: "coach", arg: k })), { w: L, kind: "sleeper" }, { w: L, kind: "sleeper" }, { w: 150, kind: "box", arg: [o.livery, "#e8edf5"] }];
+        return [...added("night"), { w: L, kind: "sleeper" }, { w: L, kind: "sleeper" }, { w: 150, kind: "box", arg: [o.livery, "#e8edf5"] }];
       // 2.1 : des wagons seuls (vignettes du catalogue et de la boutique)
       case "WAGONS":
         return wagons;
@@ -1692,6 +1704,12 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
       case "coachSilver":
         coach(c, x, w, "SECONDE", { paint: c.night ? "#a9b2bc" : "#d9dfe5" });
         break;
+      // 2.4.2 : une voiture ajoutée, à l'allure de la rame (nuit, argent, deux niveaux)
+      case "car": {
+        const [k, look] = p.arg as [string, "night" | "silver" | "deck2"];
+        coach(c, x, w, k, look === "night" ? { sleeper: true } : look === "silver" ? { paint: c.night ? "#a9b2bc" : "#d9dfe5" } : { deck2: true });
+        break;
+      }
       case "sleeper":
         coach(c, x, w, "SECONDE", { sleeper: true });
         break;

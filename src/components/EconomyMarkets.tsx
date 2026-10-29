@@ -219,8 +219,8 @@ export function PartsPanel({ balance, onDone }: { balance: number; onDone: () =>
                         {nat && l.price < nat.price && <span className="ml-1 text-[11.5px] text-rail-green">−{fmt(nat.price - l.price)}</span>}
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <Btn tone="ghost" busy={busy === `buy-${l.id}`} disabled={balance < l.price} onClick={() => act(`buy-${l.id}`, () => api.post("/economy/parts/buy", { factoryId: l.id, qty: 1 }), "Pièce rangée au magasin")}>
-                          Acheter
+                        <Btn tone="ghost" busy={busy === `buy-${l.id}`} disabled={balance < l.price || (data.stock[l.part] ?? 0) >= data.limit} onClick={() => act(`buy-${l.id}`, () => api.post("/economy/parts/buy", { factoryId: l.id, qty: 1 }), "Pièce rangée au magasin")}>
+                          {(data.stock[l.part] ?? 0) >= data.limit ? "Magasin plein" : "Acheter"}
                         </Btn>
                       </td>
                     </tr>

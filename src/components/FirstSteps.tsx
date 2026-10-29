@@ -16,7 +16,7 @@ import { api } from "../api/client";
 
 export const FIRST_STEPS_HINT = "premiers-pas";
 
-type Go = "lignes" | "catalogue" | "trains" | "fret";
+type Go = "lignes" | "catalogue" | "trains" | "fret" | "energie";
 
 interface StepDef {
   id: string;
@@ -30,12 +30,16 @@ const STEPS: StepDef[] = [
   { id: "ligne", title: "Tracer une première ligne", why: "Deux gares, et la durée du trajet se calcule toute seule. Une grande ville attire plus de voyageurs.", action: "Tracer", go: "lignes" },
   { id: "rame", title: "Acheter une rame", why: "La Standard, à 200 pi., suffit largement pour démarrer.", action: "Catalogue", go: "catalogue" },
   { id: "service", title: "La mettre en service", why: "Affectée à une ligne, elle fait l'aller-retour et rapporte, même jeu fermé.", action: "Affecter", go: "trains" },
-  { id: "fret", title: "Livrer un contrat de fret", why: "Le fret se livre avec une locomotive de fret et ses wagons : le Locotracteur, à 300 pi., suffit pour commencer. Ça paie bien, mais les offres expirent vite.", action: "Voir le fret", go: "fret" },
-  { id: "correspondance", title: "Ouvrir une correspondance", why: "Deux lignes qui partent de la même gare : chaque trajet qui y passe rapporte plus.", action: "Tracer", go: "lignes" },
+  { id: "fret", title: "Livrer un contrat de fret", why: "Achetez un Locotracteur (300 pi.), acceptez une offre du marché, attelez le wagon demandé : la locomotive part seule et revient payée. Les offres expirent vite.", action: "Voir le fret", go: "fret" },
+  { id: "correspondance", title: "Ouvrir une correspondance", why: "Une deuxième ligne qui part d'une gare de la première : chaque trajet qui y passe rapporte plus.", action: "Tracer", go: "lignes" },
 ];
 
 export interface FirstStepsInput {
   lineCount: number;
+  // 2.4.2 : pour personnaliser les conseils (facultatif : l'ancien appel marche encore)
+  balance?: number;
+  stations?: string[]; // les gares de la première ligne
+  idleCount?: number; // rames au dépôt, sans ligne ni tournée
   trainCount: number;
   assignedCount: number;
   unlocked: Set<string>; // ids des succès acquis
@@ -64,6 +68,27 @@ export function firstStepsProgress(i: FirstStepsInput) {
   return { done: STEPS.filter((s) => d[s.id]).length, total: STEPS.length };
 }
 
+/* 2.4.2 : un conseil sous la liste, choisi selon l'étape en cours. Ce sont les
+   pièges où tombent les nouveaux venus d'après les messages reçus : l'énergie
+   facturée chaque heure (une facture impayée arrête les rames thermiques), les
+   pannes qui font baisser la réputation (et bloquent les grades), et les
+   arrêts intermédiaires que personne ne remarque. */
+const TIPS: { id: string; text: string; go?: Go; action?: string }[] = [
+  { id: "energie", text: "Vos rames consomment du gazole (ou du courant sur ligne électrifiée), réglé à la fin de chaque heure. Gardez toujours un peu de trésorerie : une facture impayée laisse les rames thermiques au dépôt jusqu'à l'heure suivante.", go: "energie", action: "Mon énergie" },
+  { id: "arrets", text: "Un arrêt intermédiaire sur une ligne amène 20 % de voyageurs en plus, pour une minute à quai. Modifiez votre ligne pour en ajouter.", go: "lignes", action: "Mes lignes" },
+  { id: "revision", text: "Une rame trop usée tombe en panne, et chaque incident fait baisser votre réputation, que les grades demandent. Dans la fiche de la rame, réglez une révision automatique (par exemple à 60 %).", go: "trains", action: "Ma flotte" },
+];
+
+function hintFor(id: string, i: FirstStepsInput): string | null {
+  if (id === "service" && (i.idleCount ?? 0) > 0) return `${i.idleCount} rame${(i.idleCount ?? 0) > 1 ? "s attendent" : " attend"} au dépôt : affectez-la à une ligne depuis la flotte.`;
+  if (id === "fret" && i.balance !== undefined && i.balance < 300) return `Il vous manque ${300 - Math.floor(i.balance)} pi. pour le Locotracteur : votre ligne les gagnera vite.`;
+  if (id === "correspondance" && i.stations?.length) {
+    const list = i.stations.slice(0, 3);
+    return `Partez par exemple de ${list.length > 1 ? `${list.slice(0, -1).join(", ")} ou ${list[list.length - 1]}` : list[0]}.`;
+  }
+  return null;
+}
+
 function Check() {
   return (
     <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
@@ -88,6 +113,13 @@ export function FirstSteps({
   const count = STEPS.filter((s) => done[s.id]).length;
   const current = STEPS.findIndex((s) => !done[s.id]);
   const finished = current === -1;
+  /* 2.4.2 : les trois premières étapes se font pendant le guide. Une fois
+     faites, elles tiennent sur une ligne : la liste montre ce qui reste. */
+  const GUIDE = ["ligne", "rame", "service"];
+  const guideDone = GUIDE.every((id) => done[id]);
+  const shown = STEPS.filter((st) => !(guideDone && GUIDE.includes(st.id)));
+  // l'énergie d'abord (le piège des premières heures), puis la révision avec le fret, puis les arrêts
+  const tip = TIPS[current <= 2 ? 0 : current === 3 ? 2 : 1];
 
   async function close() {
     setClosed(true);
@@ -146,10 +178,21 @@ export function FirstSteps({
           </button>
         </div>
       ) : (
+        <>
         <ol className="p-2">
-          {STEPS.map((s, i) => {
+          {guideDone && (
+            <li className="flex items-center gap-3.5 px-3 py-2">
+              <span className="w-6 h-6 shrink-0 flex items-center justify-center rounded-full border border-rail-green/50 text-rail-green bg-rail-green/10">
+                <Check />
+              </span>
+              <span className="font-body text-[13.5px] text-slate2">Ligne tracée, rame achetée et mise en service : votre compagnie gagne déjà de l'argent.</span>
+            </li>
+          )}
+          {shown.map((s) => {
+            const i = STEPS.indexOf(s);
             const isDone = done[s.id];
             const isCurrent = i === current;
+            const hint = isCurrent ? hintFor(s.id, input) : null;
             return (
               <li
                 key={s.id}
@@ -165,6 +208,7 @@ export function FirstSteps({
                 <div className="min-w-0 flex-1">
                   <div className={`font-body text-[14px] leading-snug ${isDone ? "text-slate2 line-through decoration-slate2/40" : "text-offwhite"}`}>{s.title}</div>
                   {!isDone && <div className={`font-body text-[12.5px] leading-snug mt-0.5 ${isCurrent ? "text-slate2" : "text-slate2/70"}`}>{s.why}</div>}
+                  {hint && <div className="font-body text-[12.5px] leading-snug mt-1 text-amber">{hint}</div>}
                 </div>
                 {!isDone && (
                   <button
@@ -180,6 +224,17 @@ export function FirstSteps({
             );
           })}
         </ol>
+        {/* 2.4.2 : bon à savoir */}
+        <div className="mx-4 mb-4 border-t border-line pt-3 flex items-start gap-3">
+          <span className="shrink-0 mt-0.5 text-[11px] font-body font-semibold text-cobalt uppercase tracking-[0.08em]">Bon à savoir</span>
+          <p className="flex-1 font-body text-[12.5px] text-slate2 leading-snug">{tip.text}</p>
+          {tip.go && (
+            <button onClick={() => onGo(tip.go!)} className="shrink-0 text-[12px] font-body text-cobalt hover:underline">
+              {tip.action}
+            </button>
+          )}
+        </div>
+        </>
       )}
     </section>
   );

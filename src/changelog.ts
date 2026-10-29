@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.4.1";
+export const CURRENT_VERSION = "2.4.2";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,26 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.4.2",
+    date: "Octobre 2026",
+    changes: [
+      { type: "nouveau", text: "19 nouveaux succès pour ce qui n'en avait pas encore : la Corse et son autorail, le conteneur scellé, la rame publicitaire, les régions et objectifs d'alliance, les centrales, les cuves et contrats d'énergie, les usines de pièces, la rénovation des voies, les concessions, la mise à la casse, le TGV sur ligne classique et la station de pompage" },
+      { type: "ameliore", text: "Premiers pas : les étapes faites pendant le guide tiennent sur une ligne, chaque étape donne un conseil adapté à votre partie (ce qu'il manque pour le Locotracteur, d'où partir pour une correspondance), et un « Bon à savoir » rappelle les pièges des débuts : l'énergie facturée chaque heure, la révision automatique, les arrêts intermédiaires" },
+      { type: "ameliore", text: "Guide : « Passer le guide » rappelle les primes qu'il reste à gagner, la dernière étape explique la facture d'énergie, et sur téléphone la carte du guide ne cache plus l'onglet Carte" },
+      { type: "nouveau", text: "Deux nouveaux stockages d'énergie : la grande batterie (9 000 kWh en une seule place de centrale) et la station de pompage (20 000 kWh, la moins chère au kWh, en montagne près d'un barrage)" },
+      { type: "nouveau", text: "Flotte : rangez vos rames par nom, par ligne ou par matériel. Votre choix est retenu" },
+      { type: "ameliore", text: "Chaque livrée a maintenant son nom : survolez une couleur, ou lisez le nom de celle choisie au-dessus de la palette (la livrée d'Halloween s'appelle « Spectrale »)" },
+      { type: "ameliore", text: "La page « Énergie & carbone » devient « Énergie & entretien » : elle regroupe aussi les pièces détachées et l'état des voies" },
+      { type: "corrige", text: "Une gare desservie par un arrêt intermédiaire compte enfin comme desservie : sur la carte, pour les objectifs (Au bout de la terre, Les grandes métropoles, Sous la Manche, Tour d'Europe) et pour les promesses faites aux maires" },
+      { type: "corrige", text: "Atelier : acheter des pièces à un autre joueur rangeait une pièce de plus même magasin plein. La limite du magasin s'applique maintenant à tous les achats" },
+      { type: "corrige", text: "Gares : revendre sa gare juste avant la fin de sa protection puis la racheter aussitôt remettait les 72 heures à zéro. Une gare revendue ne peut plus être rachetée par la même compagnie avant 72 heures" },
+      { type: "corrige", text: "Les voitures ajoutées s'affichent enfin sur les rames de collection et les habillages de boutique, et prennent l'allure de la rame (voitures de nuit, argent, Pullman…)" },
+      { type: "corrige", text: "Le tableau des arrivées n'annonce plus une rame « à quai » 45 secondes avant son arrivée : décompte à la seconde sur la dernière minute, comme la vue cabine" },
+      { type: "corrige", text: "Une rame qui entre en révision programmée à son terminus n'est plus annoncée « repart aussitôt »" },
+      { type: "ameliore", text: "Ordres de mission : le bonus s'appelle désormais « confiance » du chargeur. Il fait monter votre palier chez ce client, pas la réputation de la compagnie demandée par les grades" },
+    ],
+  },
   {
     version: "2.4.1",
     date: "Octobre 2026",

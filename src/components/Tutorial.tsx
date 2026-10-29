@@ -29,6 +29,7 @@ interface Step {
      neuf fois et arriver sur un tableau de bord vide sans rien avoir fait. */
   awaits?: (s: TutorialState) => boolean;
   waitingLabel?: string;
+  note?: string; // 2.4.2 : un encadré « à retenir » sous le texte
 }
 
 /* 1.6 : cinq étapes au lieu de huit. Le fret, le cours des marchandises et les
@@ -110,6 +111,8 @@ const STEPS: Step[] = [
     modalOpen: false,
     title: "Votre compagnie roule",
     body: "Elle gagne de l'argent à chaque trajet, même jeu fermé. Revenez ce soir : votre rame aura fait plusieurs allers-retours. La suite est dans « Premiers pas », et le bouton Aide rouvre ce guide.",
+    // 2.4.2 : depuis la fin de l'essai gratuit, l'énergie se paie dès la première heure
+    note: "Une seule règle à retenir : l'énergie (gazole ou courant) se règle à la fin de chaque heure. Gardez un peu de trésorerie, sinon vos rames thermiques attendent au dépôt l'heure suivante.",
   },
 ];
 
@@ -266,7 +269,9 @@ export function Tutorial({
             }}
           />
         )}
-        <div className="absolute bottom-4 right-4 left-4 sm:left-auto sm:w-[340px] pointer-events-auto">
+        {/* 2.4.2 : sur téléphone, la cible peut être dans la barre d'onglets du bas
+            (la Carte) : la carte du guide passe alors en haut pour ne pas la cacher */}
+        <div className={`absolute right-4 left-4 sm:left-auto sm:w-[340px] pointer-events-auto ${rect && rect.top > window.innerHeight * 0.55 ? "top-4 sm:top-auto sm:bottom-4" : "bottom-4"}`}>
           <TutorialCard
             key={stepIndex}
             step={step}
@@ -372,6 +377,10 @@ function TutorialCard({
   void total;
   const gareNo = GARES.findIndex((g) => g.id === step.id) + 1;
   const first = stepIndex === 0;
+  /* 2.4.2 : « Passer le guide » d'un clic faisait perdre de vue les primes
+     restantes. On demande une fois, en rappelant ce qui reste à gagner. */
+  const [confirmSkip, setConfirmSkip] = useState(false);
+  const left = STEPS.slice(stepIndex).reduce((n, st) => n + (st.reward ?? 0), 0) - (justDone ? step.reward ?? 0 : 0);
   return (
     <div className={`bg-navy-900 border border-line border-t-[3px] border-t-cobalt tutorial-step-enter rounded-control ${compact ? "w-[340px] max-w-[calc(100vw-32px)]" : "w-full max-w-md"}`}>
       {/* 2.0.3 : la petite ligne du stage, une gare par geste */}
@@ -384,6 +393,9 @@ function TutorialCard({
         <p className="text-sm text-slate2 font-body leading-relaxed">
           {justDone ? (step.reward ? `Prime de stage versée : +${step.reward} pi. En route pour la gare suivante.` : "C'est fait. En route pour la gare suivante.") : step.body}
         </p>
+        {step.note && !justDone && (
+          <p className="mt-3 border-l-2 border-amber pl-3 text-[13px] text-offwhite/90 font-body leading-relaxed">{step.note}</p>
+        )}
         {first && (
           <div className="mt-4 flex items-baseline justify-between border-t border-line pt-3">
             <span className="text-[13px] text-slate2 font-body">Primes à gagner pendant le stage</span>
@@ -417,7 +429,22 @@ function TutorialCard({
           {step.waitingLabel ?? "À vous de jouer"}
         </div>
       )}
-      <div className={`flex items-center gap-3 ${waiting ? "" : "border-t border-line"} ${compact ? "px-5" : "px-6"} py-3`}>
+      {confirmSkip && (
+        <div className={`border-t border-line ${compact ? "px-5" : "px-6"} py-3 font-body text-[13px]`}>
+          <p className="text-slate2 leading-snug">
+            Il reste <span className="text-rail-green font-mono2">+{left} pi.</span> de primes à gagner. Vous pourrez reprendre le guide plus tard avec le bouton <span className="text-offwhite">Aide</span>, primes comprises.
+          </p>
+          <div className="flex gap-4 justify-end mt-2.5">
+            <button onClick={() => setConfirmSkip(false)} className="text-[12.5px] text-cobalt font-medium">
+              Continuer le guide
+            </button>
+            <button onClick={onSkip} className="text-[12.5px] text-slate2 hover:text-offwhite">
+              Passer quand même
+            </button>
+          </div>
+        </div>
+      )}
+      <div className={`flex items-center gap-3 ${waiting || confirmSkip ? "" : "border-t border-line"} ${compact ? "px-5" : "px-6"} py-3 ${confirmSkip ? "hidden" : ""}`}>
         {step.reward ? (
           <span className={`font-mono2 text-[12px] px-1.5 py-0.5 border whitespace-nowrap tabular-nums rounded-control ${justDone ? "text-rail-green border-rail-green/50" : "text-amber border-amber/50"}`}>
             {justDone ? "✓ " : ""}+{step.reward} pi.
@@ -426,8 +453,8 @@ function TutorialCard({
           <span className="font-mono2 text-[11.5px] text-slate2 whitespace-nowrap">gare {gareNo} sur {GARES.length}</span>
         ) : null}
         <span className="ml-auto flex items-center gap-4 shrink-0">
-          {!isLast && (
-            <button onClick={onSkip} className="text-[12.5px] text-slate2 hover:text-offwhite font-body transition-colors">
+          {!isLast && !confirmSkip && (
+            <button onClick={() => (left > 0 ? setConfirmSkip(true) : onSkip())} className="text-[12.5px] text-slate2 hover:text-offwhite font-body transition-colors">
               Passer le guide
             </button>
           )}
