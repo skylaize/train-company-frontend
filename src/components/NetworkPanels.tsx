@@ -42,7 +42,7 @@ export interface LineMarket {
   self: { reputation: number; expressPct: number; comfortPct: number; trains: number } | null;
   hub?: number; // 1.5 : multiplicateur de correspondance, 1 = aucune
   // 1.7 : voyageurs par départ, places, remplissage
-  ridership?: { perDeparture: number; seats: number; carried: number; left: number; fill: number; trains: number; price: number; idealPrice: number; estimated: boolean; auto?: boolean };
+  ridership?: { perDeparture: number; seats: number; carried: number; left: number; fill: number; trains: number; workshop?: number; price: number; idealPrice: number; estimated: boolean; auto?: boolean };
 }
 
 export interface SeasonInfo {

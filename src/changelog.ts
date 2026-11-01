@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.4.2";
+export const CURRENT_VERSION = "2.5.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,22 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.5.0",
+    date: "Novembre 2026",
+    changes: [
+      { type: "nouveau", text: "Les campagnes régionales (Progression → Campagnes) : huit étapes par région, de la première gare desservie à la région entière, avec une prime à chaque étape (5 100 pi. en tout) et le titre « Compagnie de … » à la fin. Une campagne à la fois ; en changer met l'autre en pause sans rien perdre" },
+      { type: "nouveau", text: "Le compagnonnage (Progression → Compagnonnage) : une compagnie de moins de deux semaines choisit un tuteur parmi les joueurs installés. Le tuteur voit où en est son apprenti et lui laisse des conseils, et chaque grade franchi rapporte aux deux, jusqu'au diplôme au grade de Baron du rail" },
+      { type: "nouveau", text: "Devenez tuteur à partir du grade de Baron du rail, après deux semaines de jeu : jusqu'à trois apprentis à la fois, et le titre « Maître de quai » au troisième diplômé" },
+      { type: "nouveau", text: "Cinq succès : Fils du pays, Tour des régions, Diplômé, Transmettre et Maître de quai" },
+      { type: "nouveau", text: "Boutique : les Emblèmes des régions (hermine de Bretagne, cigogne d'Alsace, lavande de Provence, volcan d'Auvergne), les Livrées de nuit (bleu orage, velours, sapinière, graphite), quatre nouvelles livrées à l'unité (vert jade, moutarde, bleu glacier, terre de Sienne) et quatre nouveaux titres" },
+      { type: "ameliore", text: "Une rame en révision reste sur sa ligne : elle compte dans le nombre de rames et dans le prix conseillé (le prix automatique ne saute plus à chaque passage à l'atelier), et vous pouvez choisir la ligne qu'elle prendra à sa sortie" },
+      { type: "corrige", text: "Conteneur scellé : son ouverture arrivait comme un « incident » rouge, même pour un jackpot, et comptait contre votre réputation. Il se raconte maintenant dans la notification de livraison, et les anciens ne comptent plus" },
+      { type: "corrige", text: "Les succès « Sur le podium » et « Champion du réseau » suivent enfin le classement affiché (la valeur de la compagnie), et non la seule trésorerie" },
+      { type: "corrige", text: "Carte : quand plusieurs événements touchent une gare, l'étiquette montre leur effet combiné, et la fiche de la gare l'indique" },
+      { type: "corrige", text: "Les rames de collection gardent leur allure, leur livrée et leur nom dans la fenêtre de composition, au lieu d'y apparaître en rame ordinaire" },
+    ],
+  },
   {
     version: "2.4.2",
     date: "Octobre 2026",

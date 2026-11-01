@@ -79,6 +79,9 @@ import { CabView, CabTrain } from "../components/CabView";
 import { LiveCab } from "../components/LiveCab";
 import { NetworkData, StationEventsPanel, LineShareCell, DemandCell, RivalsDetail, stationOf, pairOf, SeasonBanner, HubCell, hubPreview, LicencePanel, LineMarket, RushPanel } from "../components/NetworkPanels";
 import { FirstVisitHint } from "../components/FirstVisitHint";
+import { CampaignSection } from "../components/CampaignSection";
+import { MentorSection } from "../components/MentorSection";
+import { MentorInviteCard } from "../components/MentorInviteCard";
 import { FirstSteps, firstStepsActive, firstStepsProgress, firstStepsDone, FirstStepsInput } from "../components/FirstSteps";
 import { Decision, DecisionBanner, DecisionModal } from "../components/Decisions";
 import { NewsTicker, NewsItem } from "../components/NewsTicker";
@@ -227,6 +230,7 @@ interface Company {
   premiumTrialUntil?: string | null; // 2.1 : Premium d'essai
   premiumTrialEndedAt?: string | null;
   tutorialSeen: boolean;
+  createdAt?: string; // 2.5 : le compagnonnage est proposé les 14 premiers jours
   nextDepotCost?: number;
   nextDepotHours?: number;
   repairCostPerPoint?: number;
@@ -844,7 +848,18 @@ export default function Dashboard() {
           const prev = prevContracts.find((p) => p.id === newC.id);
           if (prev && prev.status === "EN_COURS" && newC.status === "LIVREE") {
             showComposter(`Livraison "${newC.cargoType}" terminée — +${newC.reward} pi.`);
-            notify("fret", `Livraison « ${newC.cargoType} » terminée : +${newC.reward} pi.`, { label: "Voir le fret", view: "fret" }, { silent: true });
+            /* 2.5 : le conteneur scellé se raconte ici (il arrivait comme un « incident »
+               rouge, même pour un jackpot) */
+            const [code, what] = (newC.sealedOutcome ?? "").split("|");
+            const tone = newC.sealed ? SEALED_TONE[code] : undefined;
+            notify(
+              "fret",
+              tone && what
+                ? `Conteneur scellé livré à ${newC.destinationStation} — ${tone.label} : il contenait ${what}. ${newC.reward >= 0 ? "+" : ""}${newC.reward} pi.`
+                : `Livraison « ${newC.cargoType} » terminée : +${newC.reward} pi.`,
+              { label: "Voir le fret", view: "fret" },
+              { silent: !tone }
+            );
           }
         });
         return mine;
@@ -1034,6 +1049,7 @@ export default function Dashboard() {
     // 2.4.2 : de quoi personnaliser les conseils
     balance: company.balance,
     stations: lines[0] ? [lines[0].departureStation, ...(lines[0].stops ?? []), lines[0].arrivalStation] : [],
+    tutorOffer: !!company.createdAt && Date.now() - new Date(company.createdAt).getTime() < 14 * 86_400_000,
     idleCount: trains.filter((t) => !t.line && t.status === "IDLE" && !String(t.model).startsWith("FRET") && t.model !== "LOCOTRACTEUR").length,
     unlocked: new Set(achievements.filter((a) => a.unlocked).map((a) => a.id)),
     hintsSeen: company.hintsSeen ?? "",
@@ -1121,7 +1137,7 @@ export default function Dashboard() {
         return null;
     }
   })();
-  function goFirstStep(go: "lignes" | "catalogue" | "trains" | "fret" | "energie") {
+  function goFirstStep(go: "lignes" | "catalogue" | "trains" | "fret" | "energie" | "compagnonnage") {
     if (go === "catalogue") {
       setView("trains");
       setShowCatalog(true);
@@ -1163,7 +1179,7 @@ export default function Dashboard() {
         ...(company?.unlocked?.museum ? [{ id: "musee", label: "Musée", icon: <MedalMark size={16} />, active: view === "musee", onClick: () => setView("musee") }] : []),
         // 2.1.1 (Premium) : alertes personnalisées
         ...(company?.isPremium ? [{ id: "alertes", label: "Alertes", icon: <AnnounceMark size={16} />, active: view === "alertes", onClick: () => setView("alertes") }] : []),
-        { id: "carriere", label: "Progression", icon: <RankMark size={16} />, count: achievements.filter((x) => x.unlocked).length, active: view === "carriere" || view === "succes", onClick: () => setView("carriere") },
+        { id: "carriere", label: "Progression", icon: <RankMark size={16} />, count: achievements.filter((x) => x.unlocked).length, active: view === "carriere" || view === "succes" || view === "campagnes" || view === "compagnonnage", onClick: () => setView("carriere") },
       ],
     },
     ...(navOpen.classement
@@ -1497,13 +1513,15 @@ export default function Dashboard() {
                 onChange={loadAll}
               />
             )}
-            {(view === "carriere" || view === "succes") && (
-              <SubTabs value={view} onChange={setView} tabs={[{ id: "carriere", label: "Grades" }, { id: "succes", label: "Succès", count: achievements.filter((a) => a.unlocked).length }]} />
+            {(view === "carriere" || view === "succes" || view === "campagnes" || view === "compagnonnage") && (
+              <SubTabs value={view} onChange={setView} tabs={[{ id: "carriere", label: "Grades" }, { id: "campagnes", label: "Campagnes" }, { id: "compagnonnage", label: "Compagnonnage" }, { id: "succes", label: "Succès", count: achievements.filter((a) => a.unlocked).length }]} />
             )}
             {/* 2.1.2 : les 200 pionniers */}
             {view === "trains" && !onboarding && <PioneersBanner onOpen={() => setPioneersOpen(true)} />}
             {view === "trains" && !onboarding && <HalloweenCard onShowMap={() => setView("carte")} />}
             {view === "trains" && !onboarding && <Train200Card onShowMap={() => setView("carte")} />}
+            {/* 2.5 : appel aux tuteurs, pour que les nouveaux trouvent quelqu'un */}
+            {view === "trains" && !onboarding && <MentorInviteCard onOpen={() => setView("compagnonnage")} onChange={loadAll} />}
             {view === "trains" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
             {/* 2.1 : Premium d'essai en cours, puis la proposition de le garder */}
             {view === "trains" && company.premiumTrialUntil && (
@@ -1793,6 +1811,8 @@ export default function Dashboard() {
             {view === "succes" && (
               <AchievementsSection achievements={achievements} />
             )}
+            {view === "campagnes" && <CampaignSection onChange={loadAll} />}
+            {view === "compagnonnage" && <MentorSection onChange={loadAll} />}
             {view === "carriere" && career && (
               <CareerSection career={career} onOpenShop={() => setView("boutique")} />
             )}
@@ -1852,6 +1872,9 @@ const PAGE_COPY = {
   alertes: { title: "Alertes", subtitle: "Ce qui mérite qu'on vous prévienne, avec votre seuil." },
   musee: { title: "Musée", subtitle: "Vos épaves restaurées, sous les projecteurs." },
   succes: { title: "Progression", subtitle: "Votre carrière grade après grade, et les étapes franchies par la compagnie." },
+  // 2.5
+  campagnes: { title: "Progression", subtitle: "Huit étapes par région, de la première gare à la région entière, et un titre au bout." },
+  compagnonnage: { title: "Progression", subtitle: "Un tuteur pour les nouveaux venus, des apprentis pour les joueurs installés." },
   carte: { title: "Carte du réseau", subtitle: "Vos lignes et vos trains, positionnés en temps réel." },
   personnel: { title: "Personnel", subtitle: "Une équipe qui prend de l'expérience et doit suivre la taille de votre flotte." },
   parametres: { title: "Paramètres", subtitle: "Gérez votre compte." },
@@ -2938,7 +2961,11 @@ function LinesSection({
                   <div className="min-w-0">
                     <div className="text-[15.5px] font-semibold font-body">{route.join(", ")}</div>
                     <div className="text-[12.5px] text-slate2 font-body mt-0.5">
-                      <span>{l.durationMinutes} min, {nTrains} rame{nTrains > 1 ? "s" : ""}</span>
+                      <span>
+                        {l.durationMinutes} min, {nTrains} rame{nTrains > 1 ? "s" : ""}
+                        {/* 2.5 : une rame en révision reste sur sa ligne */}
+                        {r?.workshop ? <span className="text-cobalt"> (dont {r.workshop} en révision)</span> : null}
+                      </span>
                       {l.electrified && <span className="text-amber">, électrifiée</span>}
                       {l.doubleTrack && <span className="text-offwhite">, double voie</span>}
                       {hslOpen(l) && <span className="text-cobalt">, grande vitesse</span>}
@@ -3249,7 +3276,8 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
   }
 
   const fill = train.lastSeats ? Math.round(((train.lastPassengers ?? 0) / train.lastSeats) * 100) : null;
-  const modelName = modelLabel(train.model);
+  // 2.5 : une rame de collection se présente sous son nom (« Locomotive 141 R », pas « Standard »)
+  const modelName = train.heritage?.label ?? modelLabel(train.model);
 
   /* dans <body> : la page est animée (transform), ce qui décalerait une fenêtre « fixed » */
   return createPortal(
@@ -3265,7 +3293,15 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
 
         {/* 2.0 : la rame à quai ; la voiture attelée arrive et s'accroche */}
         <div className="border-b border-line">
-          <TrainStage model={train.model} cars={cars} maxCars={MAX_CARS} livery={livery ?? "#38bdf8"} station={train.line?.departureStation ?? "Dépôt"} />
+          <TrainStage
+            model={train.model}
+            cars={cars}
+            maxCars={MAX_CARS}
+            /* 2.5 : une rame de collection garde son allure et sa livrée, comme dans la flotte */
+            skin={train.heritage?.skin ?? null}
+            livery={train.heritage?.livery ?? livery ?? "#38bdf8"}
+            station={train.line?.departureStation ?? "Dépôt"}
+          />
           {cars.length > 0 && (
             <div className="flex flex-wrap gap-2 px-4 pb-3 pt-1 bg-navy-950">
               {cars.map((c, i) => {
@@ -3468,11 +3504,24 @@ function TrainsSection({
     }
   }
 
+  /* les lignes où une rame peut rouler (2.5 : partagé avec le choix de ligne en révision) */
+  function lineOptions(t: Train) {
+    return lines
+      // 1.6 : une rame couchettes ne fait que les grandes lignes
+      .filter((l) => (t.model !== "COUCHETTES" || l.durationMinutes >= 10) && (t.model !== "LUXE" || l.durationMinutes >= 12))
+      // 2.1.1 : le train de nuit international passe une frontière
+      .filter((l) => t.model !== "NUIT_EUROPE" || (l.durationMinutes >= 10 && [l.departureStation, ...(l.stops ?? []), l.arrivalStation].some((s) => INTL_STATIONS.includes(s))))
+      // 2.2 : la rame TGV roule sur LGV ; 2.4.1 : ou sur une ligne électrifiée, moins vite et moins rentable
+      .filter((l) => t.model !== "TGV" || hslOpen(l) || l.electrified)
+      .map((l) => ({ id: l.id, label: `${l.departureStation} → ${l.arrivalStation}${hslOpen(l) ? " · LGV" : t.model === "TGV" ? " · ligne classique" : ""}` }));
+  }
+
   async function assign(trainId: string, lineId: string) {
     try {
-      await api.post("/trains/assign", { trainId, lineId });
+      const { data } = await api.post("/trains/assign", { trainId, lineId });
       const line = lines.find((l) => l.id === lineId);
-      showToast(line ? `Train affecté à ${line.departureStation} → ${line.arrivalStation}` : "Train affecté");
+      const where = line ? `${line.departureStation} → ${line.arrivalStation}` : "sa nouvelle ligne";
+      showToast(data?.afterWorkshop ? `À sa sortie d'atelier, la rame prendra ${where}` : line ? `Train affecté à ${where}` : "Train affecté");
       onChange();
     } catch (err: any) {
       showToast(err?.response?.data?.error || "Erreur lors de l'affectation", "error");
@@ -3715,10 +3764,16 @@ function TrainsSection({
               {/* ce qu'elle fait */}
               <div className="min-w-0 font-body">
                 {inWorkshop ? (
-                  <div className="text-[14px] text-cobalt flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cobalt blink-dot" />
-                    En révision à l'atelier, sortie à {hhmm(t.workshopUntil!)}
-                  </div>
+                  <>
+                    <div className="text-[14px] text-cobalt flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cobalt blink-dot" />
+                      En révision à l'atelier, sortie à {hhmm(t.workshopUntil!)}
+                    </div>
+                    {/* 2.5 : la ligne qu'elle reprendra en sortant */}
+                    <div className="text-[12.5px] text-slate2 mt-0.5 pl-3.5">
+                      {t.line ? `Reprendra ${t.line.departureStation} – ${t.line.arrivalStation} en sortant` : "Retournera au dépôt en sortant"}
+                    </div>
+                  </>
                 ) : broken ? (
                   <>
                     <div className="text-[14px] text-[#fca5a5] flex items-center gap-2">
@@ -3794,7 +3849,16 @@ function TrainsSection({
 
               {/* les actions */}
               <div className="flex items-center gap-2 lg:justify-end">
-                {inWorkshop ? null : broken ? (
+                {inWorkshop ? (
+                  /* 2.5 : choisir dès maintenant la ligne de sa sortie d'atelier */
+                  !isFreightLoco(t.model) && lines.length > 0 ? (
+                    <AssignDropdown
+                      placeholder={t.line ? "Changer de ligne à la sortie…" : "Ligne à la sortie…"}
+                      options={lineOptions(t).filter((o) => o.id !== t.line?.id)}
+                      onSelect={(lineId) => assign(t.id, lineId)}
+                    />
+                  ) : null
+                ) : broken ? (
                   t.partsEta ? (
                     <button onClick={() => setSheetId(t.id)} className="text-[13px] font-body text-amber border border-amber/50 px-3 py-1.5 hover:bg-amber/10 rounded-control">
                       Pièce en route
@@ -3833,14 +3897,7 @@ function TrainsSection({
                   <span data-tutorial="btn-assign" className="inline-block">
                   <AssignDropdown
                     placeholder="Affecter à une ligne…"
-                    options={lines
-                      // 1.6 : une rame couchettes ne fait que les grandes lignes
-                      .filter((l) => (t.model !== "COUCHETTES" || l.durationMinutes >= 10) && (t.model !== "LUXE" || l.durationMinutes >= 12))
-                      // 2.1.1 : le train de nuit international passe une frontière
-                      .filter((l) => t.model !== "NUIT_EUROPE" || (l.durationMinutes >= 10 && [l.departureStation, ...(l.stops ?? []), l.arrivalStation].some((s) => INTL_STATIONS.includes(s))))
-                      // 2.2 : la rame TGV roule sur LGV ; 2.4.1 : ou sur une ligne électrifiée, moins vite et moins rentable
-                      .filter((l) => t.model !== "TGV" || hslOpen(l) || l.electrified)
-                      .map((l) => ({ id: l.id, label: `${l.departureStation} → ${l.arrivalStation}${hslOpen(l) ? " · LGV" : t.model === "TGV" ? " · ligne classique" : ""}` }))}
+                    options={lineOptions(t)}
                     onSelect={(lineId) => assign(t.id, lineId)}
                     emptyText={t.model === "TGV" ? "Une rame TGV demande une ligne électrifiée, ou mieux une LGV. Voir Infrastructures." : undefined}
                   />
@@ -6112,9 +6169,11 @@ function NetworkMap({
                 {picked && <circle cx={pos.x} cy={pos.y} r={8.5 * k} fill="none" stroke="rgb(var(--c-cobalt))" strokeWidth={1.8 * k} />}
                 {pulsing && <circle cx={pos.x} cy={pos.y} r={7 * k} fill="none" stroke="rgb(var(--c-rail-green))" strokeWidth={0.9 * k} opacity="0.5" className="blink-dot" />}
                 {ev.length > 0 && (() => {
-                  const e0 = ev[0];
-                  const up = e0.multiplier > 1;
-                  const pct = `${up ? "+" : "−"}${Math.abs(Math.round((e0.multiplier - 1) * 100))} %`;
+                  /* 2.5 : l'effet combiné de tous les événements de la gare, comme le calcule
+                     le serveur (ils se multiplient), et non le premier de la liste */
+                  const m = ev.reduce((x, e) => x * e.multiplier, 1);
+                  const up = m >= 1;
+                  const pct = Math.abs(m - 1) < 0.005 ? "±0 %" : `${up ? "+" : "−"}${Math.abs(Math.round((m - 1) * 100))} %`;
                   const color = up ? "rgb(var(--c-amber))" : "rgb(var(--c-rail-red))";
                   const w = (4 + pct.length * 4.1) * k;
                   return (
@@ -6407,6 +6466,15 @@ function NetworkMap({
                     {e.label} : {e.multiplier > 1 ? "+" : "−"}{Math.abs(Math.round((e.multiplier - 1) * 100))} % jusqu'à {new Date(e.endsAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                   </div>
                 ))}
+                {/* 2.5 : plusieurs événements se cumulent (ils se multiplient) */}
+                {(st?.events ?? []).length > 1 && (() => {
+                  const m = (st?.events ?? []).reduce((x, e) => x * e.multiplier, 1);
+                  return (
+                    <div className="text-[12px] font-body mt-1 text-offwhite">
+                      Effet combiné : {Math.abs(m - 1) < 0.005 ? "±0" : `${m >= 1 ? "+" : "−"}${Math.abs(Math.round((m - 1) * 100))}`} %
+                    </div>
+                  );
+                })()}
                 <div className="text-[12px] font-body text-slate2 mt-1.5">
                   {mine.length ? `${mine.length} de vos lignes y passent` : "Aucune de vos lignes ne la dessert"}
                   {rivals > 0 && ` · ${rivals} liaison${rivals > 1 ? "s" : ""} concurrente${rivals > 1 ? "s" : ""}`}

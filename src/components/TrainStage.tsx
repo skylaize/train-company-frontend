@@ -147,12 +147,14 @@ export function TrainStage({
   maxCars,
   livery,
   station,
+  skin,
 }: {
   model: Model;
   cars: string[];
   maxCars?: number;
   livery: string;
   station: string;
+  skin?: string | null; // 2.5 : rame de collection (elle s'affichait en rame ordinaire)
 }) {
   const freight = isFreightLoco(model);
   const prev = useRef(cars);
@@ -180,6 +182,7 @@ export function TrainStage({
         u: 1,
         maxWidth: W - 24,
         model,
+        skin,
         livery,
         cars,
         tailShift: tail,
@@ -206,7 +209,7 @@ export function TrainStage({
         ctx.globalAlpha = 1;
       }
     },
-    [model, livery, station, cars.join(",")]
+    [model, livery, station, skin, cars.join(",")]
   );
 
   useEffect(() => {

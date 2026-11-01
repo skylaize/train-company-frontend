@@ -50,6 +50,11 @@ export const EMBLEM_LABELS: Record<string, string> = {
   // 2.2 : Halloween, gagnés avec les âmes du Train fantôme
   citrouille: "Citrouille d'Halloween",
   fantome: "Fantôme du réseau",
+  // 2.5 : emblèmes des régions
+  hermine: "Hermine de Bretagne",
+  cigogne: "Cigogne d'Alsace",
+  lavande: "Lavande de Provence",
+  volcan: "Volcan d'Auvergne",
 };
 
 export function Emblem({ id, size = 14, className = "" }: { id: string; size?: number; className?: string }) {
@@ -68,6 +73,39 @@ export function Emblem({ id, size = 14, className = "" }: { id: string; size?: n
   };
 
   switch (id) {
+    // 2.5 : emblèmes des régions
+    case "hermine":
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="2.4" r="0.8" />
+          <circle cx="5.9" cy="3.9" r="0.8" />
+          <circle cx="10.1" cy="3.9" r="0.8" />
+          <path d="M8 5.8c-.8 3-2.4 5.6-4 8.4L8 12.6l4 1.6c-1.6-2.8-3.2-5.4-4-8.4z" />
+        </svg>
+      );
+    case "cigogne":
+      return (
+        <svg {...common}>
+          <path d="M2.8 9c0-1.6 1.7-2.6 3.8-2.6 1.3 0 2.2.4 2.6 1.1V3.6c0-.9.6-1.5 1.4-1.5l3.4 1-3.2.5v5c0 1.4-1.2 2.4-3.1 2.4H5.4C3.9 11 2.8 10.2 2.8 9z" />
+          <path d="M5.8 11v3.2M8 11v3.2" />
+        </svg>
+      );
+    case "lavande":
+      return (
+        <svg {...common}>
+          <path d="M8 14.2V6.4" />
+          <path d="M8 2.2v1.4M6.7 4.2l1.3.9 1.3-.9M6.7 6l1.3.9L9.3 6M6.7 7.8l1.3.9 1.3-.9" />
+          <path d="M8 11.6c-1.7-.3-3-1.3-3.6-2.9M8 12.4c1.7-.3 3-1.3 3.6-2.9" />
+        </svg>
+      );
+    case "volcan":
+      return (
+        <svg {...common}>
+          <path d="M1.8 13.8 6 6.4h4l4.2 7.4z" />
+          <path d="M6.6 8.6c.8.6 2 .6 2.8 0" />
+          <path d="M7.2 4.4c-.2-1.2.4-2.2 1.4-2.6M9.4 4.6c.4-.9 1.2-1.4 2.2-1.4" />
+        </svg>
+      );
     case "roue":
       return (
         <svg {...common}>

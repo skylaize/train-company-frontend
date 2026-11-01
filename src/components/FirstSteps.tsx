@@ -16,7 +16,7 @@ import { api } from "../api/client";
 
 export const FIRST_STEPS_HINT = "premiers-pas";
 
-type Go = "lignes" | "catalogue" | "trains" | "fret" | "energie";
+type Go = "lignes" | "catalogue" | "trains" | "fret" | "energie" | "compagnonnage";
 
 interface StepDef {
   id: string;
@@ -40,6 +40,7 @@ export interface FirstStepsInput {
   balance?: number;
   stations?: string[]; // les gares de la première ligne
   idleCount?: number; // rames au dépôt, sans ligne ni tournée
+  tutorOffer?: boolean; // 2.5 : compagnie assez jeune pour choisir un tuteur
   trainCount: number;
   assignedCount: number;
   unlocked: Set<string>; // ids des succès acquis
@@ -171,7 +172,7 @@ export function FirstSteps({
         <div className="px-5 py-5 flex items-center gap-4 flex-wrap">
           <p className="text-sm font-body text-slate2 leading-relaxed flex-1 min-w-[16rem]">
             Ligne, rame, fret, correspondance : tout y est, et le succès <span className="text-offwhite">« Premiers pas »</span> est à vous.
-            La suite se joue dans <span className="text-offwhite">Progression</span> : chaque grade débloque de nouvelles rames, et la licence internationale attend les meilleurs.
+            La suite se joue dans <span className="text-offwhite">Progression</span> : chaque grade débloque de nouvelles rames, et une <span className="text-offwhite">campagne régionale</span> vous attend, huit étapes et un titre au bout.
           </p>
           <button onClick={close} className="bg-amber text-onaccent text-xs font-semibold px-5 py-2.5 hover:bg-amber/90 rounded-control">
             Fermer
@@ -224,6 +225,15 @@ export function FirstSteps({
             );
           })}
         </ol>
+        {/* 2.5 : un tuteur, pour ne pas démarrer seul */}
+        {input.tutorOffer && <div className="mx-4 mb-3 border-t border-line pt-3 flex items-center gap-3">
+          <p className="flex-1 font-body text-[12.5px] text-slate2 leading-snug">
+            <span className="text-offwhite">Pas envie de démarrer seul ?</span> Un joueur expérimenté peut devenir votre tuteur : conseils, et des primes pour vous deux à chaque grade.
+          </p>
+          <button onClick={() => onGo("compagnonnage")} className="shrink-0 text-[12px] font-body text-cobalt hover:underline">
+            Choisir un tuteur
+          </button>
+        </div>}
         {/* 2.4.2 : bon à savoir */}
         <div className="mx-4 mb-4 border-t border-line pt-3 flex items-start gap-3">
           <span className="shrink-0 mt-0.5 text-[11px] font-body font-semibold text-cobalt uppercase tracking-[0.08em]">Bon à savoir</span>
