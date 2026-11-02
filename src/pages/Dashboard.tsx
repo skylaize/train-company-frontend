@@ -82,6 +82,7 @@ import { FirstVisitHint } from "../components/FirstVisitHint";
 import { CampaignSection } from "../components/CampaignSection";
 import { MentorSection } from "../components/MentorSection";
 import { MentorInviteCard } from "../components/MentorInviteCard";
+import { CampaignChip } from "../components/CampaignChip";
 import { FirstSteps, firstStepsActive, firstStepsProgress, firstStepsDone, FirstStepsInput } from "../components/FirstSteps";
 import { Decision, DecisionBanner, DecisionModal } from "../components/Decisions";
 import { NewsTicker, NewsItem } from "../components/NewsTicker";
@@ -1522,6 +1523,8 @@ export default function Dashboard() {
             {view === "trains" && !onboarding && <Train200Card onShowMap={() => setView("carte")} />}
             {/* 2.5 : appel aux tuteurs, pour que les nouveaux trouvent quelqu'un */}
             {view === "trains" && !onboarding && <MentorInviteCard onOpen={() => setView("compagnonnage")} onChange={loadAll} />}
+            {/* 2.5.1 : la campagne en cours, sans aller dans Progression */}
+            {view === "trains" && !onboarding && <CampaignChip onOpen={() => setView("campagnes")} />}
             {view === "trains" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
             {/* 2.1 : Premium d'essai en cours, puis la proposition de le garder */}
             {view === "trains" && company.premiumTrialUntil && (
@@ -3225,12 +3228,15 @@ const CAR_TYPES: { id: string; label: string; short: string; seats: number; firs
   { id: "SECONDE", label: "Voiture de 2de classe", short: "2", seats: 100, first: false, price: 150, blurb: "+100 places. Pour les lignes où des voyageurs restent à quai." },
   { id: "PREMIERE", label: "Voiture de 1re classe", short: "1", seats: 60, first: true, price: 300, blurb: "+60 places payées 1,8 fois le billet. Rentable sur les lignes chargées." },
   { id: "BAR", label: "Voiture-bar", short: "B", seats: 0, first: false, price: 250, unique: true, blurb: "+8 % de recette par trajet. Une seule par rame." },
+  // 2.5.1 : trains de nuit seulement
+  { id: "COUCHETTE", label: "Voiture-couchettes", short: "C", seats: 60, first: false, price: 300, blurb: "+60 places, billet +10 %. Trains de nuit seulement." },
 ];
+const NIGHT_CAR_MODELS = ["COUCHETTES", "NUIT_EUROPE"];
 const MAX_CARS = 3;
 const CAR_SLOWDOWN = 0.03;
 
 function seatsOf(model: string, cars: string[]) {
-  const second = (MODEL_SEATS[model] ?? 400) + cars.reduce((n, c) => n + (c === "SECONDE" ? 100 : 0), 0);
+  const second = (MODEL_SEATS[model] ?? 400) + cars.reduce((n, c) => n + (c === "SECONDE" ? 100 : c === "COUCHETTE" ? 60 : 0), 0);
   const first = cars.filter((c) => c === "PREMIERE").length * 60;
   return { second, first, total: second + first };
 }
@@ -3242,7 +3248,7 @@ function ConsistMini({ model, cars }: { model: string; cars: string[] }) {
       <span className={`h-2 w-3.5 rounded-l-[3px] ${model === "EXPRESS" ? "bg-amber" : "bg-cobalt"}`} />
       <span className="h-2 w-3 bg-slate2/70" />
       {cars.map((c, i) => (
-        <span key={i} className={`h-2 w-3 ${c === "PREMIERE" ? "bg-amber/80" : c === "BAR" ? "bg-rail-green/80" : "bg-slate2/70"}`} />
+        <span key={i} className={`h-2 w-3 ${c === "PREMIERE" ? "bg-amber/80" : c === "BAR" ? "bg-rail-green/80" : c === "COUCHETTE" ? "bg-cobalt/80" : "bg-slate2/70"}`} />
       ))}
     </span>
   );
@@ -3314,7 +3320,7 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
                     className="text-[12.5px] font-body text-slate2 border border-line px-2 py-1 hover:text-rail-red hover:border-rail-red/60 disabled:opacity-40 rounded-control"
                     title={`Dételer (${Math.floor(def.price / 2)} pi. récupérées)`}
                   >
-                    Dételer la {c === "BAR" ? "voiture-bar" : c === "PREMIERE" ? "1re classe" : "2de classe"} n° {i + 1}
+                    Dételer la {c === "BAR" ? "voiture-bar" : c === "PREMIERE" ? "1re classe" : c === "COUCHETTE" ? "voiture-couchettes" : "2de classe"} n° {i + 1}
                   </button>
                 );
               })}
@@ -3342,7 +3348,7 @@ function CompositionModal({ train, balance, livery, onClose, onChange }: { train
           <p className="p-5 text-[13px] text-slate2 font-body">Une rame TGV est indéformable : ses {seats.total} places sont celles de ses voitures, on n'y attelle rien.</p>
         ) : (
         <div className="p-5 space-y-2">
-          {CAR_TYPES.map((c) => {
+          {CAR_TYPES.filter((c) => c.id !== "COUCHETTE" || NIGHT_CAR_MODELS.includes(train.model)).map((c) => {
             const full = cars.length >= MAX_CARS;
             const dup = c.unique && cars.includes(c.id);
             const poor = balance < c.price;
@@ -4466,7 +4472,11 @@ function ClientCardView({
 
       {!c.locked && orders.map((m) => {
         const accepted = m.status === "ACCEPTEE";
-        const failed = m.status === "ECHOUEE";
+        /* 2.5.1 : « non honoré » seulement pour un ordre accepté puis manqué. Une offre
+           laissée passer ou refusée (jamais acceptée, donc sans échéance) ne coûte rien */
+        const failed = m.status === "ECHOUEE" && Boolean(m.dueAt);
+        const lapsed = m.status === "ECHOUEE" && !m.dueAt;
+        const done = m.status === "REUSSIE";
         const due = accepted && m.dueAt ? untilLabel(m.dueAt) : null;
         const offer = m.status === "PROPOSEE" ? untilLabel(m.offerUntil) : null;
         return (
@@ -4481,10 +4491,14 @@ function ClientCardView({
             <span className="text-[10px] font-mono2 tracking-[0.14em] text-slate2">Ordre nº {m.ref}</span>
             <span
               className={`ml-auto text-[11px] font-mono2 tracking-[0.1em] ${
-                failed ? "text-rail-red" : "text-amber"
+                failed ? "text-rail-red" : done ? "text-rail-green" : lapsed ? "text-slate2" : "text-amber"
               }`}
             >
-              {failed
+              {done
+                ? "Ordre honoré"
+                : lapsed
+                ? "Offre non acceptée"
+                : failed
                 ? "Échéance dépassée"
                 : accepted
                 ? due
@@ -4505,7 +4519,7 @@ function ClientCardView({
             </p>
           )}
 
-          <div className={`flex items-center gap-4 flex-wrap px-4 py-4 ${failed || accepted ? "pr-[150px]" : ""}`}>
+          <div className={`flex items-center gap-4 flex-wrap px-4 py-4 ${failed || accepted || done ? "pr-[150px]" : ""}`}>
             <div className="flex-1 min-w-[180px] max-w-[320px]">
               <div className="flex justify-between text-[12px] font-body text-slate2 mb-1.5 font-medium">
                 <span>Livraisons</span>
@@ -4526,6 +4540,12 @@ function ClientCardView({
 
             {failed ? (
               <span className="text-[11px] font-mono2 text-slate2">Confiance retirée par le client</span>
+            ) : lapsed ? (
+              <span className="text-[11px] font-mono2 text-slate2">Sans conséquence : le chargeur reviendra avec une autre offre</span>
+            ) : done ? (
+              <span className="text-[13px] font-mono2 text-rail-green whitespace-nowrap">
+                +{m.reward} pi. · +{m.repReward} de confiance
+              </span>
             ) : (
               <span className="text-[13px] font-mono2 text-amber whitespace-nowrap">
                 +{m.reward} pi.{" "}
@@ -4558,13 +4578,13 @@ function ClientCardView({
           </div>
 
           {/* tampon : posé de travers, jamais droit */}
-          {(accepted || failed) && (
+          {(accepted || failed || done) && (
             <span
               className={`absolute right-4 top-1/2 -translate-y-1/2 rotate-[-11deg] border-2 px-3 py-1 text-[13px] font-body font-bold opacity-85 pointer-events-none rounded-control ${
                 failed ? "border-rail-red text-rail-red" : "border-rail-green text-rail-green"
               }`}
             >
-              {failed ? "Non honoré" : "Accepté"}
+              {failed ? "Non honoré" : done ? "Honoré" : "Accepté"}
             </span>
           )}
         </div>

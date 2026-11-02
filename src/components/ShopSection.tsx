@@ -13,6 +13,7 @@ import { PrestigeThumb, SOUND_LABELS, STATION_SKIN_LABELS, PLATE_STYLE_LABELS, N
 import { StaffFigure, UNIFORM_LABELS } from "./StaffFigure";
 import { POSTER_LABELS } from "./PosterArt";
 import { playPack, SoundPack } from "../sfx";
+import { CreatorSpotlight } from "./CreatorSpotlight";
 import { Plate, PLATE_LABELS } from "./Plate";
 
 /* ============================================================
@@ -34,6 +35,7 @@ interface ShopItem {
   titles?: string[];
   theme?: string;
   cabSkins?: string[];
+  creator?: { name: string; company?: string; note?: string }; // 2.6 : Série Créateurs
   plates?: string[];
   // 2.1 : l'atelier de prestige
   posters?: string[];
@@ -79,6 +81,8 @@ export const CAB_SKIN_LABELS: Record<string, string> = {
   pullman: "Voitures Pullman",
   duplex: "Rame à deux niveaux",
   "grande-vitesse": "Rame à grande vitesse",
+  // 2.6 : Série Créateurs
+  intercites: "Intercités (N0RCAM)",
 };
 
 /* Petite silhouette du matériel de collection, pour voir ce qu'on achète. */
@@ -304,6 +308,7 @@ export function ShopSection({
   const featured = rot ? (rot.featured.map((id) => byId.get(id)).filter(Boolean) as ShopItem[]) : rest.slice(0, 2);
   const daily = rot ? (rot.daily.map((id) => byId.get(id)).filter(Boolean) as ShopItem[]) : rest.slice(2);
   const limited = data.items.filter((i) => i.kind === "SAISON" && (!i.owned || i.availableUntil));
+  const creators = data.items.filter((i) => i.creator); // 2.6
   const preview = selectedId ? byId.get(selectedId) ?? null : null;
   const focusDlc = extensions.find((i) => i.id === initialItem)?.id ?? null;
 
@@ -348,6 +353,34 @@ export function ShopSection({
           </p>
         )}
       </section>
+
+      {/* 2.6 : la Série Créateurs, des objets dessinés par des joueurs, toujours en vente */}
+      {creators.length > 0 && (
+        <section className="mb-10">
+          <div className="flex flex-wrap items-end justify-between gap-3 mb-4">
+            <div>
+              <h2 className="font-display text-[26px] leading-tight">Série Créateurs</h2>
+              <p className="text-[13.5px] text-slate2 font-body mt-1 max-w-[62ch]">
+                Dessinés par des joueurs du réseau. Chaque achat leur reverse une part : vous soutenez directement celui qui l'a créé.
+              </p>
+            </div>
+          </div>
+          <div className="space-y-5">
+            {creators.map((item, i) => (
+              <CreatorSpotlight
+                key={item.id}
+                item={item}
+                index={i + 1}
+                livery={data.equipped.livery || "#e36a12"}
+                enabled={data.enabled}
+                busy={busy !== null}
+                onBuy={() => buy(item)}
+                onPreview={() => setSelectedId(item.id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* 2.1.1 : l'atelier de prestige, hors rotation */}
       {prestige.length > 0 && (

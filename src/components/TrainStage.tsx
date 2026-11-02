@@ -4,6 +4,7 @@ import { modelLabel } from "../models";
 import { SplitFlap } from "./SplitFlap";
 import { playCouple, playChime } from "../sfx";
 import { drawConsist, drawTrack } from "./trainArt";
+import { onSkinReady } from "./svgSkins";
 import { WAGON_TYPES, isFreightLoco } from "../freight";
 
 /* ============================================================
@@ -23,15 +24,16 @@ export type CarKind = "SECONDE" | "PREMIERE" | "BAR";
 type Model = "STANDARD" | "EXPRESS" | "FRET_LOURD" | "COUCHETTES" | "NUIT_EUROPE" | "VAPEUR" | "LUXE" | "CREMAILLERE" | "AUTORAIL_CORSE" | "LOCOTRACTEUR" | "FRET_RAPIDE" | "FRET_ELECTRIQUE" | "TGV";
 
 const MODEL_SEATS: Record<string, number> = { STANDARD: 400, EXPRESS: 400, FRET_LOURD: 200, COUCHETTES: 250, NUIT_EUROPE: 200, VAPEUR: 300, LUXE: 120, CREMAILLERE: 220, AUTORAIL_CORSE: 180, TGV: 500 };
-const CAR_SEATS: Record<string, number> = { SECONDE: 100, PREMIERE: 60, BAR: 0 };
+const CAR_SEATS: Record<string, number> = { SECONDE: 100, PREMIERE: 60, BAR: 0, COUCHETTE: 60 };
 export const CAR_TAG: Record<string, string> = {
   SECONDE: "+100 places · 2de classe",
   PREMIERE: "+60 places · 1re classe",
   BAR: "+8 % de recette · voiture-bar",
+  COUCHETTE: "+60 places · couchettes, billet +10 %",
 };
 // 2.1 : l'étiquette d'un wagon de fret qui vient s'atteler
 for (const w of WAGON_TYPES) CAR_TAG[w.id] = `${w.label} · ${w.cargos.join(", ").toLowerCase()}`;
-const TAG_COLOR: Record<string, string> = { SECONDE: "#e2e8f0", PREMIERE: "#f5c869", BAR: "#6ee7b7" };
+const TAG_COLOR: Record<string, string> = { SECONDE: "#e2e8f0", PREMIERE: "#f5c869", BAR: "#6ee7b7", COUCHETTE: "#93c5fd" };
 
 const COUPLE_MS = 950; // durée de l'approche, jusqu'au choc d'attelage
 const TAG_MS = 2200;
@@ -133,7 +135,11 @@ function useCanvas(draw: (ctx: CanvasRenderingContext2D, W: number, H: number) =
     const ro = new ResizeObserver(paint);
     ro.observe(cv);
     (cv as unknown as { __paint: () => void }).__paint = paint;
-    return () => ro.disconnect();
+    const off = onSkinReady(paint); // 2.6 : habillage de créateur chargé après coup
+    return () => {
+      ro.disconnect();
+      off();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
   return ref;

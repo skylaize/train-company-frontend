@@ -12,8 +12,46 @@ const KIND_LABEL: Record<string, string> = {
   SONS: "Sons de gare", GARE: "Habillages de gare", MUSEE: "Musée", TENUES: "Tenues", ALLIANCE: "Alliance",
 };
 
+// 2.6 : Série Créateurs, ce que chaque créateur a vendu et ce qui lui revient
+type Creator = { name: string; share: number; items: string[]; months: { month: string; sales: number; grossCents: number; netCents: number; dueCents: number }[] };
+
+function Creators({ creators }: { creators: Creator[] }) {
+  if (!creators.length) return null;
+  return (
+    <section className="mb-6 border border-amber/40 rounded-card px-4 py-3">
+      <h2 className="font-display text-lg">Série Créateurs</h2>
+      <p className="font-body text-[12.5px] text-slate2 mb-2">
+        La part se calcule sur le net (après les frais Stripe estimés : 0,25 € + 1,5 % par paiement). Le versement se fait à la main.
+      </p>
+      {creators.map((c) => (
+        <div key={c.name} className="mt-2">
+          <div className="font-body text-[14px]">
+            <b>{c.name}</b> · {Math.round(c.share * 100)} % · {c.items.join(", ")}
+          </div>
+          {c.months.length === 0 ? (
+            <p className="font-body text-[13px] text-slate2">Aucune vente pour l'instant.</p>
+          ) : (
+            <table className="w-full font-body text-[13px] mt-1">
+              <thead className="text-slate2 text-left">
+                <tr><th className="font-normal">Mois</th><th className="font-normal text-right">Ventes</th><th className="font-normal text-right">Brut</th><th className="font-normal text-right">Net</th><th className="font-normal text-right">À lui verser</th></tr>
+              </thead>
+              <tbody>
+                {c.months.map((m) => (
+                  <tr key={m.month} className="border-t border-line">
+                    <td>{m.month}</td><td className="text-right">{nf(m.sales)}</td><td className="text-right">{euros(m.grossCents)}</td><td className="text-right">{euros(m.netCents)}</td><td className="text-right text-amber">{euros(m.dueCents)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ))}
+    </section>
+  );
+}
+
 export default function Shop() {
-  const { data, error, reload } = useAdminData<{ items: Item[] }>("/shop");
+  const { data, error, reload } = useAdminData<{ items: Item[]; creators?: Creator[] }>("/shop");
   const [sort, setSort] = useState<"revenu" | "ventes" | "catalogue">("revenu");
   if (!data) return <Loading error={error} onRetry={reload} />;
 
@@ -29,6 +67,7 @@ export default function Shop() {
         title="Boutique"
         intro="Les ventes de chaque objet depuis l'ouverture, hors Premium. Le catalogue vit dans le code (shop.service.ts) : pour offrir un objet, passe par la fiche du joueur."
       />
+      <Creators creators={data.creators ?? []} />
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 mb-4">
         <p className="font-body text-[14px]">
           <span className="font-mono2 text-[20px] text-amber">{euros(total)}</span> sur {nf(sales)} ventes

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { onSkinReady } from "./svgSkins";
 import { drawConsist, drawTrack } from "./trainArt";
 
 /* ============================================================
@@ -118,7 +119,12 @@ export function TrainPicture({
     draw();
     const ro = new ResizeObserver(draw);
     ro.observe(cv);
-    return () => ro.disconnect();
+    // 2.6 : un habillage de créateur arrive après le premier dessin
+    const off = onSkinReady(draw);
+    return () => {
+      ro.disconnect();
+      off();
+    };
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <canvas ref={ref} className={`block w-full ${className}`} style={{ height }} role="img" aria-label={label ?? "Rame"} />;

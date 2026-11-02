@@ -1,4 +1,5 @@
 // @ts-nocheck — dessin sur canvas
+import { SVG_SKINS, svgImage, type SvgPart } from "./svgSkins";
 /* ============================================================
    Le dessin des rames (2.0).
 
@@ -331,7 +332,21 @@ function coach(c: Ctx, x: number, w: number, kind = "SECONDE", opts: { first?: b
 }
 
 /* motrice régionale : nez arrondi, grand pare-brise incliné */
-function regionalHead(c: Ctx, x: number, w: number, express = false, silver = false): ConsistBox["badge"] & { lamp: { x: number; y: number } } {
+/* 2.6 : un véhicule dessiné en SVG par un créateur, posé sur les bogies du jeu.
+   Tant que le dessin charge, une voiture ordinaire tient la place. */
+function svgPiece(c: Ctx, x: number, w: number, part: SvgPart, isHead: boolean) {
+  const { ctx, u, base, lit } = c;
+  const bottom = base - LIFT * u;
+  const img = svgImage(part, c.livery, lit);
+  underframe(ctx, x, w, bottom - 1 * u, u);
+  if (img) ctx.drawImage(img, x, bottom - CAR_H * u, w, CAR_H * u);
+  else coach(c, x, w, "SECONDE");
+  for (const bx of part.bogies) bogie(ctx, x + bx * u, base, u, c.spin);
+  const lamp = { x: x + w - 1 * u, y: bottom - 9 * u };
+  return isHead ? { x: x + w * 0.5, y: bottom - 14 * u, r: 7 * u, lamp } : null;
+}
+
+function regionalHead(c: Ctx, x: number, w: number, express = false, silver = false, tail = false): ConsistBox["badge"] & { lamp: { x: number; y: number } } {
   const { ctx, u, base, livery, lit } = c;
   const h = CAR_H * u;
   const bottom = base - LIFT * u;
@@ -413,7 +428,8 @@ function regionalHead(c: Ctx, x: number, w: number, express = false, silver = fa
   door(ctx, right - 14 * u, top, bottom, u, livery, lit);
   // phares
   const lampX = tip - (express ? 6 : 5) * u, lampY = bottom - 7 * u;
-  ctx.fillStyle = lit ? "#fff6d8" : "#f4f1e4";
+  // 2.5.1 : la motrice de queue porte les feux rouges de fin de convoi
+  ctx.fillStyle = tail ? (lit ? "#ff4d3d" : "#9b2a22") : lit ? "#fff6d8" : "#f4f1e4";
   ctx.beginPath();
   ctx.ellipse(lampX, lampY, 3 * u, 1.6 * u, -0.3, 0, Math.PI * 2);
   ctx.fill();
@@ -1603,6 +1619,16 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
 
   // la composition, de la queue à la tête, en unités d'échelle
   const plan: { w: number; kind: string; arg?: any }[] = (() => {
+    // 2.6 : habillage de créateur, en SVG : ses voitures (ajoutées, puis d'origine) et sa motrice
+    const svgSkin = SVG_SKINS[kind];
+    if (svgSkin) {
+      const partOf = (k: string) => svgSkin.cars[k] ?? svgSkin.cars[svgSkin.defaultCar];
+      return [
+        ...coaches.map((k) => ({ w: partOf(k).width, kind: "svgcar", arg: partOf(k) })),
+        ...svgSkin.base.map((k) => ({ w: partOf(k).width, kind: "svgcar", arg: partOf(k) })),
+        { w: svgSkin.head.width, kind: "svghead", arg: svgSkin.head },
+      ];
+    }
     switch (kind) {
       case "vapeur":
       case "VAPEUR":
@@ -1704,6 +1730,13 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
       case "coachSilver":
         coach(c, x, w, "SECONDE", { paint: c.night ? "#a9b2bc" : "#d9dfe5" });
         break;
+      // 2.6 : un véhicule d'habillage de créateur
+      case "svgcar":
+        svgPiece(c, x, w, p.arg as SvgPart, false);
+        break;
+      case "svghead":
+        head = svgPiece(c, x, w, p.arg as SvgPart, true);
+        break;
       // 2.4.2 : une voiture ajoutée, à l'allure de la rame (nuit, argent, deux niveaux)
       case "car": {
         const [k, look] = p.arg as [string, "night" | "silver" | "deck2"];
@@ -1727,7 +1760,8 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
         ctx.save();
         ctx.translate(2 * x + w, 0);
         ctx.scale(-1, 1);
-        regionalHead({ ...c, lit: false }, x, w, true, true);
+        // 2.5.1 : elle s'allume comme le reste de la rame (salle et cabine) ; seuls ses feux sont rouges
+        regionalHead(c, x, w, true, true, true);
         ctx.restore();
         break;
       case "box":

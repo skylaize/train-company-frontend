@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.5.0";
+export const CURRENT_VERSION = "2.5.1";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,23 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.5.1",
+    date: "Novembre 2026",
+    changes: [
+      { type: "nouveau", text: "La Série Créateurs : des objets de boutique dessinés par des joueurs du réseau, toujours en vente, et chaque achat leur reverse une part. Pour l'ouvrir, l'habillage Intercités de N0RCAM (2,99 €) : une motrice et ses voitures de 2de, de 1re et restaurant, à vos couleurs, en vue cabine" },
+      { type: "nouveau", text: "La voiture-couchettes (300 pi.) : pour les rames couchettes et les trains de nuit internationaux, 60 places de plus au billet 10 % plus cher" },
+      { type: "nouveau", text: "Un train de nuit en retard pendant la nuit ne coûte plus de réputation : les voyageurs dorment. Le journal l'indique (« Retard de nuit signalé »)" },
+      { type: "nouveau", text: "Deux succès de campagne : Éclair régional (une campagne en moins de sept jours) et La France entière (toutes les campagnes)" },
+      { type: "ameliore", text: "La campagne en cours s'affiche sur le tableau de bord : l'étape, sa progression, et quand elle attend d'être validée" },
+      { type: "ameliore", text: "Les messages du serveur (pièce commandée, sortie d'atelier, rachat de gare, annonces du réseau) donnent une durée (« dans 45 min ») au lieu d'une heure de Paris, juste dans tous les fuseaux" },
+      { type: "ameliore", text: "La page d'accueil présente la 2.5, et ses prix du Premium suivent ceux du jeu" },
+      { type: "corrige", text: "Campagne des Hauts-de-France : aucun fret ne partait de Lille ni d'Amiens. Quatre itinéraires s'ajoutent, et le marché garantit désormais une offre dans la région de votre campagne quand elle attend du fret (elle s'affiche même si elle est plus récente que les autres)" },
+      { type: "corrige", text: "Campagne de Corse : l'île n'a pas de fret, l'étape « Les marchandises suivent » devient « Toute l'île roule » (3 rames en service)" },
+      { type: "corrige", text: "Donneurs d'ordre : une offre laissée passer s'affichait « Non honoré », comme un ordre manqué, même juste après un ordre réussi. Elle est maintenant marquée « Offre non acceptée », sans conséquence, et un ordre honoré reste affiché avec son tampon" },
+      { type: "corrige", text: "La motrice de queue du TGV s'allume enfin comme le reste de la rame, avec ses feux rouges de fin de convoi" },
+    ],
+  },
   {
     version: "2.5.0",
     date: "Novembre 2026",

@@ -26,7 +26,12 @@ interface NetworkStats {
   activeIncidents: number;
   season?: SeasonInfo; // 2.4.1 : la saison en cours, pour le compte à rebours
   tunnelOpen?: boolean; // 2.4.1 : le Grand Chantier est-il terminé ?
+  premium?: { minCents: number; suggestedCents: number; upgradeMinCents: number }; // 2.5.1 : les prix réglés sur le serveur
 }
+
+/* 2.5.1 : « 5,99 € », « 4 € » ; les prix viennent du serveur, avec les valeurs
+   actuelles en secours si la page s'affiche avant sa réponse */
+const euros = (cents: number) => `${(cents / 100).toLocaleString("fr-FR", { minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2 })} €`;
 
 /* Jeu de caractères du panneau : les palettes défilent dans cet ordre,
    exactement comme un vrai Solari. */
@@ -237,13 +242,12 @@ function StationClock({ now }: { now: Date }) {
 }
 
 /* 2.4 : les nouveautés, sur la section du haut */
-const NOUVEAU_24 = [
-  { k: "Énergie", t: "Gazole et courant", b: "Vos trains consomment pour de vrai. Le gazole a son cours, le courant flambe aux heures de pointe : remplissez vos cuves au bon moment." },
-  { k: "Carbone", t: "La taxe carbone", b: "50 tonnes gratuites par semaine, puis chaque tonne se paie. Le jeu vous dit quelles lignes électrifier pour payer moins." },
-  { k: "Énergie", t: "Vos centrales", b: "Solaire dans le Sud, éoliennes sur la côte, barrage en montagne. Elles suivent la vraie météo, et vous revendez le surplus." },
-  { k: "Voies", t: "La voie s'use", b: "Chaque liaison s'abîme avec le trafic et ralentit les trains. Sa rénovation est un chantier commun, et les gros financeurs y gagnent." },
-  { k: "Voies", t: "Les concessions", b: "Devenez propriétaire d'une liaison : les autres compagnies vous paient un péage, mais à vous de l'entretenir." },
-  { k: "Atelier", t: "Le marché des pièces", b: "Un stock national, des pénuries qui font tripler les prix, et des usines à construire pour s'en protéger." },
+/* 2.5.1 : l'avis de la version en cours (2.5). La 2.4 tient en une ligne au pied de l'avis. */
+const NOUVEAU_25 = [
+  { k: "Campagnes", t: "Une région à conquérir", b: "Huit étapes par région, de la première gare desservie à la région entière. Une prime à chaque étape, et le titre « Compagnie de Bretagne » (ou d'ailleurs) au bout." },
+  { k: "Compagnonnage", t: "Un tuteur pour démarrer", b: "Les deux premières semaines, un joueur expérimenté vous accompagne : il voit où vous en êtes et vous conseille. Chaque grade franchi vous rapporte, à tous les deux." },
+  { k: "Nuit", t: "La voiture-couchettes", b: "Attelée à un train de nuit : soixante couchettes de plus, au billet 10 % plus cher. Et un train de nuit en retard pendant la nuit ne coûte plus de réputation." },
+  { k: "Boutique", t: "Régions et nuit", b: "L'hermine de Bretagne, la cigogne d'Alsace, la lavande de Provence, le volcan d'Auvergne, et quatre livrées pour les trains qui roulent quand tout dort." },
 ];
 
 export default function LandingPage() {
@@ -399,25 +403,25 @@ export default function LandingPage() {
       <LandingSteps onStart={register} />
       <LandingShowcase />
 
-      {/* ---------- 2.4 : le vrai coût du rail, en avis imprimé ----------
+      {/* ---------- 2.4 : le vrai coût du rail, en avis imprimé (2.5.1 : l'avis n° 2.5) ----------
           2.4.1 : plus de bloc sombre à halo doré ni de cartes en série : un avis
           aux exploitants, sur papier, comme le reste de la page. */}
       <section id="nouveau" className="lp-avis-sec">
         <div className="lp-wrap">
           <article className="lp-avis">
             <header className="lp-avis-hd">
-              <span>Avis aux exploitants · n° 2.4</span>
-              <span>Octobre 2026</span>
+              <span>Avis aux exploitants · n° 2.5</span>
+              <span>Novembre 2026</span>
             </header>
             <div className="lp-avis-top">
-              <h2 className="lp-h2">Le vrai coût du rail.</h2>
+              <h2 className="lp-h2">Une région à conquérir, un tuteur pour démarrer.</h2>
               <p className="lp-sub">
-                Plus de 400 joueurs, et un réseau qui coûte enfin ce qu'il coûte : du gazole, du courant, du carbone, des voies à
-                entretenir. Ceux qui gèrent bien leur énergie passent devant.
+                Plus de 400 joueurs, et deux façons de ne jamais se demander quoi faire ensuite : une campagne par région, et un
+                joueur expérimenté à vos côtés pour vos deux premières semaines.
               </p>
             </div>
             <ol className="lp-avis-list">
-              {NOUVEAU_24.map((n, i) => (
+              {NOUVEAU_25.map((n, i) => (
                 <li key={n.t}>
                   <span className="lp-avis-n">{String(i + 1).padStart(2, "0")}</span>
                   <div>
@@ -429,13 +433,13 @@ export default function LandingPage() {
               ))}
             </ol>
             <div className="lp-avis-train" aria-hidden="true">
-              <TrainPicture model="TGV" livery="#1f5c4d" height={70} align="center" label="Rame à grande vitesse" />
+              <TrainPicture model="COUCHETTES" livery="#26345e" cars={["COUCHETTE", "COUCHETTE"]} height={70} align="center" label="Train de nuit et ses voitures-couchettes" />
             </div>
             <footer className="lp-avis-ft">
               <button className="lp-btn" onClick={register}>
                 Monter à bord
               </button>
-              <span>Applicable sur tout le réseau à compter de la version 2.4.</span>
+              <span>Applicable à compter de la version 2.5. Depuis la 2.4 : le gazole, le courant, la taxe carbone, les voies et le TGV.</span>
             </footer>
           </article>
         </div>
@@ -554,7 +558,7 @@ export default function LandingPage() {
                   <h3>Premium</h3>
                 </div>
                 <div className="px">
-                  dès 5,99 €<small>prix libre, 7,99 € conseillés</small>
+                  dès {euros(stats?.premium?.minCents ?? 599)}<small>prix libre, {euros(stats?.premium?.suggestedCents ?? 799)} conseillés</small>
                 </div>
               </div>
               {/* 2.4.1 : la liste, rangée en quatre familles, se lit d'un coup d'œil */}
@@ -606,9 +610,9 @@ export default function LandingPage() {
                   Prendre ce billet
                 </button>
                 <p className="lp-tk-note">
-                  Vous fixez le montant au moment de payer, à partir de 5,99 €. Au-delà, c'est un soutien au réseau : les
+                  Vous fixez le montant au moment de payer, à partir de {euros(stats?.premium?.minCents ?? 599)}. Au-delà, c'est un soutien au réseau : les
                   avantages sont les mêmes.
-                  {RELEASE_171 && " Vous avez déjà retiré les pubs ? Le Premium vous coûte alors à partir de 4 €."} Paiement
+                  {RELEASE_171 && ` Vous avez déjà retiré les pubs ? Le Premium vous coûte alors à partir de ${euros(stats?.premium?.upgradeMinCents ?? 400)}.`} Paiement
                   unique par carte via Stripe, depuis votre compagnie : aucun abonnement, rien à résilier.
                 </p>
               </div>
