@@ -1717,10 +1717,12 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
     const w = p.w * u;
     const x0 = x;
     if (i === 0 && shiftFirst) x += shiftFirst;
+    // la motrice d'un habillage de créateur s'attelle caisse contre caisse (ses tampons, 4 unités, passent devant la voiture)
+    if (i > 0 && p.kind === "svghead") x -= (gapU + 4) * u;
     pieces.push({ x, w, kind: p.kind });
-    // pas de soufflet d'intercirculation entre des wagons de fret, ni vers une locomotive de fret
+    // pas de soufflet d'intercirculation entre des wagons de fret, ni vers une locomotive (de fret, ou la motrice d'un habillage de créateur)
     const WAGON_PIECES = ["flat", "hopper", "plate", "container", "autos", "tank", "boxcar", "reefer"];
-    const freightJoin = WAGON_PIECES.includes(p.kind) || (i > 0 && WAGON_PIECES.includes(plan[i - 1].kind)) || ["shunter", "modern"].includes(p.kind);
+    const freightJoin = WAGON_PIECES.includes(p.kind) || (i > 0 && WAGON_PIECES.includes(plan[i - 1].kind)) || ["shunter", "modern", "svghead"].includes(p.kind);
     if (i > 0 && !["tender", "steam"].includes(p.kind) && !freightJoin) gangway(ctx, x - gapU * u, o.base - LIFT * u - CAR_H * u, o.base - LIFT * u, u);
     switch (p.kind) {
       case "coach": {
