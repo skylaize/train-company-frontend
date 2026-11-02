@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.5.1";
+export const CURRENT_VERSION = "2.5.2";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,13 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.5.2",
+    date: "Novembre 2026",
+    changes: [
+      { type: "corrige", text: "Habillage Intercités : la motrice paraissait plus petite que ses voitures. Elle est maintenant à la même échelle, son toit à la hauteur du leur" },
+    ],
+  },
   {
     version: "2.5.1",
     date: "Novembre 2026",

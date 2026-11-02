@@ -339,7 +339,8 @@ function svgPiece(c: Ctx, x: number, w: number, part: SvgPart, isHead: boolean) 
   const bottom = base - LIFT * u;
   const img = svgImage(part, c.livery, lit);
   underframe(ctx, x, w, bottom - 1 * u, u);
-  if (img) ctx.drawImage(img, x, bottom - CAR_H * u, w, CAR_H * u);
+  const h = (part.height ?? CAR_H) * u;
+  if (img) ctx.drawImage(img, x, bottom - h, w, h);
   else coach(c, x, w, "SECONDE");
   for (const bx of part.bogies) bogie(ctx, x + bx * u, base, u, c.spin);
   const lamp = { x: x + w - 1 * u, y: bottom - 9 * u };

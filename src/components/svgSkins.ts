@@ -21,6 +21,7 @@
 export interface SvgPart {
   file: string;
   width: number; // longueur, en unités du jeu (une voiture ordinaire fait 200)
+  height?: number; // hauteur de l'image, en unités du jeu (46 par défaut, la hauteur d'une caisse) ; posée sur le bas de caisse
   bogies: [number, number]; // centre des bogies, depuis l'avant gauche du dessin
 }
 
@@ -39,7 +40,8 @@ export const SVG_SKINS: Record<string, SvgSkin> = {
     id: "intercites",
     label: "Intercités",
     creator: "N0RCAM",
-    head: { file: "/skins/intercites/motrice.svg", width: 108.9, bogies: [24, 84.9] },
+    // la motrice est dessinée plus petite que les voitures sur la planche : agrandie ×1,3 pour que son toit arrive à celui des voitures
+    head: { file: "/skins/intercites/motrice.svg", width: 141.6, height: 44.6, bogies: [31.2, 110.4] },
     cars: {
       SECONDE: { file: "/skins/intercites/seconde.svg", width: 200, bogies: [37, 163.1] },
       PREMIERE: { file: "/skins/intercites/premiere.svg", width: 200, bogies: [37, 163.1] },

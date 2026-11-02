@@ -10,7 +10,7 @@ export function SkinPartThumb({ skin, part, livery, height = 34 }: { skin: strin
   if (!s) return null;
   const p = part === "HEAD" ? s.head : s.cars[part] ?? s.cars[s.defaultCar];
   const url = svgPartUrl(p, livery, false);
-  const w = (p.width / 46) * height;
+  const w = (p.width / (p.height ?? 46)) * height;
   return (
     <div className="flex justify-center" style={{ height }}>
       {url ? <img src={url} alt="" style={{ height, width: w, maxWidth: "100%", objectFit: "contain" }} /> : <span className="block w-full h-full bg-white/5 rounded" />}
