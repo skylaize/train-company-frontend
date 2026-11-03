@@ -322,7 +322,7 @@ export function TrainSheet({
         <section className="px-5 py-4 border-b border-line">
           <h4 className="font-body font-semibold text-[15px] mb-2">Équipage</h4>
           {[
-            { role: "CONTROLEUR", label: "Contrôleur", current: controleur, effect: "+4 % de recette et de la réputation", hidden: train.model === "FRET_LOURD" },
+            { role: "CONTROLEUR", label: "Contrôleur", current: controleur, effect: "+10 % de recette et de la réputation", hidden: train.model === "FRET_LOURD" },
             { role: "CONDUCTEUR", label: "Conducteur", current: conducteur, effect: "moins de retards, d'incidents et d'usure", hidden: false },
           ]
             .filter((r) => !r.hidden)
