@@ -68,7 +68,7 @@ export function duration(min: number) {
 const seedOf = (id: string) => [...id].reduce((s, c) => (s * 31 + c.charCodeAt(0)) % 9973, 7);
 const defaultName = (w: { serial: string; label: string }) => (w.serial.startsWith("Rame") ? w.serial : `${w.label.split(" ")[0]} ${w.serial}`);
 // 2.6 : la VB2N à deux niveaux a 25 % de places en plus au lieu d'un billet plus cher
-const prestigeLabel = (p: number, serial?: string) => (serial === "VB2N" ? "25 % de places en plus" : `billet +${Math.round((p - 1) * 100)} %`);
+const prestigeLabel = (p: number, serial?: string) => (String(serial ?? "").startsWith("VB2N") ? "25 % de places en plus" : `billet +${Math.round((p - 1) * 100)} %`);
 
 export async function loadWrecks(): Promise<WreckData | null> {
   try {
@@ -175,7 +175,7 @@ export function WreckYard({ balance, onChange, onCommissioned }: { balance: numb
                   <div className="h-full flex flex-col justify-center">
                     <div className="text-[14px] font-body text-rail-green">Restauration terminée</div>
                     <p className="text-[13.5px] font-body text-slate2 mt-1">
-                      Elle roulera comme une rame {w.model === "EXPRESS" ? "express" : w.model === "COUCHETTES" ? "couchettes" : "standard"}, avec {w.serial === "VB2N" ? "25 % de places en plus grâce à ses deux niveaux" : `un ${prestigeLabel(w.prestige)} grâce à son prestige`}. Le vieux matériel s'use un peu plus vite.
+                      Elle roulera comme une rame {w.model === "EXPRESS" ? "express" : w.model === "COUCHETTES" ? "couchettes" : "standard"}, avec {String(w.serial).startsWith("VB2N") ? "25 % de places en plus grâce à ses deux niveaux" : `un ${prestigeLabel(w.prestige)} grâce à son prestige`}. Le vieux matériel s'use un peu plus vite.
                     </p>
                     <label className="text-[12.5px] font-body text-slate2 mt-4" htmlFor={`nom-${w.id}`}>
                       Son nom

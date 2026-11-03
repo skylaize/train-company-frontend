@@ -119,7 +119,7 @@ interface Train {
   scrapValue?: number; // 2.4.1 : mise à la casse, sans Premium
   crew?: { id: string; name: string; role: string; level: number }[];
   // 2.0 : rame de collection restaurée depuis une épave
-  heritage?: { label: string; serial: string; rarity: string; skin: string; livery: string; prestige: number; year: number; history: string } | null;
+  heritage?: { kind?: string; label: string; serial: string; rarity: string; skin: string; livery: string; prestige: number; year: number; history: string } | null;
   // 2.3 : rame publicitaire
   adBrand?: string | null;
   adColor?: string | null;
@@ -1646,7 +1646,7 @@ export default function Dashboard() {
                       skin: c.heritage.skin,
                       livery: c.heritage.livery,
                       kicker: "Remise en service",
-                      subtitle: `${c.heritage.label} ${c.heritage.serial}, ${new Date().getFullYear() - c.heritage.year} ans · ${c.heritage.serial === "VB2N" ? "25 % de places en plus" : `billet +${Math.round((c.heritage.prestige - 1) * 100)} %`}`,
+                      subtitle: `${c.heritage.label} ${c.heritage.serial}, ${new Date().getFullYear() - c.heritage.year} ans · ${isDuplex(c.heritage) ? "25 % de places en plus" : `billet +${Math.round((c.heritage.prestige - 1) * 100)} %`}`,
                     })
                   }
                 />
@@ -3235,8 +3235,11 @@ const NIGHT_CAR_MODELS = ["COUCHETTES", "NUIT_EUROPE"];
 const MAX_CARS = 3;
 const CAR_SLOWDOWN = 0.03;
 
-function seatsOf(model: string, cars: string[]) {
-  const second = (MODEL_SEATS[model] ?? 400) + cars.reduce((n, c) => n + (c === "SECONDE" ? 100 : c === "COUCHETTE" ? 60 : 0), 0);
+// 2.6 : la VB2N (rame à deux niveaux) a 25 % de places en plus que son modèle ; son numéro suit « VB2N »
+const isDuplex = (h?: { kind?: string; serial?: string } | null) => Boolean(h && (h.kind === "DUPLEX" || String(h.serial ?? "").startsWith("VB2N")));
+
+function seatsOf(model: string, cars: string[], heritage?: { kind?: string; serial?: string } | null) {
+  const second = Math.round((MODEL_SEATS[model] ?? 400) * (isDuplex(heritage) ? 1.25 : 1)) + cars.reduce((n, c) => n + (c === "SECONDE" ? 100 : c === "COUCHETTE" ? 60 : 0), 0);
   const first = cars.filter((c) => c === "PREMIERE").length * 60;
   return { second, first, total: second + first };
 }
@@ -3256,7 +3259,7 @@ function ConsistMini({ model, cars }: { model: string; cars: string[] }) {
 
 function CompositionModal({ train, balance, livery, onClose, onChange }: { train: Train; balance: number; livery: string | null; onClose: () => void; onChange: () => void }) {
   const cars = train.cars ?? [];
-  const seats = seatsOf(train.model, cars);
+  const seats = seatsOf(train.model, cars, train.heritage);
   const [busy, setBusy] = useState<string | null>(null);
   const { showToast } = useToast();
 
@@ -3732,7 +3735,7 @@ function TrainsSection({
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[12.5px] font-body text-slate2">
                   {t.heritage ? (
                     <span title={t.heritage.history} style={{ color: RARITY_COLOR[t.heritage.rarity] }}>
-                      Collection · {t.heritage.serial} · {t.heritage.serial === "VB2N" ? "25 % de places en plus" : `billet +${Math.round((t.heritage.prestige - 1) * 100)} %`}
+                      Collection · {t.heritage.serial} · {isDuplex(t.heritage) ? "25 % de places en plus" : `billet +${Math.round((t.heritage.prestige - 1) * 100)} %`}
                     </span>
                   ) : (
                     <span className={t.model === "STANDARD" ? "" : "text-amber"}>{modelLabel(t.model)}</span>
@@ -3757,7 +3760,7 @@ function TrainsSection({
                     </span>
                     {isFreightLoco(t.model)
                       ? `${(t.cars ?? []).filter((c) => c.startsWith("W_")).length}/${freightModel(t.model)?.maxWagons ?? 0} wagons`
-                      : `${seatsOf(t.model, t.cars ?? []).total} places`}
+                      : `${seatsOf(t.model, t.cars ?? [], t.heritage).total} places`}
                   </button>
                   {(t.crew?.length ?? 0) > 0 && (
                     <button onClick={() => setSheetId(t.id)} className="whitespace-nowrap hover:text-cobalt" title={t.crew!.map((c) => `${c.role === "CONTROLEUR" ? "Contrôleur" : "Conducteur"} : ${c.name}`).join(", ")}>

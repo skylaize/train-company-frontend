@@ -174,7 +174,7 @@ export function TrainSheet({
         {train.heritage && (
           <p className="px-5 py-3 border-b border-line text-[13px] font-body text-slate2 italic">
             {train.heritage.history}{" "}
-            {train.heritage.kind === "DUPLEX"
+            {train.heritage.kind === "DUPLEX" || String(train.heritage.serial).startsWith("VB2N")
               ? "Rame à deux niveaux : 25 % de places en plus, usure un peu plus rapide."
               : `Rame de collection : billet +${Math.round((train.heritage.prestige - 1) * 100)} %, usure un peu plus rapide.`}
           </p>
