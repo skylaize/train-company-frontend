@@ -285,7 +285,8 @@ export function TrackPanel({ balance, onDone }: { balance: number; onDone: () =>
         {r.maxConcessions} concessions.
       </p>
       <div className="space-y-3">
-        {data.segments.map((s) => {
+        {/* 2.5.1 : vos concessions en premier, pour les retrouver d'un coup d'œil (l'ordre reste le même ensuite) */}
+        {[...data.segments].sort((a, b) => Number(!!b.concession?.mine) - Number(!!a.concession?.mine)).map((s) => {
           const tone = s.condition < r.badFrom ? "red" : s.condition < r.slowFrom ? "amber" : "green";
           const remaining = Math.max(0, s.renovationCost - s.fund);
           const c = s.concession;

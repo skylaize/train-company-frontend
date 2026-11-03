@@ -38,7 +38,7 @@ export interface SheetTrain {
   serviceTo?: number | null;
   departedAt?: string | null;
   crew?: { id: string; name: string; role: string; level: number }[];
-  heritage?: { label: string; serial: string; history: string; prestige: number } | null; // 2.0 : rame de collection
+  heritage?: { kind?: string; label: string; serial: string; history: string; prestige: number } | null; // 2.0 : rame de collection
   adBrand?: string | null; // 2.3 : rame publicitaire
   adColor?: string | null;
   adUntil?: string | null;
@@ -173,9 +173,15 @@ export function TrainSheet({
         )}
         {train.heritage && (
           <p className="px-5 py-3 border-b border-line text-[13px] font-body text-slate2 italic">
-            {train.heritage.history} Rame de collection : billet +{Math.round((train.heritage.prestige - 1) * 100)} %, usure un peu plus rapide.
+            {train.heritage.history}{" "}
+            {train.heritage.kind === "DUPLEX"
+              ? "Rame à deux niveaux : 25 % de places en plus, usure un peu plus rapide."
+              : `Rame de collection : billet +${Math.round((train.heritage.prestige - 1) * 100)} %, usure un peu plus rapide.`}
           </p>
         )}
+
+        {/* 2.6 : tout ce qui joue sur cette rame, réuni */}
+        <TrainBonuses trainId={train.id} />
 
         {/* ce qui se passe maintenant */}
         <section className="px-5 py-4 border-b border-line">
@@ -562,6 +568,50 @@ export function PartsStore({ balance, onChange }: { balance: number; onChange: (
           );
         })}
       </ul>
+    </section>
+  );
+}
+
+/* 2.6 : « Ce qui joue sur cette rame ». Les bonus et malus du personnel, du
+   matériel et de la ligne, réunis ; lus à l'ouverture de la fiche. */
+type Bonus = { kind: "recette" | "vitesse" | "usure" | "places"; label: string; effect: string; good: boolean };
+const BONUS_KIND: Record<Bonus["kind"], string> = { recette: "Recette", places: "Places", vitesse: "Trajet", usure: "Usure" };
+export function TrainBonuses({ trainId }: { trainId: string }) {
+  const [list, setList] = useState<Bonus[] | null>(null);
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    setList(null);
+    api
+      .get(`/trains/${trainId}/bonuses`)
+      .then(({ data }) => setList(data.bonuses ?? []))
+      .catch(() => setList([]));
+  }, [trainId]);
+  if (!list || list.length === 0) return null;
+  const good = list.filter((b) => b.good).length;
+  return (
+    <section className="px-5 py-3 border-b border-line">
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between text-left">
+        <span className="font-body text-[13px] font-medium">Ce qui joue sur cette rame</span>
+        <span className="font-body text-[12px] text-slate2">
+          {good} bonus · {list.length - good} malus {open ? "▾" : "▸"}
+        </span>
+      </button>
+      {open && (
+        <ul className="mt-2 space-y-1">
+          {(["recette", "places", "vitesse", "usure"] as const).flatMap((k) =>
+            list
+              .filter((b) => b.kind === k)
+              .map((b) => (
+                <li key={k + b.label} className="flex items-baseline gap-2 text-[12.5px] font-body">
+                  <span className="w-14 shrink-0 text-[11px] text-slate2">{BONUS_KIND[k]}</span>
+                  <span className="flex-1 min-w-0 text-offwhite">{b.label}</span>
+                  <span className={`font-mono2 shrink-0 ${b.good ? "text-rail-green" : "text-rail-red"}`}>{b.effect}</span>
+                </li>
+              ))
+          )}
+          <li className="text-[11px] text-slate2 font-body pt-1">Sans les effets du moment : événements de gare, météo, heure de pointe, concurrence.</li>
+        </ul>
+      )}
     </section>
   );
 }

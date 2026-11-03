@@ -35,6 +35,12 @@ interface Report {
   raiseRequests?: string[];
   brokenNow?: string[];
   bestLine?: { label: string; revenue: number } | null;
+  // 2.5.1 : le reste du solde, pour que le détail retombe sur le total
+  energy?: number;
+  carbon?: number;
+  tolls?: number;
+  otherOps?: number;
+  txTotal?: number;
   movers?: { cargoType: string; change: number }[];
 }
 
@@ -129,6 +135,17 @@ export function AbsenceReport({
     ]);
   if (report.upkeep) rows.push(["Entretien du réseau", "", signed(-(report.upkeep ?? 0))]);
   if (report.marketTrades) rows.push(["Achats et ventes au marché", fmt(report.marketTrades), signed(report.marketNet ?? 0)]);
+  /* 2.5.1 : le détail s'arrêtait là, et ne retombait pas sur le total. Les
+     salaires ne sont pas des écritures : c'est ce qui reste entre le solde et
+     la somme de toutes les écritures de la période. */
+  if (report.txTotal !== undefined) {
+    if (Math.round(report.energy ?? 0)) rows.push(["Énergie (gazole et courant)", "", signed(report.energy ?? 0)]);
+    if (Math.round(report.carbon ?? 0)) rows.push(["Taxe carbone", "", signed(report.carbon ?? 0)]);
+    if (Math.round(report.tolls ?? 0)) rows.push(["Péages et redevances de quai", "", signed(report.tolls ?? 0)]);
+    if (Math.round(report.otherOps ?? 0)) rows.push(["Autres (achats, assurances, boutique…)", "", signed(report.otherOps ?? 0)]);
+    const payroll = net - report.txTotal;
+    if (Math.round(payroll)) rows.push(["Salaires", "", signed(payroll)]);
+  }
 
   return (
     <div data-modal className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/80 px-4">
@@ -173,6 +190,15 @@ export function AbsenceReport({
                   </tr>
                 ))}
               </tbody>
+              {report.txTotal !== undefined && (
+                <tfoot>
+                  <tr className="border-t-2 border-line">
+                    <td className="pt-2 text-offwhite font-medium">Trésorerie</td>
+                    <td />
+                    <td className={`pt-2 text-right font-mono2 font-medium ${net < 0 ? "text-rail-red" : "text-offwhite"}`}>{signed(net)}</td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           )}
 

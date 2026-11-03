@@ -61,7 +61,7 @@ interface Stats {
     breakdowns: number;
   };
   payrollPerHour?: number;
-  daily?: { day: string; revenue: number; repairs: number; upkeep: number }[];
+  daily?: { day: string; revenue: number; repairs: number; upkeep: number; charges?: number }[];
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
@@ -83,7 +83,13 @@ export function ProfitabilitySection({ company, onChange }: { company: PremiumIn
 
   if (failed) return <p className="text-sm text-slate2 font-body">La rentabilité n'est pas disponible pour le moment.</p>;
   if (!data) return <p className="text-sm text-slate2 font-body">Calcul de la rentabilité…</p>;
-  if (data.locked) return <LockedPreview company={company} onChange={onChange} />;
+  if (data.locked)
+    return (
+      <>
+        <BalanceCard />
+        <LockedPreview company={company} onChange={onChange} />
+      </>
+    );
 
   const trains = data.trains ?? [];
   const lines = data.lines ?? [];
@@ -104,6 +110,7 @@ export function ProfitabilitySection({ company, onChange }: { company: PremiumIn
 
   return (
     <div>
+      <BalanceCard />
       <p className="text-[12.5px] text-slate2 font-body mb-6 max-w-[70ch]">
         {partial
           ? `Mesuré depuis le ${sinceDate.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} à ${sinceDate.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })} — les sept jours se rempliront au fil du jeu.`
@@ -113,12 +120,14 @@ export function ProfitabilitySection({ company, onChange }: { company: PremiumIn
       </p>
 
       {/* ---- synthèse ---- */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-line border border-line mb-8 rounded-card">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-px bg-line border border-line mb-8 rounded-card">
         {[
           { label: "Recettes voyageurs", value: fmt(t.lineRevenue), tone: "text-offwhite" },
           { label: "Recettes fret", value: fmt(t.freightRevenue), tone: "text-offwhite" },
           { label: "Réparations", value: `−${fmt(t.repairs)}`, tone: "text-offwhite" },
           { label: "Entretien du réseau", value: `−${fmt(t.upkeep)}`, tone: "text-offwhite" },
+          // 2.5.1 : sur les sept jours du graphique
+          { label: "Énergie, carbone, péages", value: (() => { const ch = (data.daily ?? []).reduce((s, d) => s + (d.charges ?? 0), 0); return `${ch > 0 ? "−" : ch < 0 ? "+" : ""}${fmt(Math.abs(ch))}`; })(), tone: "text-offwhite" },
           { label: "Salaires, actuellement", value: `${fmt(data.payrollPerHour ?? 0)}/h`, tone: "text-offwhite" },
         ].map((c) => (
           <div key={c.label} className="px-4 py-3 bg-navy-950">
@@ -128,7 +137,7 @@ export function ProfitabilitySection({ company, onChange }: { company: PremiumIn
         ))}
       </div>
 
-      <DailyChart daily={data.daily ?? []} />
+      <DailyChart daily={data.daily ?? []} payrollPerHour={data.payrollPerHour ?? 0} />
 
       {/* ---- lignes ---- */}
       <section className="mb-10">
@@ -249,9 +258,11 @@ export function ProfitabilitySection({ company, onChange }: { company: PremiumIn
 /* Recettes et dépenses par jour : deux barres côte à côte, une seule échelle.
    Le bénéfice du jour est écrit sous chaque paire — c'est le chiffre qu'on
    cherche, on ne le fait pas deviner à partir de deux hauteurs. */
-function DailyChart({ daily }: { daily: { day: string; revenue: number; repairs: number; upkeep: number }[] }) {
+function DailyChart({ daily, payrollPerHour }: { daily: { day: string; revenue: number; repairs: number; upkeep: number; charges?: number }[]; payrollPerHour: number }) {
   const [hover, setHover] = useState<number | null>(null);
-  const max = Math.max(1, ...daily.map((d) => Math.max(d.revenue, d.repairs + d.upkeep)));
+  // 2.5.1 : les charges (énergie, taxe carbone, péages) comptent avec les réparations et l'entretien
+  const costOf = (d: { repairs: number; upkeep: number; charges?: number }) => d.repairs + d.upkeep + Math.max(0, d.charges ?? 0);
+  const max = Math.max(1, ...daily.map((d) => Math.max(d.revenue, costOf(d))));
   const H = 140;
 
   return (
@@ -263,7 +274,7 @@ function DailyChart({ daily }: { daily: { day: string; revenue: number; repairs:
             <span className="w-2.5 h-2.5 bg-cobalt rounded-[2px]" /> Recettes
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 bg-amber rounded-[2px]" /> Réparations et entretien
+            <span className="w-2.5 h-2.5 bg-amber rounded-[2px]" /> Dépenses
           </span>
         </div>
       </div>
@@ -274,7 +285,7 @@ function DailyChart({ daily }: { daily: { day: string; revenue: number; repairs:
           <div className="absolute left-0 right-0 border-t border-line/60" style={{ top: H / 2 }} />
           <div className="absolute inset-0 grid grid-cols-7 gap-2 items-end">
             {daily.map((d, i) => {
-              const cost = d.repairs + d.upkeep;
+              const cost = costOf(d);
               return (
                 <div
                   key={d.day}
@@ -296,6 +307,11 @@ function DailyChart({ daily }: { daily: { day: string; revenue: number; repairs:
                       <div className="text-slate2">Recettes <span className="font-mono2 text-offwhite">{fmt(d.revenue)}</span></div>
                       <div className="text-slate2">Réparations <span className="font-mono2 text-offwhite">{fmt(d.repairs)}</span></div>
                       <div className="text-slate2">Entretien <span className="font-mono2 text-offwhite">{fmt(d.upkeep)}</span></div>
+                      {d.charges ? (
+                        <div className="text-slate2">
+                          Énergie, carbone, péages <span className="font-mono2 text-offwhite">{d.charges < 0 ? "+" : ""}{fmt(Math.abs(d.charges))}</span>
+                        </div>
+                      ) : null}
                     </div>
                   )}
                 </div>
@@ -305,7 +321,7 @@ function DailyChart({ daily }: { daily: { day: string; revenue: number; repairs:
         </div>
         <div className="grid grid-cols-7 gap-2 mt-2 border-t border-line pt-1.5">
           {daily.map((d) => {
-            const net = d.revenue - d.repairs - d.upkeep;
+            const net = d.revenue - d.repairs - d.upkeep - (d.charges ?? 0);
             return (
               <div key={d.day} className="text-center">
                 <div className="text-[10.5px] font-body text-slate2 capitalize">{DAY_LABEL(d.day)}</div>
@@ -315,7 +331,10 @@ function DailyChart({ daily }: { daily: { day: string; revenue: number; repairs:
           })}
         </div>
       </div>
-      <p className="text-[11px] text-slate2 font-body mt-1.5">Sous chaque jour : recettes moins réparations et entretien, hors salaires.</p>
+      <p className="text-[11px] text-slate2 font-body mt-1.5">
+        Sous chaque jour : recettes moins réparations, entretien, énergie, taxe carbone et péages. Restent à déduire les salaires
+        {payrollPerHour > 0 ? ` (${fmt(payrollPerHour)}/h, soit ${fmt(payrollPerHour * 24)} par jour au rythme actuel)` : ""} et vos achats. La taxe carbone de la semaine tombe le lundi.
+      </p>
     </section>
   );
 }
@@ -370,5 +389,51 @@ function LockedPreview({ company, onChange }: { company: PremiumInfo; onChange: 
         </div>
       </div>
     </div>
+  );
+}
+
+/* 2.6 : la trésorerie réelle, pour tous. Le solde noté chaque soir à minuit :
+   l'écart d'un jour à l'autre compte tout (salaires, énergie, taxe carbone,
+   achats). C'est le chiffre qui dit ce qu'on a vraiment gagné. */
+function BalanceCard() {
+  const [data, setData] = useState<{ days: { day: string; balance: number }[]; now: number } | null>(null);
+  useEffect(() => {
+    api
+      .get("/stats/balance")
+      .then(({ data }) => setData(data))
+      .catch(() => undefined);
+  }, []);
+  if (!data) return null;
+  // l'écart de chaque jour : solde du soir moins celui de la veille ; aujourd'hui, depuis minuit
+  const points = [...data.days.map((d) => ({ day: d.day, balance: d.balance })), { day: "", balance: data.now }];
+  const deltas = points.slice(1).map((p, i) => ({ day: p.day, delta: p.balance - points[i].balance }));
+  const max = Math.max(1, ...deltas.map((d) => Math.abs(d.delta)));
+  return (
+    <section className="mb-8 border border-line rounded-card bg-navy-900/40 px-4 py-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 mb-2">
+        <h2 className="font-display text-xl">Votre trésorerie, jour par jour</h2>
+        <span className="font-body text-[12px] text-slate2">tout compris : salaires, énergie, taxe carbone, achats</span>
+      </div>
+      {deltas.length === 0 ? (
+        <p className="font-body text-[13px] text-slate2">Le jeu note votre solde chaque soir à minuit : la courbe se remplit à partir de cette nuit.</p>
+      ) : (
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${deltas.length}, minmax(0, 1fr))` }}>
+          {deltas.map((d, i) => (
+            <div key={i} className="text-center">
+              {/* une barre qui monte au-dessus de la ligne pour un gain, qui descend pour une perte */}
+              <div className="relative h-16">
+                <div className="absolute left-0 right-0 top-1/2 border-t border-line/60" />
+                <div
+                  className={`absolute left-1/2 -translate-x-1/2 w-[14px] ${d.delta < 0 ? "bg-rail-red rounded-b-[3px]" : "bg-rail-green rounded-t-[3px]"} ${d.day ? "" : "opacity-60"}`}
+                  style={{ height: `${Math.max(2, (Math.abs(d.delta) / max) * 30)}px`, ...(d.delta < 0 ? { top: "50%" } : { bottom: "50%" }) }}
+                />
+              </div>
+              <div className="text-[10.5px] font-body text-slate2 capitalize">{d.day ? DAY_LABEL(d.day) : "aujourd'hui"}</div>
+              <div className={`text-[11px] font-mono2 ${d.delta < 0 ? "text-rail-red" : "text-offwhite"}`}>{signed(d.delta)}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }

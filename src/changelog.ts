@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.5.1";
+export const CURRENT_VERSION = "2.6.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,27 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.6.0",
+    date: "Novembre 2026",
+    changes: [
+      { type: "nouveau", text: "Les commerces en gare : chaque gare a des emplacements selon sa taille (16 dans une capitale, 4 dans une petite ville), une place par compagnie et par gare, et 3 commerces au plus par compagnie. Les commerçants se partagent ce que dépensent les voyageurs, le propriétaire de la gare touche 15 % de loyer. Tout le monde peut investir dans les grandes gares, même quand elles sont prises" },
+      { type: "nouveau", text: "Pour les grades, deux commerces comptent pour une gare" },
+      { type: "nouveau", text: "Surveiller une gare : tous ceux qui la surveillent sont prévenus au même moment, 10 minutes avant la fin de sa protection puis quand elle tombe (une gare surveillée, cinq avec le Premium)" },
+      { type: "nouveau", text: "Premium : le conseiller des commerces classe les gares par rendement d'une place, d'après les voyageurs des dernières 24 h, et dit en combien de jours elle serait payée" },
+      { type: "nouveau", text: "Votre trésorerie, jour par jour (Rentabilité, pour tous) : le solde noté chaque soir à minuit, tout compris, salaires, énergie, taxe carbone et achats" },
+      { type: "nouveau", text: "La fiche d'une rame réunit tout ce qui joue sur elle : équipage, personnel, matériel, ligne, gares et ateliers, avec l'effet de chacun" },
+      { type: "nouveau", text: "Huit succès : Pignon sur rue, Galerie marchande, Sur les grands boulevards, Rentier, Bailleur, Aux aguets, Dans le vert et Deux étages" },
+      { type: "ameliore", text: "La VB2N à deux niveaux a 25 % de places en plus, à la place du billet 10 % plus cher (les rames déjà restaurées aussi)" },
+      { type: "corrige", text: "Rachat d'une gare : le prix montait de moitié à chaque rachat (une gare rachetée dix fois coûtait 57 fois son prix). Il se calcule maintenant sur la valeur de la gare, prix de base et agrandissements. Une gare achetée avant la 2.6 rapporte toujours à son propriétaire 1,25 fois ce qu'il l'a payée" },
+      { type: "corrige", text: "Personnel : un contrôleur ou un conducteur à bord affichait « ~0 pi./h ». Le contrôleur montre maintenant ce qu'il rapporte sur la recette de sa rame, le conducteur l'usure qu'il fait économiser" },
+      { type: "corrige", text: "Gares : la page ne se mettait jamais à jour. Le bouton restait « protégée » après la fin de la protection tant qu'on ne rechargeait pas, et un joueur arrivé après pouvait acheter la gare avant vous. Elle se recharge seule, affiche un compte à rebours la dernière heure et s'ouvre à la seconde près" },
+      { type: "ameliore", text: "Voies : vos concessions s'affichent en premier" },
+      { type: "ameliore", text: "La taxe carbone prévient : chaque lundi, une notification donne le montant prélevé, les tonnes émises et le prix de la tonne" },
+      { type: "corrige", text: "Bilan d'absence : le détail ne retombait pas sur le total. Il montre maintenant l'énergie, la taxe carbone, les péages, les salaires et le reste, jusqu'à la ligne Trésorerie" },
+      { type: "corrige", text: "Rentabilité, « Jour par jour » : l'énergie, la taxe carbone et les péages comptent dans les dépenses du jour, et la page dit ce qu'il reste à déduire (salaires du jour, achats)" },
+    ],
+  },
   {
     version: "2.5.1",
     date: "Novembre 2026",

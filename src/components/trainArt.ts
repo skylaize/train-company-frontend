@@ -251,6 +251,7 @@ interface Ctx {
 }
 
 const CAR_H = 46;
+const SVG_OVERLAP = 1.5; // 2.6 : les soufflets dessinés de deux voitures de créateur se chevauchent un peu, pour se toucher
 const LIFT = 17; // hauteur des bogies sous la caisse
 
 function white(c: Ctx) {
@@ -334,12 +335,27 @@ function coach(c: Ctx, x: number, w: number, kind = "SECONDE", opts: { first?: b
 /* motrice régionale : nez arrondi, grand pare-brise incliné */
 /* 2.6 : un véhicule dessiné en SVG par un créateur, posé sur les bogies du jeu.
    Tant que le dessin charge, une voiture ordinaire tient la place. */
-function svgPiece(c: Ctx, x: number, w: number, part: SvgPart, isHead: boolean) {
+function svgPiece(c: Ctx, x: number, w: number, part: SvgPart, isHead: boolean, joined = false) {
   const { ctx, u, base, lit } = c;
   const bottom = base - LIFT * u;
   const img = svgImage(part, c.livery, lit);
   underframe(ctx, x, w, bottom - 1 * u, u);
+  /* 2.6 : attelée à la pièce d'avant, le châssis va jusqu'au bout et un
+     attelage comble le vide sous le soufflet : plus de jour entre deux voitures. */
+  if (joined) {
+    ctx.fillStyle = "#222a35";
+    ctx.fillRect(x - 6 * u, bottom - 1 * u, 12 * u, 4 * u);
+    ctx.fillStyle = "#2a313c";
+    ctx.fillRect(x - 5 * u, bottom - 9 * u, 10 * u, 9 * u);
+  }
   const h = (part.height ?? CAR_H) * u;
+  /* 2.6 : derrière le bas de caisse, le dessous de la voiture. Les découpes
+     de la jupe du dessin (au-dessus des roues) et le liseré entre la caisse et
+     le châssis laissaient voir le ciel. */
+  if (img && !isHead) {
+    ctx.fillStyle = "#1c232d";
+    ctx.fillRect(x + 1 * u, bottom - 9 * u, w - 2 * u, 9 * u);
+  }
   if (img) ctx.drawImage(img, x, bottom - h, w, h);
   else coach(c, x, w, "SECONDE");
   for (const bx of part.bogies) bogie(ctx, x + bx * u, base, u, c.spin);
@@ -1687,7 +1703,9 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
 
   // la rame tient dans la largeur donnée
   const gapU = 6;
-  const naturalU = plan.reduce((s, p) => s + p.w, 0) + gapU * (plan.length - 1) + (kind === "EXPRESS" || kind === "grande-vitesse" ? 20 : kind === "TGV" ? 40 : 8);
+  // 2.6 : sans espace entre les pièces d'un habillage de créateur (voir plus bas), la rame reste centrée
+  const joinedU = plan.reduce((s, p, i) => s + (i > 0 && p.kind === "svghead" ? gapU + 4 : i > 0 && p.kind === "svgcar" && plan[i - 1].kind === "svgcar" ? gapU + SVG_OVERLAP : 0), 0);
+  const naturalU = plan.reduce((s, p) => s + p.w, 0) + gapU * (plan.length - 1) - joinedU + (kind === "EXPRESS" || kind === "grande-vitesse" ? 20 : kind === "TGV" ? 40 : 8);
   const u = o.maxWidth ? Math.min(o.u, o.maxWidth / naturalU) : o.u;
   const total = naturalU * u;
   const c: Ctx = {
@@ -1715,14 +1733,19 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
   ctx.fill();
   plan.forEach((p, i) => {
     const w = p.w * u;
-    const x0 = x;
-    if (i === 0 && shiftFirst) x += shiftFirst;
     // la motrice d'un habillage de créateur s'attelle caisse contre caisse (ses tampons, 4 unités, passent devant la voiture)
     if (i > 0 && p.kind === "svghead") x -= (gapU + 4) * u;
+    /* 2.6 : les voitures d'un habillage de créateur s'attellent bout à bout,
+       sans l'espace prévu pour le soufflet du jeu : leurs extrémités sont déjà
+       dessinées (portes, intercirculation). Le décalage vaut pour la suite de la rame. */
+    const svgJoin = i > 0 && p.kind === "svgcar" && plan[i - 1].kind === "svgcar";
+    if (svgJoin) x -= (gapU + SVG_OVERLAP) * u;
+    const x0 = x;
+    if (i === 0 && shiftFirst) x += shiftFirst;
     pieces.push({ x, w, kind: p.kind });
     // pas de soufflet d'intercirculation entre des wagons de fret, ni vers une locomotive (de fret, ou la motrice d'un habillage de créateur)
     const WAGON_PIECES = ["flat", "hopper", "plate", "container", "autos", "tank", "boxcar", "reefer"];
-    const freightJoin = WAGON_PIECES.includes(p.kind) || (i > 0 && WAGON_PIECES.includes(plan[i - 1].kind)) || ["shunter", "modern", "svghead"].includes(p.kind);
+    const freightJoin = WAGON_PIECES.includes(p.kind) || (i > 0 && WAGON_PIECES.includes(plan[i - 1].kind)) || ["shunter", "modern", "svghead"].includes(p.kind) || svgJoin;
     if (i > 0 && !["tender", "steam"].includes(p.kind) && !freightJoin) gangway(ctx, x - gapU * u, o.base - LIFT * u - CAR_H * u, o.base - LIFT * u, u);
     switch (p.kind) {
       case "coach": {
@@ -1735,10 +1758,10 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
         break;
       // 2.6 : un véhicule d'habillage de créateur
       case "svgcar":
-        svgPiece(c, x, w, p.arg as SvgPart, false);
+        svgPiece(c, x, w, p.arg as SvgPart, false, svgJoin);
         break;
       case "svghead":
-        head = svgPiece(c, x, w, p.arg as SvgPart, true);
+        head = svgPiece(c, x, w, p.arg as SvgPart, true, i > 0);
         break;
       // 2.4.2 : une voiture ajoutée, à l'allure de la rame (nuit, argent, deux niveaux)
       case "car": {

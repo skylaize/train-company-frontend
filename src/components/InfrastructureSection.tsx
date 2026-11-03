@@ -24,6 +24,15 @@ interface Rules {
   buyoutCost: number;
   buyoutPayout: number;
   sellBack: number;
+  // 2.6 : commerces et gares surveillées
+  shopSlots?: Record<string, number>;
+  shopPriceShare?: number;
+  shopSellBack?: number;
+  shopRent?: number;
+  shopsPerRankStation?: number;
+  maxShops?: number;
+  maxWatches?: number;
+  isPremium?: boolean;
   protectionHours: number;
   workshopCost: number;
   maxWorkshops: number;
@@ -64,6 +73,39 @@ interface OwnedStation {
   sellValue: number;
   traffic24h: number;
   served: boolean;
+  buyoutPayout?: number; // 2.6
+  shops?: ShopInfo;
+}
+
+// 2.6 : les emplacements de commerce d'une gare
+interface ShopInfo {
+  slots: number;
+  taken: number;
+  price: number;
+  mine: boolean;
+}
+
+interface MyShop extends ShopInfo {
+  id: string;
+  station: string;
+  sizeLabel: string;
+  paid: number;
+  totalIncome: number;
+  boughtAt: string;
+  sellValue: number;
+  traffic24h: number;
+}
+
+interface AdvisorRow {
+  station: string;
+  sizeLabel: string;
+  passengers24h: number;
+  slots: number;
+  taken: number;
+  mine: boolean;
+  price: number;
+  perDay: number;
+  paybackDays: number | null;
 }
 
 interface MarketStation {
@@ -75,6 +117,8 @@ interface MarketStation {
   served: boolean;
   owner: { name: string; emblem: string | null; liveryColor: string; level: number } | null;
   protectedUntil: string | null;
+  shops?: ShopInfo; // 2.6
+  watched?: boolean;
 }
 
 interface InfraData {
@@ -84,6 +128,8 @@ interface InfraData {
   workshops: { id: string; station: string; createdAt: string; lines: number }[];
   lines: { id: string; route: string[]; km: number; electrified: boolean; cost: number; doubleTrack?: boolean; doubleCost?: number; trains?: number; hsl?: HslInfo }[];
   yards?: { id: string; station: string; createdAt: string; served: boolean }[];
+  shops?: MyShop[]; // 2.6
+  watches?: string[];
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString("fr-FR");
@@ -128,8 +174,20 @@ export function InfrastructureSection({
       })
       .catch(() => setError(true));
 
+  /* 2.5.1 : la page ne se rechargeait jamais. Un joueur qui attendait la fin
+     de la protection d'une gare voyait son bouton rester « protégée » jusqu'à
+     ce qu'il recharge, pendant qu'un autre, arrivé après, l'achetait. On
+     recharge toutes les 30 s, l'horloge tourne à la seconde, et le bouton
+     s'ouvre à l'instant où la protection tombe. */
+  const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     load();
+    const refresh = setInterval(load, 30_000);
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => {
+      clearInterval(refresh);
+      clearInterval(tick);
+    };
   }, []);
 
   async function act(key: string, url: string, body: object, done: string) {
@@ -142,8 +200,20 @@ export function InfrastructureSection({
       onChange();
     } catch (err: any) {
       showToast(err?.response?.data?.error || "Erreur", "error");
+      void load(); // la gare a pu changer de mains : la liste se remet à jour
     } finally {
       setBusy(null);
+    }
+  }
+
+  // 2.6 : surveiller une gare (prévenu en même temps que tous ses surveillants)
+  async function watch(station: string) {
+    try {
+      const { data: r } = await api.post("/infrastructure/stations/watch", { station });
+      showToast(r.watching ? `Gare de ${station} surveillée : vous serez prévenu 10 min avant la fin de sa protection` : `Vous ne surveillez plus ${station}`);
+      await load();
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || "Erreur", "error");
     }
   }
 
@@ -168,8 +238,9 @@ export function InfrastructureSection({
         <p className="text-[13px] text-slate2 font-body max-w-3xl mb-4">
           Une gare à vous encaisse les dépenses des voyageurs dans ses commerces, à chaque train qui s'y arrête, et une redevance de quai de{" "}
           {pct(rules.platformFee)} de la recette des autres compagnies. Vos propres trajets qui la desservent rapportent +{pct(rules.homeBonusStep)} (jusqu'à +
-          {pct(rules.homeBonusCap)}). Un concurrent peut vous la racheter {String(rules.buyoutCost).replace(".", ",")} fois son prix après{" "}
-          {rules.protectionHours} h : vous touchez alors {String(rules.buyoutPayout).replace(".", ",")} fois ce qu'elle vous a coûté.
+          {pct(rules.homeBonusCap)}). Un concurrent peut vous la racheter après {rules.protectionHours} h, {String(rules.buyoutCost).replace(".", ",")} fois sa valeur (prix de base et
+          agrandissements) : vous touchez alors {String(rules.buyoutPayout).replace(".", ",")} fois cette valeur. Le prix ne monte plus d'un rachat à l'autre ;
+          une gare achetée avant la 2.6 vous rapporte toujours {String(rules.buyoutPayout).replace(".", ",")} fois ce que vous l'avez payée.
           {rules.nextStationCap && (
             <>
               {" "}
@@ -214,7 +285,15 @@ export function InfrastructureSection({
                   <div className="px-4 py-2.5 flex flex-wrap items-center gap-2">
                     <span className="text-[11.5px] font-body text-slate2 flex-1 min-w-[160px]">
                       {protectedNow ? `Protégée jusqu'à ${when(s.protectedUntil)}` : "Rachetable par un concurrent"}
+                      {s.buyoutPayout ? ` (vous toucheriez ${fmt(s.buyoutPayout)})` : ""}
                       {!s.served && " · aucune de vos lignes n'y passe"}
+                      {s.shops && (
+                        <span className="block">
+                          {s.shops.taken
+                            ? `${s.shops.taken}/${s.shops.slots} commerces loués : vous touchez ${pct(rules.shopRent ?? 0.15)} de leurs recettes`
+                            : `${s.shops.slots} emplacements de commerce, aucun loué : vous tenez les commerces vous-même`}
+                        </span>
+                      )}
                     </span>
                     {s.nextUpgrade != null && (
                       <button
@@ -249,13 +328,39 @@ export function InfrastructureSection({
           </div>
           {data.market.length === 0 && <p className="px-4 py-4 text-[13px] text-slate2 font-body">Tracez des lignes : les gares de votre réseau apparaîtront ici.</p>}
           {data.market.map((m) => {
-            const locked = m.protectedUntil != null;
+            const left = m.protectedUntil != null ? new Date(m.protectedUntil).getTime() - now : 0;
+            const locked = left > 0;
+            // la dernière heure, un compte à rebours plutôt qu'une heure
+            const countdown = locked && left < 3600_000 ? `${Math.floor(left / 60_000)} min ${String(Math.floor((left % 60_000) / 1000)).padStart(2, "0")} s` : null;
             return (
               <div key={m.station} className="grid grid-cols-[1fr_auto_auto_auto] md:grid-cols-[1.4fr_1fr_0.7fr_auto] gap-x-4 items-center px-4 py-2.5 border-b border-line last:border-0">
                 <div className="min-w-0">
                   <span className="font-body text-offwhite">{m.station}</span>
                   <span className="ml-2 font-mono2 text-[10.5px] text-slate2">{m.sizeLabel}</span>
                   {m.served && <span className="ml-2 font-body text-[12px] text-cobalt font-medium">votre réseau</span>}
+                  {/* 2.6 : les commerces de la gare, et la surveillance de sa protection */}
+                  <div className="flex flex-wrap items-center gap-2 mt-1">
+                    {m.shops && (
+                      <ShopButton
+                        atMax={(data.shops ?? []).length >= (rules.maxShops ?? 3)}
+                        station={m.station}
+                        info={m.shops}
+                        busy={busy}
+                        balance={balance}
+                        onBuy={() => act("shop" + m.station, "/infrastructure/shops/buy", { station: m.station }, `Commerce ouvert à ${m.station}`)}
+                      />
+                    )}
+                    {m.owner && (
+                      <button
+                        onClick={() => watch(m.station)}
+                        disabled={!!busy}
+                        title={m.watched ? "Ne plus surveiller" : "Être prévenu 10 min avant la fin de sa protection, en même temps que tous ceux qui la surveillent"}
+                        className={`text-[11.5px] font-body px-1.5 py-0.5 border rounded-control whitespace-nowrap ${m.watched ? "text-amber border-amber/50" : "text-slate2 border-line hover:text-offwhite"}`}
+                      >
+                        {m.watched ? "◉ surveillée" : "○ surveiller"}
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div className="hidden md:flex items-center gap-1.5 text-[12.5px] font-body min-w-0">
                   {m.owner ? (
@@ -274,7 +379,7 @@ export function InfrastructureSection({
                   title={full ? `${rules.maxStations} gares au plus` : locked ? `Protégée jusqu'à ${when(m.protectedUntil!)}` : balance < m.price ? "Trésorerie insuffisante" : undefined}
                   className={`text-[12px] font-body border px-2 py-1 disabled:opacity-40 whitespace-nowrap font-medium rounded-control ${m.owner ? "text-amber border-amber/40 hover:bg-amber/10" : "text-cobalt border-cobalt/40 hover:bg-cobalt/10"}`}
                 >
-                  {locked ? "protégée" : m.owner ? "Racheter" : "Acheter"} · {fmt(m.price)}
+                  {locked ? (countdown ? `libre dans ${countdown}` : "protégée") : m.owner ? "Racheter" : "Acheter"} · {fmt(m.price)}
                 </button>
               </div>
             );
@@ -298,8 +403,56 @@ export function InfrastructureSection({
                 Acheter · {fmt(otherPrice)}
               </button>
             )}
+            {other && (
+              <button
+                onClick={() => act("shop" + other, "/infrastructure/shops/buy", { station: other }, `Commerce ouvert à ${other}`).then(() => setOther(""))}
+                disabled={!!busy || balance < Math.round(otherPrice * (rules.shopPriceShare ?? 0.4))}
+                className="text-[12px] font-body text-rail-green border border-rail-green/40 px-2 py-1 hover:bg-rail-green/10 disabled:opacity-40 font-medium rounded-control"
+              >
+                Ouvrir un commerce · {fmt(Math.round(otherPrice * (rules.shopPriceShare ?? 0.4)))}
+              </button>
+            )}
           </div>
         </div>
+      </section>
+
+      {/* ---------------- 2.6 : commerces ---------------- */}
+      <section>
+        <SectionTitle title="Vos commerces" aside={`${(data.shops ?? []).length}/${rules.maxShops ?? 3} commerces`} />
+        <p className="text-[13px] text-slate2 font-body max-w-3xl mb-4">
+          Chaque gare a des emplacements de commerce selon sa taille (capitale {rules.shopSlots?.["5"] ?? 16}, métropole {rules.shopSlots?.["4"] ?? 12}, grande ville{" "}
+          {rules.shopSlots?.["3"] ?? 8}, ville moyenne {rules.shopSlots?.["2"] ?? 6}, petite ville {rules.shopSlots?.["1"] ?? 4}), une place par compagnie et par gare, et{" "}
+          {rules.maxShops ?? 3} commerces au plus par compagnie. Les commerçants
+          se partagent ce que dépensent les voyageurs de la gare ; son propriétaire en touche {pct(rules.shopRent ?? 0.15)} de loyer. Un commerce coûte{" "}
+          {pct(rules.shopPriceShare ?? 0.4)} du prix de la gare, ne se rachète pas, et se revend {pct(rules.shopSellBack ?? 0.6)} de son prix. Pour les grades,{" "}
+          {rules.shopsPerRankStation ?? 2} commerces comptent pour une gare.
+        </p>
+        {(data.shops ?? []).length > 0 ? (
+          <div className="border border-line rounded-card mb-4">
+            {(data.shops ?? []).map((sh) => (
+              <div key={sh.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 border-b border-line last:border-0">
+                <div className="min-w-0 flex-1">
+                  <span className="font-body text-offwhite">{sh.station}</span>
+                  <span className="ml-2 font-mono2 text-[10.5px] text-slate2">{sh.sizeLabel}</span>
+                  <span className="ml-2 font-body text-[12px] text-slate2">
+                    {sh.taken}/{sh.slots} commerçants · trafic {fmt(sh.traffic24h)}
+                  </span>
+                </div>
+                <span className="font-mono2 text-[12.5px] text-rail-green tabular-nums">+{fmt(sh.totalIncome)}</span>
+                <button
+                  onClick={() => act("sellshop" + sh.station, "/infrastructure/shops/sell", { station: sh.station }, `Commerce de ${sh.station} revendu`)}
+                  disabled={!!busy}
+                  className="text-[12px] font-body text-slate2 border border-line px-2 py-1 hover:text-rail-red disabled:opacity-40 font-medium rounded-control"
+                >
+                  Revendre · {fmt(sh.sellValue)}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-[13px] text-slate2 font-body mb-4">Pas encore de commerce. Ouvrez-en un depuis la liste des gares ci-dessus.</p>
+        )}
+        <ShopAdvisor premium={Boolean(rules.isPremium)} busy={busy} balance={balance} onBuy={(st) => act("shop" + st, "/infrastructure/shops/buy", { station: st }, `Commerce ouvert à ${st}`)} />
       </section>
 
       {/* ---------------- ateliers ---------------- */}
@@ -608,5 +761,113 @@ function YardGlyph() {
         <rect key={i} x={x as number} y={(y as number) - 3.2} width="18" height="5" fill={c as string} />
       ))}
     </svg>
+  );
+}
+
+/* 2.6 : le bouton « Ouvrir un commerce » d'une gare, avec ses places */
+function ShopButton({ info, busy, balance, onBuy, atMax }: { station: string; info: ShopInfo; busy: string | null; balance: number; onBuy: () => void; atMax?: boolean }) {
+  if (info.mine) return <span className="text-[11.5px] font-body text-rail-green">votre commerce · {info.taken}/{info.slots}</span>;
+  const full = info.taken >= info.slots;
+  return (
+    <button
+      onClick={onBuy}
+      disabled={!!busy || full || atMax || balance < info.price}
+      title={full ? "Tous les emplacements sont pris" : atMax ? "Vous avez déjà le maximum de commerces" : balance < info.price ? "Trésorerie insuffisante" : undefined}
+      className="text-[11.5px] font-body text-rail-green border border-rail-green/40 px-1.5 py-0.5 hover:bg-rail-green/10 disabled:opacity-40 rounded-control whitespace-nowrap"
+    >
+      {full ? `commerces complets · ${info.slots}/${info.slots}` : `Commerce ${info.taken}/${info.slots} · ${Math.round(info.price).toLocaleString("fr-FR")}`}
+    </button>
+  );
+}
+
+/* 2.6 (Premium) : le conseiller des commerces. Chargé à la demande. */
+function ShopAdvisor({ premium, busy, balance, onBuy }: { premium: boolean; busy: string | null; balance: number; onBuy: (station: string) => void }) {
+  const [rows, setRows] = useState<AdvisorRow[] | null>(null);
+  const [open, setOpen] = useState(false);
+  const load = () =>
+    api
+      .get("/infrastructure/shops/advisor")
+      .then(({ data }) => setRows(data.locked ? [] : data.rows))
+      .catch(() => setRows([]));
+  if (!premium) {
+    return (
+      <div className="border border-line border-dashed rounded-card px-4 py-3 text-[13px] font-body text-slate2">
+        <span className="text-amber font-medium">Premium</span> · Le conseiller des commerces classe les gares par rendement d'une place : ce qu'elle rapporterait par jour, d'après les
+        voyageurs des dernières 24 h, et en combien de jours elle serait payée.
+      </div>
+    );
+  }
+  return (
+    <div className="border border-line rounded-card">
+      <button
+        onClick={() => {
+          setOpen(!open);
+          if (!rows) void load();
+        }}
+        className="w-full flex items-center justify-between px-4 py-2.5 text-left font-body text-[13.5px]"
+      >
+        <span>
+          <span className="text-amber font-medium">Conseiller des commerces</span>
+          <span className="text-slate2"> · où une place rapporterait le plus</span>
+        </span>
+        <span className="text-slate2">{open ? "▾" : "▸"}</span>
+      </button>
+      {open && (
+        <div className="border-t border-line">
+          {!rows ? (
+            <p className="px-4 py-3 text-[13px] text-slate2 font-body">Calcul…</p>
+          ) : rows.length === 0 ? (
+            <p className="px-4 py-3 text-[13px] text-slate2 font-body">Pas assez de trafic sur les dernières 24 h pour conseiller.</p>
+          ) : (
+            <table className="w-full text-[12.5px] font-body">
+              <thead>
+                <tr className="text-slate2 text-left">
+                  <th className="px-4 py-1.5 font-medium">Gare</th>
+                  <th className="px-2 py-1.5 font-medium text-right hidden sm:table-cell">Voyageurs 24 h</th>
+                  <th className="px-2 py-1.5 font-medium text-right">Places</th>
+                  <th className="px-2 py-1.5 font-medium text-right">Par jour</th>
+                  <th className="px-2 py-1.5 font-medium text-right">Payé en</th>
+                  <th className="px-4 py-1.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.station} className="border-t border-line">
+                    <td className="px-4 py-1.5">
+                      {r.station} <span className="font-mono2 text-[10.5px] text-slate2">{r.sizeLabel}</span>
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-mono2 tabular-nums hidden sm:table-cell">{r.passengers24h.toLocaleString("fr-FR")}</td>
+                    <td className="px-2 py-1.5 text-right font-mono2 tabular-nums">
+                      {r.taken}/{r.slots}
+                    </td>
+                    <td className="px-2 py-1.5 text-right font-mono2 tabular-nums text-rail-green">+{r.perDay.toLocaleString("fr-FR")}</td>
+                    <td className="px-2 py-1.5 text-right font-mono2 tabular-nums">{r.paybackDays != null ? `${String(r.paybackDays).replace(".", ",")} j` : "—"}</td>
+                    <td className="px-4 py-1.5 text-right">
+                      {r.mine ? (
+                        <span className="text-rail-green">à vous</span>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            onBuy(r.station);
+                            setTimeout(load, 800);
+                          }}
+                          disabled={!!busy || balance < r.price}
+                          className="text-[11.5px] text-rail-green border border-rail-green/40 px-1.5 py-0.5 hover:bg-rail-green/10 disabled:opacity-40 rounded-control"
+                        >
+                          {r.price.toLocaleString("fr-FR")}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+          <p className="px-4 py-2 text-[11.5px] text-slate2 font-body border-t border-line">
+            Estimation : ce que dépensent les voyageurs des dernières 24 h, partagé entre les commerçants (vous compris), loyer du propriétaire déduit.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

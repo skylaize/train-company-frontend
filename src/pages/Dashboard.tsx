@@ -1646,7 +1646,7 @@ export default function Dashboard() {
                       skin: c.heritage.skin,
                       livery: c.heritage.livery,
                       kicker: "Remise en service",
-                      subtitle: `${c.heritage.label} ${c.heritage.serial}, ${new Date().getFullYear() - c.heritage.year} ans · billet +${Math.round((c.heritage.prestige - 1) * 100)} %`,
+                      subtitle: `${c.heritage.label} ${c.heritage.serial}, ${new Date().getFullYear() - c.heritage.year} ans · ${c.heritage.serial === "VB2N" ? "25 % de places en plus" : `billet +${Math.round((c.heritage.prestige - 1) * 100)} %`}`,
                     })
                   }
                 />
@@ -3732,7 +3732,7 @@ function TrainsSection({
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[12.5px] font-body text-slate2">
                   {t.heritage ? (
                     <span title={t.heritage.history} style={{ color: RARITY_COLOR[t.heritage.rarity] }}>
-                      Collection · {t.heritage.serial} · billet +{Math.round((t.heritage.prestige - 1) * 100)} %
+                      Collection · {t.heritage.serial} · {t.heritage.serial === "VB2N" ? "25 % de places en plus" : `billet +${Math.round((t.heritage.prestige - 1) * 100)} %`}
                     </span>
                   ) : (
                     <span className={t.model === "STANDARD" ? "" : "text-amber"}>{modelLabel(t.model)}</span>
@@ -6960,9 +6960,9 @@ function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, l
                             {m.savingsPerHour !== undefined && (
                               <span
                                 className={m.savingsPerHour > m.salaryPerHour ? "text-rail-green block" : "text-slate2 block"}
-                                title="Estimation, rames en service en continu"
+                                title={m.role === "CONTROLEUR" ? "Estimation, sur la recette de sa rame ces dernières 24 h" : "Estimation, rames en service en continu"}
                               >
-                                {m.role === "DIRECTEUR_COMMERCIAL" ? "rapporte" : "fait économiser"} ~{m.savingsPerHour} pi./h
+                                {m.role === "DIRECTEUR_COMMERCIAL" || m.role === "CONTROLEUR" ? "rapporte" : "fait économiser"} ~{m.savingsPerHour} pi./h
                               </span>
                             )}
                           </span>
