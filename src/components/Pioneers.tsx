@@ -65,9 +65,12 @@ async function deliver(canvas: HTMLCanvasElement | null, fileName: string, share
   setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
 
+// 2.6 : le bandeau de la fête des 200 ne reste plus sur la flotte : passé cette date, il disparaît même sans avoir été fermé
+const BANNER_UNTIL = new Date("2026-10-31T00:00:00+01:00").getTime();
+
 export function PioneersBanner({ onOpen }: { onOpen: () => void }) {
   const [closed, setClosed] = useState(() => safeGet(SEEN_KEY) === "1");
-  if (closed) return null;
+  if (closed || Date.now() > BANNER_UNTIL) return null;
   return (
     <div className="border border-amber/50 bg-amber/5 p-4 mb-6 flex items-center gap-4 flex-wrap rounded-card">
       <span className="font-display text-[28px] leading-none text-amber" aria-hidden="true">200</span>

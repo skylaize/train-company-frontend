@@ -19,6 +19,8 @@ export interface Train200Data {
   startsAt?: string;
   endsAt?: string;
   reward?: number;
+  goal?: number; // 2.6 : 200 ou 500
+  label?: string;
   route?: { station: string; at: string }[];
   painted?: { name: string; livery: string; station: string; at: string }[];
   mine?: { station: string; at: string; reward: number } | null;
@@ -63,11 +65,15 @@ export function useTrain200() {
 
 export type Train200Phase = "attente" | "route" | "arrive";
 
+// 2.6 : passé son terminus, le train reste affiché deux jours, puis disparaît de la flotte et de la carte
+const AFTER_MS = 2 * 86_400_000;
+
 export function train200State(data: Train200Data | null, now: number) {
   if (!data?.exists || !data.route || data.route.length < 2) return null;
   const route = data.route;
   const times = route.map((s) => new Date(s.at).getTime());
   const start = times[0], end = times[times.length - 1];
+  if (now > end + AFTER_MS) return null;
   const phase: Train200Phase = now < start ? "attente" : now >= end ? "arrive" : "route";
   let i = 0;
   while (i < route.length - 2 && times[i + 1] <= now) i++;
@@ -108,15 +114,16 @@ export function Train200Card({ onShowMap }: { onShowMap?: () => void }) {
   const st = train200State(data, now);
   if (!data || !st) return null;
   const painted = data.painted ?? [];
-  const reward = data.reward ?? 250;
+  const reward = (data.reward ?? 250).toLocaleString("fr-FR");
+  const label = data.label ?? "Train des 200";
 
   return (
     <div className="border border-[#d4a017]/50 bg-[#d4a017]/[0.04] mb-6 overflow-hidden rounded-card">
       <div className="relative h-[86px] border-b border-[#d4a017]/30 bg-gradient-to-b from-navy-900 to-navy-950" aria-hidden="true">
         <div className="absolute inset-x-0 bottom-0">
-          <TrainPicture model="STANDARD" livery={TRAIN200_GOLD} height={70} align="center" label="Train des 200" />
+          <TrainPicture model="STANDARD" livery={TRAIN200_GOLD} height={70} align="center" label={label} />
         </div>
-        <span className="absolute top-2 left-3 font-mono2 text-[10.5px] tracking-[0.18em] text-[#d4a017]">TRAIN DES 200</span>
+        <span className="absolute top-2 left-3 font-mono2 text-[10.5px] tracking-[0.18em] text-[#d4a017]">{label.toUpperCase()}</span>
       </div>
       <div className="p-4">
         {st.phase === "attente" && (
@@ -141,7 +148,7 @@ export function Train200Card({ onShowMap }: { onShowMap?: () => void }) {
         <p className="font-body text-[13.5px] mt-3">
           {data.mine ? (
             <span className="text-rail-green">
-              Il est passé chez vous, à {data.mine.station} : +{data.mine.reward} pi., et votre nom est sur ses voitures.
+              Il est passé chez vous, à {data.mine.station} : +{data.mine.reward.toLocaleString("fr-FR")} pi., et votre nom est sur ses voitures.
             </span>
           ) : data.nextForMe ? (
             <span className="text-slate2">
@@ -186,7 +193,7 @@ export function Train200MapLayer({ k }: { k: number }) {
   if (!data?.route || !st || st.phase === "arrive") return null;
   const pts = data.route.map((s) => STATION_COORDS[s.station]).filter(Boolean);
   return (
-    <g aria-label="Le Train des 200" pointerEvents="none">
+    <g aria-label={`Le ${data?.label ?? "Train des 200"}`} pointerEvents="none">
       <polyline
         points={pts.map((p) => `${p.x},${p.y}`).join(" ")}
         fill="none"
@@ -213,7 +220,7 @@ export function Train200MapLayer({ k }: { k: number }) {
             strokeWidth={2.4 * k}
             paintOrder="stroke"
           >
-            200
+            {data?.goal ?? 200}
           </text>
         </>
       )}
