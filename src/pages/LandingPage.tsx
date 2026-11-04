@@ -242,12 +242,12 @@ function StationClock({ now }: { now: Date }) {
 }
 
 /* 2.4 : les nouveautés, sur la section du haut */
-/* 2.5.1 : l'avis de la version en cours (2.5). La 2.4 tient en une ligne au pied de l'avis. */
-const NOUVEAU_25 = [
-  { k: "Campagnes", t: "Une région à conquérir", b: "Huit étapes par région, de la première gare desservie à la région entière. Une prime à chaque étape, et le titre « Compagnie de Bretagne » (ou d'ailleurs) au bout." },
-  { k: "Compagnonnage", t: "Un tuteur pour démarrer", b: "Les deux premières semaines, un joueur expérimenté vous accompagne : il voit où vous en êtes et vous conseille. Chaque grade franchi vous rapporte, à tous les deux." },
-  { k: "Nuit", t: "La voiture-couchettes", b: "Attelée à un train de nuit : soixante couchettes de plus, au billet 10 % plus cher. Et un train de nuit en retard pendant la nuit ne coûte plus de réputation." },
-  { k: "Boutique", t: "Régions et nuit", b: "L'hermine de Bretagne, la cigogne d'Alsace, la lavande de Provence, le volcan d'Auvergne, et quatre livrées pour les trains qui roulent quand tout dort." },
+/* 2.6 : l'avis de la version en cours. La 2.5 tient en une ligne au pied de l'avis. */
+const NOUVEAU_26 = [
+  { k: "Commerces", t: "Une boutique dans n'importe quelle gare", b: "Chaque gare a des emplacements : seize à Paris, quatre à Chartres. Vous en louez un, même si la gare appartient à un autre joueur, et vous touchez votre part de ce que dépensent les voyageurs. Trois par compagnie au plus." },
+  { k: "Gares", t: "Fini la course au clic", b: "Quand la protection d'une gare se termine, tous ceux qui la surveillent sont prévenus au même moment, dix minutes avant. Et son prix de rachat ne grimpe plus à chaque revente." },
+  { k: "Trésorerie", t: "Ce qui reste vraiment dans la caisse", b: "Chaque soir à minuit, le jeu note votre solde. Vous voyez jour par jour ce que vous avez gagné, salaires et taxe carbone compris." },
+  { k: "Série Créateurs", t: "Un Intercités dessiné par un joueur", b: "N0RCAM a dessiné la motrice et ses trois voitures. L'habillage est en boutique, et une part de chaque vente lui revient." },
 ];
 
 export default function LandingPage() {
@@ -410,18 +410,17 @@ export default function LandingPage() {
         <div className="lp-wrap">
           <article className="lp-avis">
             <header className="lp-avis-hd">
-              <span>Avis aux exploitants · n° 2.5</span>
+              <span>Avis aux exploitants · n° 2.6</span>
               <span>Novembre 2026</span>
             </header>
             <div className="lp-avis-top">
-              <h2 className="lp-h2">Une région à conquérir, un tuteur pour démarrer.</h2>
+              <h2 className="lp-h2">Un commerce sur le quai.</h2>
               <p className="lp-sub">
-                Plus de 400 joueurs, et deux façons de ne jamais se demander quoi faire ensuite : une campagne par région, et un
-                joueur expérimenté à vos côtés pour vos deux premières semaines.
+                Les grandes gares appartiennent à quelques compagnies. Depuis la 2.6, tout le monde peut quand même y ouvrir une boutique.
               </p>
             </div>
             <ol className="lp-avis-list">
-              {NOUVEAU_25.map((n, i) => (
+              {NOUVEAU_26.map((n, i) => (
                 <li key={n.t}>
                   <span className="lp-avis-n">{String(i + 1).padStart(2, "0")}</span>
                   <div>
@@ -433,13 +432,13 @@ export default function LandingPage() {
               ))}
             </ol>
             <div className="lp-avis-train" aria-hidden="true">
-              <TrainPicture model="COUCHETTES" livery="#26345e" cars={["COUCHETTE", "COUCHETTE"]} height={70} align="center" label="Train de nuit et ses voitures-couchettes" />
+              <TrainPicture skin="intercites" livery="#e36a12" cars={[]} height={70} align="center" label="L'Intercités de N0RCAM" />
             </div>
             <footer className="lp-avis-ft">
               <button className="lp-btn" onClick={register}>
                 Monter à bord
               </button>
-              <span>Applicable à compter de la version 2.5. Depuis la 2.4 : le gazole, le courant, la taxe carbone, les voies et le TGV.</span>
+              <span>Applicable à compter de la version 2.6. Depuis la 2.5 : les campagnes régionales, le compagnonnage et la voiture-couchettes.</span>
             </footer>
           </article>
         </div>
