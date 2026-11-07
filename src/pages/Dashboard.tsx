@@ -83,7 +83,7 @@ import { CampaignSection } from "../components/CampaignSection";
 import { MentorSection } from "../components/MentorSection";
 import { MentorInviteCard } from "../components/MentorInviteCard";
 import { CampaignChip } from "../components/CampaignChip";
-import { FirstSteps, firstStepsActive, firstStepsProgress, firstStepsDone, FirstStepsInput } from "../components/FirstSteps";
+import { FirstSteps, firstStepsActive, firstStepsProgress, firstStepsDone, firstStepsNext, FirstStepsInput } from "../components/FirstSteps";
 import { Decision, DecisionBanner, DecisionModal } from "../components/Decisions";
 import { NewsTicker, NewsItem } from "../components/NewsTicker";
 import { applyTheme, readLocalTheme, THEMES, ThemeId } from "../theme";
@@ -275,6 +275,7 @@ interface Contract {
   forOrder?: { ref: string; client: string; progress: number; target: number; more: number } | null;
   // 2.3 : le conteneur scellé, et ce qu'on y a trouvé ("CODE|ce qu'il y avait")
   sealed?: boolean;
+  reservedFor?: string | null; // 2.6.1 : contrat de bienvenue
   sealedOutcome?: string | null;
 }
 
@@ -464,6 +465,8 @@ export default function Dashboard() {
       setShowCatalog(false);
       if (data?.id) setArrival({ id: data.id, name: data.name ?? trainName, model: (data.model ?? model) as Train["model"] });
       else showToast(`${trainName} acquise`);
+      // 2.6.1 : la première locomotive de fret d'un nouveau venu arrive avec son wagon
+      if (data?.giftWagon) showToast("Un wagon plat est offert avec votre première locomotive : le contrat de bienvenue vous attend dans le fret");
       loadAll();
     } catch (err: any) {
       showToast(err?.response?.data?.error || "Erreur", "error");
@@ -1374,7 +1377,7 @@ export default function Dashboard() {
         />
       )}
       {showWhatsNew && !showTutorial && <WhatsNewModal onClose={dismissWhatsNew} />}
-      {!showWhatsNew && !showTutorial && <AbsenceReport onNavigate={setView} company={company} onChange={loadAll} />}
+      {!showWhatsNew && !showTutorial && <AbsenceReport onNavigate={setView} company={company} onChange={loadAll} nextStep={firstStepsNext(firstSteps)} />}
       {editingCompany && (
         <EditCompanyModal company={company} onClose={() => setEditingCompany(false)} onChange={loadAll} />
       )}
@@ -4129,7 +4132,13 @@ function FreightSection({
                       {c.sealed && <SealedMark size={15} className="text-amber shrink-0" />}
                       {c.cargoType}
                       {c.sealed && <span className="ml-1 text-[11.5px] font-normal text-amber rounded-full bg-amber/[0.12] px-2 py-0.5">contenu inconnu</span>}
+                      {c.reservedFor && <span className="ml-1 text-[11.5px] font-normal text-rail-green rounded-full bg-rail-green/[0.12] px-2 py-0.5">contrat de bienvenue</span>}
                     </div>
+                    {c.reservedFor && (
+                      <p className="text-[12.5px] text-slate2 font-body mt-0.5 leading-snug">
+                        Réservé pour vous pendant 24 h et payé moitié plus. Il voyage sur un wagon plat : votre premier Locotracteur en reçoit un en cadeau.
+                      </p>
+                    )}
                     {c.sealed && (
                       <p className="text-[12.5px] text-slate2 font-body mt-0.5 leading-snug">
                         Payé d'avance au prix fort. On découvre ce qu'il y a dedans à l'arrivée : un trésor, une pièce pour l'atelier, de la casse, ou des ennuis avec la douane.

@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.6.0";
+export const CURRENT_VERSION = "2.6.1";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,17 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.6.1",
+    date: "Novembre 2026",
+    changes: [
+      { type: "nouveau", text: "Nouveaux venus : un contrat de fret de bienvenue vous attend sur le marché, réservé 24 h et payé moitié plus, et votre première locomotive de fret arrive avec un wagon plat offert" },
+      { type: "ameliore", text: "Nouveaux venus : la première semaine, une facture d'énergie impayée ne bloque plus vos rames, le jeu vous fait crédit" },
+      { type: "ameliore", text: "Premiers pas : la correspondance passe avant le fret, et au retour d'une absence le bilan vous dit ce que vos rames ont fait et quelle est la prochaine étape" },
+      { type: "corrige", text: "Campagnes : l'étape de fret ne comptait que les contrats acceptés après son début, pas ceux livrés après. Une tournée en cours au moment d'atteindre l'étape compte maintenant" },
+      { type: "corrige", text: "Alliances : les parts de l'objectif « gares communes » pouvaient dépasser 100 % (2 350 %). Elles se lisent maintenant sur le total, et seules les nouvelles gares communes de la semaine comptent" },
+    ],
+  },
   {
     version: "2.6.0",
     date: "Novembre 2026",

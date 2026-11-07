@@ -909,6 +909,11 @@ function WeekObjectives({ obj, members }: { obj: Objectives | null; members: (Ma
           const total = Math.max(1, o.target);
           const shares = [...o.shares].filter((s) => s.value > 0).sort((x, y) => y.value - x.value);
           const pct = Math.min(100, Math.round((o.progress / total) * 100));
+          /* 2.6.1 : la part de chacun se lit sur la somme des parts, et la jauge
+             se remplit jusqu'à l'avancement réel : des parts plus grandes que
+             l'objectif (gares communes) affichaient « 2 350 % ». */
+          const sumShares = shares.reduce((a, x) => a + x.value, 0) || 1;
+          const filled = Math.min(1, o.progress / total);
           return (
             <li key={o.kind} className={`rounded-control border px-3.5 py-3 flex flex-col gap-2.5 ${o.done ? "border-rail-green/40 bg-rail-green/[0.06]" : "border-line bg-navy-950/35"}`}>
               <div className="flex items-start gap-2.5">
@@ -930,8 +935,8 @@ function WeekObjectives({ obj, members }: { obj: Objectives | null; members: (Ma
                   <span
                     key={s.companyId}
                     className="h-full first:rounded-l-full shadow-[inset_-1px_0_0_rgb(var(--c-navy-950)/0.6)]"
-                    style={{ width: `${Math.min(100, (s.value / total) * 100)}%`, background: colorOf(s.companyId) }}
-                    title={`${nameOf(s.companyId)} : ${fmt(s.value)}`}
+                    style={{ width: `${(s.value / sumShares) * filled * 100}%`, background: colorOf(s.companyId) }}
+                    title={`${nameOf(s.companyId)} : ${Math.round((s.value / sumShares) * 100)} %`}
                   />
                 ))}
               </div>
@@ -947,7 +952,7 @@ function WeekObjectives({ obj, members }: { obj: Objectives | null; members: (Ma
                     <span key={s.companyId}>
                       {k > 0 && ", "}
                       <span className="inline-block w-1.5 h-1.5 rounded-full mr-1 align-middle" style={{ background: colorOf(s.companyId) }} />
-                      {nameOf(s.companyId)} {Math.round((s.value / Math.max(1, o.progress)) * 100)} %
+                      {nameOf(s.companyId)} {Math.round((s.value / sumShares) * 100)} %
                     </span>
                   ))}
                   {shares.length > 3 && ` et ${shares.length - 3} autre${shares.length > 4 ? "s" : ""}`}

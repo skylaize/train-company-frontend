@@ -41,6 +41,8 @@ interface Report {
   tolls?: number;
   otherOps?: number;
   txTotal?: number;
+  tripsAll?: number; // 2.6.1 : pour tous
+  young?: boolean; // 2.6.1 : compagnie de moins d'une semaine
   movers?: { cargoType: string; change: number }[];
 }
 
@@ -59,10 +61,12 @@ export function AbsenceReport({
   onNavigate,
   company,
   onChange,
+  nextStep = null,
 }: {
   onNavigate: (view: "trains" | "personnel" | "cours" | "rentabilite") => void;
   company: PremiumInfo;
   onChange: () => void;
+  nextStep?: string | null; // 2.6.1 : la prochaine étape des premiers pas, pour un nouveau venu
 }) {
   const [report, setReport] = useState<Report | null>(null);
 
@@ -85,12 +89,31 @@ export function AbsenceReport({
   const net = report.net ?? 0;
   const hours = report.hours ?? 0;
 
+  /* 2.6.1 : un nouveau venu lit d'abord une phrase, pas un tableau : ce que ses
+     rames ont fait pendant qu'il n'était pas là, et ce qu'il peut faire ensuite. */
+  const trips = report.tripsAll ?? report.trips ?? 0;
+  const welcome = report.young ? (
+    <div className="mt-2 font-body text-[13px] leading-snug">
+      <p className="text-offwhite">
+        {trips > 0
+          ? `Pendant votre absence, vos rames ont fait ${fmt(trips)} trajet${trips > 1 ? "s" : ""}${net > 0 ? ` et votre compagnie a gagné ${fmt(net)} pi.` : "."}`
+          : "Vos rames n'ont pas roulé pendant votre absence : vérifiez qu'elles sont bien affectées à une ligne."}
+      </p>
+      {nextStep && (
+        <p className="text-slate2 mt-1">
+          Prochaine étape : <span className="text-amber">{nextStep.charAt(0).toLowerCase() + nextStep.slice(1)}</span>.
+        </p>
+      )}
+    </div>
+  ) : null;
+
   /* ---- gratuit : un encart, pas une fenêtre ---- */
   if (report.locked) {
     return (
       <div className="fixed bottom-4 right-4 left-4 md:left-auto md:w-[360px] z-40 bg-navy-900 border border-line border-t-[3px] border-t-cobalt p-4 shadow-xl tutorial-step-enter">
         <div className="font-body text-[12px] text-slate2 font-medium">Pendant votre absence · {formatAway(hours)}</div>
         <div className={`font-mono2 text-2xl mt-1 ${net < 0 ? "text-rail-red" : "text-offwhite"}`}>{signed(net)} pi.</div>
+        {welcome}
         <p className="text-[12px] text-slate2 font-body mt-2">
           Le détail — pannes, chantiers, cours, demandes du personnel — est inclus dans le Premium.
         </p>
@@ -156,6 +179,7 @@ export function AbsenceReport({
             <span className={`font-mono2 text-3xl ${net < 0 ? "text-rail-red" : "text-offwhite"}`}>{signed(net)} pi.</span>
             <span className="text-[12px] text-slate2 font-body">de trésorerie, salaires compris</span>
           </div>
+          {welcome}
         </div>
 
         {todo.length > 0 && (

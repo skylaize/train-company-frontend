@@ -139,6 +139,9 @@ export default function Overview() {
               <p className="font-body text-[14px] text-slate2">Indisponible.</p>
             )}
           </Panel>
+          <Panel title="Nouveaux venus (14 jours)">
+            <Funnel />
+          </Panel>
           <Panel title="Économie">
             <p className="font-body text-[14px]">
               <span className="font-mono2">{nf(data.economy.coins)}</span> pièces en caisse
@@ -148,5 +151,46 @@ export default function Overview() {
         </div>
       </div>
     </>
+  );
+}
+
+/* 2.6.1 : l'entonnoir des nouveaux venus — où ils décrochent, et combien reviennent */
+type FunnelData = { days: number; total: number; steps: { label: string; n: number }[]; back: { days: number; eligible: number; back: number }[] };
+function Funnel() {
+  const { data, error } = useAdminData<FunnelData>("/onboarding");
+  if (!data) return <p className="font-body text-[13px] text-slate2">{error ? "Indisponible." : "Chargement…"}</p>;
+  if (!data.total) return <p className="font-body text-[14px] text-slate2">Aucune compagnie fondée sur la période.</p>;
+  const rows = [{ label: "Compagnies fondées", n: data.total }, ...data.steps];
+  return (
+    <div className="space-y-1.5">
+      {rows.map((r, i) => {
+        const prev = i > 0 ? rows[i - 1].n : r.n;
+        const lost = i > 0 && prev > 0 ? Math.round(((prev - r.n) / prev) * 100) : 0;
+        return (
+          <div key={r.label}>
+            <div className="flex justify-between font-body text-[12.5px]">
+              <span>{r.label}</span>
+              <span className="font-mono2 tabular-nums">
+                {nf(r.n)} <span className="text-slate2">· {pct(r.n, data.total)}</span>
+                {lost > 0 && <span className="text-rail-red"> · −{lost} %</span>}
+              </span>
+            </div>
+            <div className="h-1.5 bg-navy-800 overflow-hidden mt-0.5">
+              <div className="h-full bg-cobalt" style={{ width: `${(r.n / data.total) * 100}%` }} />
+            </div>
+          </div>
+        );
+      })}
+      <div className="pt-2 mt-1 border-t border-line font-body text-[12.5px] text-slate2">
+        {data.back.map((b) => (
+          <div key={b.days} className="flex justify-between">
+            <span>Revenus après {b.days === 1 ? "1 jour" : `${b.days} jours`}</span>
+            <span className="font-mono2 tabular-nums text-offwhite">
+              {b.eligible ? `${nf(b.back)} / ${nf(b.eligible)} · ${pct(b.back, b.eligible)}` : "—"}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

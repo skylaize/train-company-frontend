@@ -30,8 +30,9 @@ const STEPS: StepDef[] = [
   { id: "ligne", title: "Tracer une première ligne", why: "Deux gares, et la durée du trajet se calcule toute seule. Une grande ville attire plus de voyageurs.", action: "Tracer", go: "lignes" },
   { id: "rame", title: "Acheter une rame", why: "La Standard, à 200 pi., suffit largement pour démarrer.", action: "Catalogue", go: "catalogue" },
   { id: "service", title: "La mettre en service", why: "Affectée à une ligne, elle fait l'aller-retour et rapporte, même jeu fermé.", action: "Affecter", go: "trains" },
-  { id: "fret", title: "Livrer un contrat de fret", why: "Achetez un Locotracteur (300 pi.), acceptez une offre du marché, attelez le wagon demandé : la locomotive part seule et revient payée. Les offres expirent vite.", action: "Voir le fret", go: "fret" },
+  // 2.6.1 : la correspondance avant le fret, la plus simple d'abord
   { id: "correspondance", title: "Ouvrir une correspondance", why: "Une deuxième ligne qui part d'une gare de la première : chaque trajet qui y passe rapporte plus.", action: "Tracer", go: "lignes" },
+  { id: "fret", title: "Livrer un contrat de fret", why: "Achetez un Locotracteur (300 pi.) : il arrive avec un wagon plat offert. Dans le fret, un contrat de bienvenue vous attend, réservé 24 h et payé moitié plus.", action: "Voir le fret", go: "fret" },
 ];
 
 export interface FirstStepsInput {
@@ -64,6 +65,13 @@ export function firstStepsActive(i: FirstStepsInput) {
   return !(i.hintsSeen || "").split(",").includes(FIRST_STEPS_HINT);
 }
 
+/* 2.6.1 : la prochaine étape, en clair, pour le bilan au retour d'un nouveau venu */
+export function firstStepsNext(i: FirstStepsInput): string | null {
+  const d = firstStepsDone(i);
+  const s = STEPS.find((x) => !d[x.id]);
+  return s ? s.title : null;
+}
+
 export function firstStepsProgress(i: FirstStepsInput) {
   const d = firstStepsDone(i);
   return { done: STEPS.filter((s) => d[s.id]).length, total: STEPS.length };
@@ -75,7 +83,7 @@ export function firstStepsProgress(i: FirstStepsInput) {
    pannes qui font baisser la réputation (et bloquent les grades), et les
    arrêts intermédiaires que personne ne remarque. */
 const TIPS: { id: string; text: string; go?: Go; action?: string }[] = [
-  { id: "energie", text: "Vos rames consomment du gazole (ou du courant sur ligne électrifiée), réglé à la fin de chaque heure. Gardez toujours un peu de trésorerie : une facture impayée laisse les rames thermiques au dépôt jusqu'à l'heure suivante.", go: "energie", action: "Mon énergie" },
+  { id: "energie", text: "Vos rames consomment du gazole (ou du courant sur ligne électrifiée), réglé à la fin de chaque heure. La première semaine, le jeu vous fait crédit ; ensuite, une facture impayée laisse les rames thermiques au dépôt jusqu'à l'heure suivante. Gardez un peu de trésorerie.", go: "energie", action: "Mon énergie" },
   { id: "arrets", text: "Un arrêt intermédiaire sur une ligne amène 20 % de voyageurs en plus, pour une minute à quai. Modifiez votre ligne pour en ajouter.", go: "lignes", action: "Mes lignes" },
   { id: "revision", text: "Une rame trop usée tombe en panne, et chaque incident fait baisser votre réputation, que les grades demandent. Dans la fiche de la rame, réglez une révision automatique (par exemple à 60 %).", go: "trains", action: "Ma flotte" },
 ];
@@ -119,8 +127,8 @@ export function FirstSteps({
   const GUIDE = ["ligne", "rame", "service"];
   const guideDone = GUIDE.every((id) => done[id]);
   const shown = STEPS.filter((st) => !(guideDone && GUIDE.includes(st.id)));
-  // l'énergie d'abord (le piège des premières heures), puis la révision avec le fret, puis les arrêts
-  const tip = TIPS[current <= 2 ? 0 : current === 3 ? 2 : 1];
+  // l'énergie d'abord (le piège des premières heures), puis les arrêts avec la correspondance, puis la révision
+  const tip = TIPS[current <= 2 ? 0 : current === 3 ? 1 : 2];
 
   async function close() {
     setClosed(true);
@@ -171,7 +179,7 @@ export function FirstSteps({
       {finished ? (
         <div className="px-5 py-5 flex items-center gap-4 flex-wrap">
           <p className="text-sm font-body text-slate2 leading-relaxed flex-1 min-w-[16rem]">
-            Ligne, rame, fret, correspondance : tout y est, et le succès <span className="text-offwhite">« Premiers pas »</span> est à vous.
+            Ligne, rame, correspondance, fret : tout y est, et le succès <span className="text-offwhite">« Premiers pas »</span> est à vous.
             La suite se joue dans <span className="text-offwhite">Progression</span> : chaque grade débloque de nouvelles rames, et une <span className="text-offwhite">campagne régionale</span> vous attend, huit étapes et un titre au bout.
           </p>
           <button onClick={close} className="bg-amber text-onaccent text-xs font-semibold px-5 py-2.5 hover:bg-amber/90 rounded-control">
