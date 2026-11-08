@@ -6,6 +6,7 @@ import { useToast } from "../context/ToastContext";
 import { RailSchematic } from "../components/RailSchematic";
 import { Turnstile, TurnstileHandle } from "../components/Turnstile";
 import { api } from "../api/client";
+import { setSuspension } from "../suspension";
 import { SplitFlap } from "../components/SplitFlap";
 
 /* ============================================================
@@ -128,6 +129,9 @@ export default function AuthPage() {
       adopt(token, h.get("remember") === "1");
       showToast(h.get("nouveau") ? "Compte créé, bienvenue à bord" : "Connexion réussie");
       navigate("/dashboard", { replace: true });
+    } else if (h.has("suspendu")) {
+      // connexion Discord ou Google d'un compte suspendu
+      setSuspension({ reason: h.get("suspendu") || null, since: h.get("depuis") || null, until: h.get("jusqua") || null });
     } else if (err) {
       setError(err);
     }

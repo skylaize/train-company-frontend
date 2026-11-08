@@ -215,20 +215,30 @@ export function Bars({ values, labels, format = nf, height = 96 }: { values: num
 
 /* ---------------- confirmation ---------------- */
 
-type Ask = { title: string; body?: string; confirm: string; danger?: boolean; input?: { label: string; placeholder?: string; required?: boolean } };
-type AskResult = { ok: boolean; value: string };
-const ConfirmCtx = createContext<(a: Ask) => Promise<AskResult>>(async () => ({ ok: false, value: "" }));
+type Ask = {
+  title: string;
+  body?: string;
+  confirm: string;
+  danger?: boolean;
+  input?: { label: string; placeholder?: string; required?: boolean; multiline?: boolean };
+  // liste de choix sous le champ (durée d'une suspension…)
+  choice?: { label: string; options: { value: string; label: string }[] };
+};
+type AskResult = { ok: boolean; value: string; choice: string };
+const ConfirmCtx = createContext<(a: Ask) => Promise<AskResult>>(async () => ({ ok: false, value: "", choice: "" }));
 export const useConfirm = () => useContext(ConfirmCtx);
 
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [ask, setAsk] = useState<(Ask & { resolve: (r: AskResult) => void }) | null>(null);
   const [value, setValue] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [choice, setChoice] = useState("");
+  const inputRef = useRef<HTMLInputElement & HTMLTextAreaElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const open = useCallback(
     (a: Ask) =>
       new Promise<AskResult>((resolve) => {
         setValue("");
+        setChoice(a.choice?.options[0]?.value ?? "");
         setAsk({ ...a, resolve });
       }),
     []
@@ -243,7 +253,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   });
   function close(ok: boolean) {
-    ask?.resolve({ ok, value: value.trim() });
+    ask?.resolve({ ok, value: value.trim(), choice });
     setAsk(null);
   }
   const blocked = Boolean(ask?.input?.required && !value.trim());
@@ -268,7 +278,24 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             {ask.input && (
               <div className="mt-4">
                 <Field label={ask.input.label}>
-                  <input ref={inputRef} value={value} onChange={(e) => setValue(e.target.value)} placeholder={ask.input.placeholder} className={inputCls} maxLength={200} />
+                  {ask.input.multiline ? (
+                    <textarea ref={inputRef} value={value} onChange={(e) => setValue(e.target.value)} placeholder={ask.input.placeholder} className={`${inputCls} h-24 py-2 resize-none`} maxLength={500} />
+                  ) : (
+                    <input ref={inputRef} value={value} onChange={(e) => setValue(e.target.value)} placeholder={ask.input.placeholder} className={inputCls} maxLength={200} />
+                  )}
+                </Field>
+              </div>
+            )}
+            {ask.choice && (
+              <div className="mt-3">
+                <Field label={ask.choice.label}>
+                  <select value={choice} onChange={(e) => setChoice(e.target.value)} className={inputCls}>
+                    {ask.choice.options.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
                 </Field>
               </div>
             )}

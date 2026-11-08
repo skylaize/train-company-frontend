@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { MaintenancePanel } from "./MaintenancePanel";
 import { Bars, Btn, Figure, Loading, PageHead, Panel, euros, nf, useAdminData } from "./ui";
 
 type OverviewData = {
@@ -33,6 +34,8 @@ export default function Overview() {
         intro="L'état du jeu en ce moment. « Actif » veut dire que le joueur a ouvert le jeu."
         actions={<Btn onClick={reload} disabled={loading}>{loading ? "Actualisation…" : "Actualiser"}</Btn>}
       />
+
+      <MaintenancePanel />
 
       <div className="grid gap-px bg-line border border-line grid-cols-2 lg:grid-cols-4 mb-6">
         {[

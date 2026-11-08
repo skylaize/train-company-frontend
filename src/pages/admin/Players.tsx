@@ -158,7 +158,7 @@ type Detail = {
   id: string; name: string; liveryColor: string; title: string | null; balance: number; valeur: number | null; maxTrains: number;
   isPremium: boolean; premiumTrialUntil: string | null; pioneerNumber: number | null; referralCode: string; createdAt: string; lastActiveAt: string | null;
   division: string;
-  owner: { id: string; email: string; pseudo: string; createdAt: string; discordId: string | null; discordName: string | null; bannedAt: string | null; bannedReason: string | null };
+  owner: { id: string; email: string; pseudo: string; createdAt: string; discordId: string | null; discordName: string | null; bannedAt: string | null; bannedReason: string | null; bannedUntil: string | null; warning: string | null; warnedAt: string | null; warnCount: number };
   trains: {
     id: string; name: string; model: string; status: string; wear: number; broken: string | null; line: string | null;
     progress: number; departedAt: string | null; workshopUntil: string | null; partsEta: string | null; freight: number; purchasedAt: string;
@@ -693,11 +693,37 @@ function Actions({ d, onChanged }: { d: Detail; onChanged: () => Promise<void> }
       </section>
 
       <section className="border-t border-line pt-5">
+        <h3 className="font-display text-[16px] mb-2">Avertissement</h3>
+        <p className="font-body text-[13px] text-slate2 mb-3">
+          {d.owner.warning
+            ? `Pas encore lu (envoyé le ${dateTime(d.owner.warnedAt)}) : « ${d.owner.warning} »`
+            : d.owner.warnCount
+            ? `${d.owner.warnCount} avertissement${d.owner.warnCount > 1 ? "s" : ""} envoyé${d.owner.warnCount > 1 ? "s" : ""}, le dernier le ${dateTime(d.owner.warnedAt)}.`
+            : "Aucun avertissement. Le joueur le lit à sa prochaine ouverture du jeu et doit cliquer « J'ai compris »."}
+        </p>
+        <Btn
+          disabled={busy}
+          onClick={async () => {
+            const r = await confirm({
+              title: `Avertir ${d.owner.pseudo}`,
+              confirm: "Envoyer",
+              input: { label: "Message (le joueur le verra tel quel)", placeholder: "ex. Merci de rester correct dans le chat d'alliance.", required: true, multiline: true },
+            });
+            if (r.ok) await run(() => api.post(`/admin/players/${d.id}/warn`, { message: r.value }), "Avertissement envoyé", onChanged);
+          }}
+        >
+          Envoyer un avertissement
+        </Btn>
+      </section>
+
+      <section className="border-t border-line pt-5">
         <h3 className="font-display text-[16px] mb-2">Suspension</h3>
         {d.owner.bannedAt ? (
           <>
             <p className="font-body text-[13px] text-slate2 mb-3">
               Suspendu depuis le {dateTime(d.owner.bannedAt)} : {d.owner.bannedReason}
+              <br />
+              {d.owner.bannedUntil ? `Levée automatique le ${dateTime(d.owner.bannedUntil)}.` : "Sans date de fin."}
             </p>
             <Btn disabled={busy} onClick={() => run(() => api.delete(`/admin/players/${d.id}/ban`), "Suspension levée", onChanged)}>
               Lever la suspension
@@ -705,7 +731,7 @@ function Actions({ d, onChanged }: { d: Detail; onChanged: () => Promise<void> }
           </>
         ) : (
           <>
-            <p className="font-body text-[13px] text-slate2 mb-3">Le joueur ne peut plus se connecter ni jouer. Ses rôles Discord sont retirés. Sa compagnie reste en place.</p>
+            <p className="font-body text-[13px] text-slate2 mb-3">Le joueur voit le motif et la fin de la suspension, et ne peut plus jouer. Ses rôles Discord sont retirés. Sa compagnie reste en place.</p>
             <Btn
               tone="danger"
               disabled={busy}
@@ -714,9 +740,19 @@ function Actions({ d, onChanged }: { d: Detail; onChanged: () => Promise<void> }
                   title: `Suspendre ${d.owner.pseudo} ?`,
                   confirm: "Suspendre le compte",
                   danger: true,
-                  input: { label: "Raison", placeholder: "ex. multi-comptes", required: true },
+                  input: { label: "Motif (le joueur le verra)", placeholder: "ex. multi-comptes", required: true },
+                  choice: {
+                    label: "Durée",
+                    options: [
+                      { value: "1", label: "24 heures" },
+                      { value: "3", label: "3 jours" },
+                      { value: "7", label: "7 jours" },
+                      { value: "30", label: "30 jours" },
+                      { value: "0", label: "Sans date de fin" },
+                    ],
+                  },
                 });
-                if (r.ok) await run(() => api.post(`/admin/players/${d.id}/ban`, { reason: r.value }), "Compte suspendu", onChanged);
+                if (r.ok) await run(() => api.post(`/admin/players/${d.id}/ban`, { reason: r.value, days: Number(r.choice) }), "Compte suspendu", onChanged);
               }}
             >
               Suspendre le compte

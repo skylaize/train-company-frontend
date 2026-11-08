@@ -10,6 +10,8 @@ import { MOUNTAIN_STATIONS, hasMountain, CORSICA_STATIONS, hasCorsica, setDlcOwn
 import { stationVisible, setTunnelOpen, STATION_COORDS, lineCurve, pointOnCurve, LINE_PALETTE, distanceKm, durationFromKm, lengthYieldPct, routeStations, routeMinutes, routeKm, positionOnRoute, routePath, MAX_STOPS } from "../geo";
 
 import { UpdateBanner } from "../components/UpdateBanner";
+import { TeamWarning } from "../components/TeamWarning";
+import { ReputationModal } from "../components/ReputationModal";
 import { useInstall, isStandalone } from "../install";
 import { InstallGuide, InstallPanel } from "../components/InstallApp";
 import { setPresence } from "../desktop";
@@ -324,6 +326,18 @@ interface ReferralInfo {
   nextMilestone: { count: number; label: string; remaining: number } | null;
 }
 
+// 2.6.1 : vote Top-Serveurs
+interface VoteInfo {
+  enabled: boolean;
+  url?: string;
+  pseudo?: string;
+  claimedToday?: boolean;
+  streak?: number;
+  streakCap?: number;
+  nextReward?: number;
+  resetInMs?: number;
+}
+
 interface LeaderEntry {
   rank: number;
   id: string;
@@ -370,8 +384,18 @@ export default function Dashboard() {
   // 2.2 : lien vers le panneau d'administration, pour les comptes de l'équipe
   const [isAdmin, setIsAdmin] = useState(false);
   useEffect(() => {
-    api.get("/me").then(({ data }) => setIsAdmin(Boolean(data?.isAdmin))).catch(() => undefined);
+    api
+      .get("/me")
+      .then(({ data }) => {
+        setIsAdmin(Boolean(data?.isAdmin));
+        if (data?.warning) setTeamWarning({ message: data.warning, at: data.warnedAt ?? null });
+      })
+      .catch(() => undefined);
   }, []);
+  // avertissement de l'équipe pas encore lu
+  const [teamWarning, setTeamWarning] = useState<{ message: string; at: string | null } | null>(null);
+  const [reputationOpen, setReputationOpen] = useState(false);
+  const closeReputation = useCallback(() => setReputationOpen(false), []);
   // 2.1.2 : le premier chargement a échoué (serveur lent, réseau coupé)
   const [loadFailed, setLoadFailed] = useState(false);
   // 2.1.2 : la fenêtre des 200 pionniers
@@ -418,6 +442,8 @@ export default function Dashboard() {
   const [leaderMe, setLeaderMe] = useState<{ rank?: number; aheadName?: string | null; gap?: number } | null>(null);
   const [missionCount, setMissionCount] = useState(0);
   const [referral, setReferral] = useState<ReferralInfo | null>(null);
+  const [vote, setVote] = useState<VoteInfo | null>(null); // 2.6.1
+  const [shareMoment, setShareMoment] = useState<string | null>(null); // 2.6.1 : grade tout juste obtenu
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [dailyChallenge, setDailyChallenge] = useState<DailyChallenge | null>(null);
   const [todaySummary, setTodaySummary] = useState<TodaySummary | null>(null);
@@ -796,6 +822,17 @@ export default function Dashboard() {
       }
       if (slow) {
         setCareer(car);
+        /* 2.6.1 : le meilleur moment pour parler du jeu à un ami, c'est juste
+           après une promotion. Le grade vu en dernier est gardé par compagnie :
+           la première visite l'enregistre sans rien afficher. */
+        if (car?.currentRank && c?.id) {
+          const key = `gradeSeen:${c.id}`;
+          let seen: number | null = null;
+          try { const raw = localStorage.getItem(key); seen = raw === null ? null : Number(raw); } catch { /* stockage indisponible */ }
+          if (seen !== null && car.currentRank.id > seen) setShareMoment(car.currentRank.name);
+          try { localStorage.setItem(key, String(car.currentRank.id)); } catch { /* idem */ }
+        }
+        if (slow) api.get("/vote/mine").then(({ data }) => setVote(data)).catch(() => undefined);
         // 2.0 : la vraie météo des gares, lue par la vue cabine
         setStationWeather(wx?.stations);
       }
@@ -1205,6 +1242,7 @@ export default function Dashboard() {
       <RailSchematic className="fixed inset-0 w-full h-full opacity-[0.10] pointer-events-none" />
       {themeTrial && <ThemeTrialBanner trial={themeTrial} onEnd={() => setThemeTrial(null)} />}
       <UpdateBanner />
+      {teamWarning && <TeamWarning message={teamWarning.message} at={teamWarning.at} onDone={() => setTeamWarning(null)} />}
       {/* 2.0 : le menu. Sur ordinateur, une colonne calme : la compagnie, la
           saison, les rubriques sans cadres autour des icônes. Sur téléphone,
           une barre d'onglets en bas de l'écran et le reste dans « Plus ». */}
@@ -1465,10 +1503,11 @@ export default function Dashboard() {
           </div>
           <span className="text-[14px] text-slate2 font-body"><span className="text-offwhite font-semibold">{enRoute}</span> rame{enRoute > 1 ? "s" : ""} en route sur {trains.length}</span>
           <span className="text-[14px] text-slate2 font-body"><span className="text-offwhite font-semibold">{lines.length}</span> ligne{lines.length > 1 ? "s" : ""}</span>
-          <span className="text-[14px] text-slate2 font-body">
+          <button onClick={() => setReputationOpen(true)} className="text-[14px] text-slate2 font-body hover:text-offwhite underline decoration-dotted decoration-slate2/50 underline-offset-4" title="D'où vient ma réputation ?">
             réputation{" "}
             <span className={`font-semibold ${company.reputation >= 80 ? "text-rail-green" : company.reputation >= 50 ? "text-amber" : "text-rail-red"}`}>{company.reputation} %</span>
-          </span>
+          </button>
+          {reputationOpen && <ReputationModal onClose={closeReputation} />}
         </div>
 
         <DecisionBanner decisions={decisions} onOpen={setOpenDecision} />
@@ -1655,7 +1694,9 @@ export default function Dashboard() {
                 />
               </div>
             )}
-            {view === "trains" && referral && !onboarding && <div className="mt-10"><ReferralBanner referral={referral} /></div>}
+            {view === "trains" && vote?.enabled && !onboarding && <div className="mt-10"><VoteCard vote={vote} onClaimed={(v) => { setVote(v); loadAll(); }} /></div>}
+            {view === "trains" && referral && !onboarding && <div className={vote?.enabled ? "" : "mt-10"}><ReferralBanner referral={referral} /></div>}
+            {shareMoment && referral && <ShareMoment grade={shareMoment} code={referral.code} onClose={() => setShareMoment(null)} />}
             {/* conseils de première visite : au-dessus du contenu, pas sous une page qu'on ne fait pas défiler */}
             {view === "lignes" && lines.length > 0 && (
               <FirstVisitHint
@@ -4765,6 +4806,128 @@ function ReferralBanner({ referral }: { referral: ReferralInfo }) {
   );
 }
 
+/* 2.6.1 : vote Top-Serveurs. Le pseudo à saisir sur la fiche est le code de
+   parrainage : unique, sans accent ni espace, et déjà connu du joueur. */
+function VoteCard({ vote, onClaimed }: { vote: VoteInfo; onClaimed: (v: VoteInfo) => void }) {
+  const { showToast } = useToast();
+  const { copied, copy } = useCopy();
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const streak = vote.streak ?? 0;
+  const cap = vote.streakCap ?? 7;
+  const done = !!vote.claimedToday;
+
+  async function claim() {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const { data } = await api.post("/vote/claim");
+      showToast(`Merci pour le vote ! +${data.amount} pi.${data.streak > 1 ? ` · ${data.streak} jours d'affilée` : ""}`);
+      onClaimed({ ...vote, claimedToday: true, streak: data.streak, nextReward: data.nextReward });
+    } catch (err: any) {
+      setMsg(err?.response?.data?.error ?? "Vérification impossible, réessayez dans un instant");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="border border-line bg-navy-900/40 p-4 mb-6 rounded-card">
+      <div className="flex items-baseline gap-3 flex-wrap mb-3">
+        <h2 className="font-display text-lg">Votez pour Réseau</h2>
+        <span className="text-[11px] font-body text-slate2">
+          {done
+            ? `Prime du jour reçue. Demain : ${vote.nextReward} pi.`
+            : `${vote.nextReward} pi. aujourd'hui, un peu plus chaque jour d'affilée.`}
+        </span>
+      </div>
+
+      <ol className="text-[12.5px] font-body text-slate2 space-y-1.5 mb-3 list-decimal list-inside">
+        <li>
+          Sur Top-Serveurs, saisissez ce pseudo :{" "}
+          <button
+            onClick={() => vote.pseudo && copy(vote.pseudo, "pseudo")}
+            className="font-mono2 text-amber tracking-[0.15em] border border-amber/30 px-2 py-0.5 rounded-control hover:bg-amber/10"
+            title="Copier le pseudo"
+          >
+            {copied === "pseudo" ? "Copié !" : vote.pseudo}
+          </button>
+        </li>
+        <li>Revenez ici et réclamez votre prime.</li>
+      </ol>
+
+      <div className="flex items-center gap-3 flex-wrap">
+        <a
+          href={vote.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => vote.pseudo && navigator.clipboard?.writeText(vote.pseudo).catch(() => undefined)}
+          className="text-xs font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors font-medium rounded-control"
+        >
+          Voter sur Top-Serveurs ↗
+        </a>
+        <button
+          onClick={claim}
+          disabled={busy || done}
+          className="text-xs font-body bg-cobalt text-onaccent px-3 py-1.5 font-semibold rounded-control disabled:opacity-40"
+        >
+          {done ? "Prime reçue ✓" : busy ? "Vérification…" : "J'ai voté, réclamer"}
+        </button>
+      </div>
+
+      <div className="mt-4">
+        <div className="flex items-baseline justify-between text-[11px] font-body mb-1.5">
+          <span className="text-slate2">Série de votes</span>
+          <span className="font-mono2 text-slate2">{Math.min(streak, cap)} / {cap} jours</span>
+        </div>
+        <div className="flex gap-1">
+          {Array.from({ length: cap }, (_, i) => (
+            <div key={i} className={`h-1 flex-1 border border-line ${i < streak ? "bg-amber" : "bg-navy-950"}`} />
+          ))}
+        </div>
+      </div>
+
+      {msg && <p className="text-[12px] font-body text-amber mt-3">{msg}</p>}
+    </div>
+  );
+}
+
+/* 2.6.1 : juste après une promotion, on propose de la partager. Le message
+   tout prêt reprend le code : c'est le moment où le joueur a envie d'en parler. */
+function ShareMoment({ grade, code, onClose }: { grade: string; code: string; onClose: () => void }) {
+  const { copied, copy } = useCopy();
+  const text = [
+    `Je viens de passer ${grade.toLowerCase()} sur Réseau, mon jeu de compagnie ferroviaire.`,
+    "",
+    `Rejoins-moi avec mon code ${code}, tu démarres avec 100 pi. de bienvenue :`,
+    referralLink(code),
+  ].join("\n");
+
+  async function share() {
+    if (navigator.share) {
+      try { await navigator.share({ text }); onClose(); return; } catch { /* partage annulé : on garde la carte */ }
+    }
+    copy(text, "share");
+  }
+
+  return (
+    <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:w-[360px] z-50 border border-amber/40 bg-navy-900 p-4 rounded-card shadow-2xl">
+      <button onClick={onClose} className="absolute top-2 right-3 text-slate2 hover:text-offwhite" aria-label="Fermer">×</button>
+      <div className="text-[11px] font-body uppercase tracking-[0.18em] text-amber mb-1">Promotion</div>
+      <h3 className="font-display text-lg mb-1">Vous êtes {grade.toLowerCase()}</h3>
+      <p className="text-[12.5px] font-body text-slate2 mb-3">
+        Partagez-le : un ami qui rejoint avec votre code démarre avec 100 pi., et vous touchez 150 pi. dès qu'il roule.
+      </p>
+      <button
+        onClick={share}
+        className="w-full text-sm font-body bg-cobalt text-onaccent py-2 font-semibold rounded-control"
+      >
+        {copied === "share" ? "Message copié !" : "Partager ma promotion"}
+      </button>
+    </div>
+  );
+}
+
 function ReferralPanel({ referral }: { referral: ReferralInfo }) {
   const { copied, copy } = useCopy();
 
@@ -5476,6 +5639,7 @@ const TYPE_LABEL: Record<string, string> = {
   REVENU_LIGNE: "Recette voyageurs",
   PERSONNEL: "Personnel",
   PARRAINAGE: "Parrainage",
+  VOTE: "Vote Top-Serveurs",
   ENTRETIEN: "Entretien du réseau",
   PREMIUM: "Statut Premium",
   MISSION: "Ordre de mission",

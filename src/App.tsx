@@ -7,13 +7,22 @@ import LandingPage from "./pages/LandingPage";
 import AuthPage from "./pages/AuthPage";
 import Dashboard from "./pages/Dashboard";
 import RequireToken from "./components/RequireToken";
+import { MaintenanceBanner, MaintenanceScreen, SuspendedScreen } from "./components/ServerScreens";
+import { useMaintenance, useSuspension } from "./suspension";
 
 // 2.2 : le panneau d'administration n'est téléchargé que par ceux qui l'ouvrent
 const AdminPage = lazy(() => import("./pages/admin/AdminPage"));
 
 export default function App() {
+  const suspension = useSuspension();
+  const maintenance = useMaintenance();
+  if (suspension) return <SuspendedScreen suspension={suspension} />;
+  // la connexion et le panneau admin restent ouverts : l'équipe doit pouvoir entrer
+  const staffPath = /^\/(auth|admin)(\/|$)/.test(window.location.pathname);
+  if (maintenance && !staffPath) return <MaintenanceScreen maintenance={maintenance} />;
   return (
     <ToastProvider>
+      <MaintenanceBanner />
       <BrowserRouter>
         <AuthProvider>
           <Routes>
