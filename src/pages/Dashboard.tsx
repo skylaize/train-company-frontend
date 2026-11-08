@@ -44,7 +44,7 @@ function formatBuildHours(hours: number) {
   if (m === 0) return `${h} h`;
   return `${h} h ${String(m).padStart(2, "0")}`;
 }
-import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, ChartMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, TenderMark, ShopMark, MoonMark, InstallMark, LockMark, FragileMark, RankMark, AnnounceMark, StationMark, BankMark, SeasonMark, AllianceMark, EnergyMark } from "../components/TrainMark";
+import { TrainMark, TrackMark, CargoMark, TrophyMark, LedgerMark, ChartMark, MedalMark, SwapMark, MapMark, StaffMark, GearMark, TenderMark, ShopMark, MoonMark, InstallMark, LockMark, FragileMark, RankMark, AnnounceMark, StationMark, BankMark, SeasonMark, AllianceMark, EnergyMark, HomeMark } from "../components/TrainMark";
 import { InfrastructureSection } from "../components/InfrastructureSection";
 import { EconomySection } from "../components/EconomySection";
 import { TrackWearLayer } from "../components/TrackWearLayer";
@@ -411,7 +411,7 @@ export default function Dashboard() {
   // 2.1.2 : la fenêtre des 200 pionniers
   const [pioneersOpen, setPioneersOpen] = useState(false);
   const closePioneers = useCallback(() => setPioneersOpen(false), []);
-  const [view, setView] = useState<DashboardView>("trains");
+  const [view, setView] = useState<DashboardView>("accueil");
   const [now, setNow] = useState(new Date());
   const [market, setMarket] = useState<Contract[]>([]);
   const [myContracts, setMyContracts] = useState<Contract[]>([]);
@@ -1135,6 +1135,7 @@ export default function Dashboard() {
     const servicing = trains.filter((t) => t.workshopUntil).length;
     const worn = trains.filter((t) => t.status !== "MAINTENANCE" && t.wear >= 70).length;
     switch (view) {
+      case "accueil":
       case "trains": {
         if (trains.length === 0) return "Votre dépôt est vide : achetez une première rame.";
         const head = rolling === 0 ? "Aucune rame ne roule pour l'instant" : rolling === trains.length ? `Vos ${plural(rolling, "rame roule", "rames roulent")}` : `${plural(rolling, "rame roule", "rames roulent")} sur ${trains.length}`;
@@ -1205,6 +1206,7 @@ export default function Dashboard() {
     {
       label: "Exploitation",
       items: [
+        { id: "accueil", label: "Accueil", icon: <HomeMark size={16} />, active: view === "accueil", onClick: () => setView("accueil") },
         { id: "trains", label: "Flotte", icon: <TrainMark size={16} />, count: trains.length, active: view === "trains", onClick: () => setView("trains") },
         { id: "lignes", label: "Lignes", icon: <TrackMark size={16} />, count: lines.length, active: view === "lignes", onClick: () => setView("lignes") },
         { id: "carte", label: "Carte", icon: <MapMark size={16} />, active: view === "carte", onClick: () => setView("carte"), dataTutorial: "nav-carte" },
@@ -1282,7 +1284,7 @@ export default function Dashboard() {
           </button>
         )}
         {onboarding && (
-          <button onClick={() => setView("trains")} className="text-left mx-3 mt-1 mb-1 bg-amber/[0.08] px-3 py-2.5 hover:bg-amber/[0.12] transition-colors rounded-control">
+          <button onClick={() => setView("accueil")} className="text-left mx-3 mt-1 mb-1 bg-amber/[0.08] px-3 py-2.5 hover:bg-amber/[0.12] transition-colors rounded-control">
             <div className="flex items-center justify-between text-[12.5px] font-body text-amber">
               <span>Premiers pas</span>
               <span className="font-mono2">{onboardingProgress.done}/{onboardingProgress.total}</span>
@@ -1372,12 +1374,10 @@ export default function Dashboard() {
       </header>
       <MobileTabBar
         tabs={[
+          { id: "accueil", label: "Accueil", icon: <HomeMark size={20} />, active: view === "accueil", onClick: () => setView("accueil") },
           { id: "trains", label: "Flotte", icon: <TrainMark size={20} />, active: view === "trains", onClick: () => setView("trains") },
           { id: "lignes", label: "Lignes", icon: <TrackMark size={20} />, active: view === "lignes", onClick: () => setView("lignes") },
           { id: "carte", label: "Carte", icon: <MapMark size={20} />, active: view === "carte", onClick: () => setView("carte"), dataTutorial: "nav-carte" },
-          navOpen.classement
-            ? { id: "saison", label: "Saison", icon: <SeasonMark size={20} />, active: view === "saison", onClick: () => setView("saison") }
-            : { id: "fret", label: "Fret", icon: <CargoMark size={20} />, active: view === "fret" || view === "missions", onClick: () => setView("fret") },
         ]}
         groups={navGroups}
         current={view}
@@ -1529,7 +1529,7 @@ export default function Dashboard() {
             onDone={loadAll}
           />
         )}
-        {dailyChallenge && !onboarding && (view !== "trains" || dailyChallenge.completed) && <DailyChallengeBanner challenge={dailyChallenge} onChange={loadAll} />}
+        {dailyChallenge && !onboarding && (view !== "accueil" || dailyChallenge.completed) && <DailyChallengeBanner challenge={dailyChallenge} onChange={loadAll} />}
 
         <main className={`p-4 md:p-8 pb-24 ${themeTrial ? "pb-32 md:pb-28" : ""}`}>
           {/* une rubrique réunie garde la même clé d'un onglet à l'autre : l'en-tête
@@ -1569,17 +1569,8 @@ export default function Dashboard() {
             {(view === "carriere" || view === "succes" || view === "campagnes" || view === "compagnonnage") && (
               <SubTabs value={view} onChange={setView} tabs={[{ id: "carriere", label: "Grades" }, { id: "campagnes", label: "Campagnes" }, { id: "compagnonnage", label: "Compagnonnage" }, { id: "succes", label: "Succès", count: achievements.filter((a) => a.unlocked).length }]} />
             )}
-            {/* 2.1.2 : les 200 pionniers */}
-            {view === "trains" && !onboarding && <PioneersBanner onOpen={() => setPioneersOpen(true)} />}
-            {view === "trains" && !onboarding && <HalloweenCard onShowMap={() => setView("carte")} />}
-            {view === "trains" && !onboarding && <Train200Card onShowMap={() => setView("carte")} />}
-            {/* 2.5 : appel aux tuteurs, pour que les nouveaux trouvent quelqu'un */}
-            {view === "trains" && !onboarding && <MentorInviteCard onOpen={() => setView("compagnonnage")} onChange={loadAll} />}
-            {/* 2.5.1 : la campagne en cours, sans aller dans Progression */}
-            {view === "trains" && !onboarding && <CampaignChip onOpen={() => setView("campagnes")} />}
-            {view === "trains" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
             {/* 2.1 : Premium d'essai en cours, puis la proposition de le garder */}
-            {view === "trains" && company.premiumTrialUntil && (
+            {view === "accueil" && company.premiumTrialUntil && (
               <div className="flex flex-wrap items-center justify-between gap-3 border border-amber/40 bg-amber/5 px-4 py-3 mb-6 rounded-card">
                 <span className="text-sm font-body text-offwhite">
                   <span className="text-amber">💎 Premium d'essai</span> · {trialLeft(company.premiumTrialUntil)}, jusqu'au {trialEnd(company.premiumTrialUntil)}
@@ -1589,35 +1580,9 @@ export default function Dashboard() {
                 </button>
               </div>
             )}
-            {view === "trains" && !company.isPremium && company.premiumTrialEndedAt && Date.now() - new Date(company.premiumTrialEndedAt).getTime() < 14 * 86_400_000 && (
-              <FirstVisitHint
-                id="essai-termine"
-                tag="Premium"
-                seen={company.hintsSeen ?? ""}
-                onSeen={loadAll}
-                title="Votre essai Premium est terminé"
-                body="Il vous a plu ? Le Premium s'achète une fois, pour toujours, et ne donne aucun bonus de revenu : seulement le confort et les outils que vous venez d'essayer."
-                points={["Vue cabine en direct, veille concurrentielle, bilans de retour et rentabilité détaillée.", "Horaires par rame, alertes personnalisées, ordres de bourse et marché élargi."]}
-                action={{ label: "Garder le Premium", onClick: () => setView("parametres") }}
-              />
-            )}
-            {view === "trains" && !onboarding && (
-              <FirstVisitHint
-                id="discord"
-                tag="Annonce"
-                seen={company.hintsSeen ?? ""}
-                onSeen={loadAll}
-                title="Réseau a son serveur Discord"
-                body="Retrouvez les autres compagnies, recrutez pour votre alliance et suivez la saison et le Grand Chantier en direct."
-                points={[
-                  "Liez votre compte dans Paramètres → « Lier mon Discord » pour recevoir vos rôles : Joueur, Premium, Chef d'alliance, Champion de saison.",
-                  "Le bot du réseau : /profil, /classement et /alliance.",
-                ]}
-                action={{ label: "Rejoindre", href: DISCORD.url }}
-              />
-            )}
+            {view === "accueil" && <FirstSteps input={firstSteps} onGo={goFirstStep} onSeen={loadAll} />}
             {/* 2.0 : le tableau de bord montre la partie au lieu d'empiler des cases */}
-            {view === "trains" && !onboarding && (
+            {view === "accueil" && !onboarding && (
               <HomeBoard
                 livery={company.liveryColor}
                 trains={trains}
@@ -1641,8 +1606,48 @@ export default function Dashboard() {
                 onOpenTrain={(id) => setSheetRequest(id)}
               />
             )}
-            {view === "trains" && onboarding && todaySummary && <TodaySummaryCard summary={todaySummary} />}
-            {view === "trains" && adsEnabled && !onboarding && <AdWatchCard onChange={loadAll} isPremium={company.isPremium || Boolean(company.adFree)} />}
+            {view === "accueil" && onboarding && todaySummary && <TodaySummaryCard summary={todaySummary} />}
+            {/* en ce moment : événements, campagne, compagnonnage (chaque carte se cache quand elle n'a rien à dire) */}
+            {view === "accueil" && !onboarding && <h2 className="font-display text-xl mt-10 mb-3">En ce moment</h2>}
+            {/* 2.1.2 : les 200 pionniers */}
+            {view === "accueil" && !onboarding && <PioneersBanner onOpen={() => setPioneersOpen(true)} />}
+            {view === "accueil" && !onboarding && <HalloweenCard onShowMap={() => setView("carte")} />}
+            {view === "accueil" && !onboarding && <Train200Card onShowMap={() => setView("carte")} />}
+            {/* 2.5.1 : la campagne en cours, sans aller dans Progression */}
+            {view === "accueil" && !onboarding && <CampaignChip onOpen={() => setView("campagnes")} />}
+            {/* 2.5 : appel aux tuteurs, pour que les nouveaux trouvent quelqu'un */}
+            {view === "accueil" && !onboarding && <MentorInviteCard onOpen={() => setView("compagnonnage")} onChange={loadAll} />}
+            {view === "accueil" && !onboarding && (vote?.enabled || referral) && <h2 className="font-display text-xl mt-10 mb-3">Faire connaître Réseau</h2>}
+            {view === "accueil" && vote?.enabled && !onboarding && <div><VoteCard vote={vote} onClaimed={(v, paid) => { setVote(v); if (paid) loadAll(); }} /></div>}
+            {view === "accueil" && referral && !onboarding && <div><ReferralBanner referral={referral} /></div>}
+            {view === "accueil" && !onboarding && (
+              <FirstVisitHint
+                id="discord"
+                tag="Annonce"
+                seen={company.hintsSeen ?? ""}
+                onSeen={loadAll}
+                title="Réseau a son serveur Discord"
+                body="Retrouvez les autres compagnies, recrutez pour votre alliance et suivez la saison et le Grand Chantier en direct."
+                points={[
+                  "Liez votre compte dans Paramètres → « Lier mon Discord » pour recevoir vos rôles : Joueur, Premium, Chef d'alliance, Champion de saison.",
+                  "Le bot du réseau : /profil, /classement et /alliance.",
+                ]}
+                action={{ label: "Rejoindre", href: DISCORD.url }}
+              />
+            )}
+            {view === "accueil" && !company.isPremium && company.premiumTrialEndedAt && Date.now() - new Date(company.premiumTrialEndedAt).getTime() < 14 * 86_400_000 && (
+              <FirstVisitHint
+                id="essai-termine"
+                tag="Premium"
+                seen={company.hintsSeen ?? ""}
+                onSeen={loadAll}
+                title="Votre essai Premium est terminé"
+                body="Il vous a plu ? Le Premium s'achète une fois, pour toujours, et ne donne aucun bonus de revenu : seulement le confort et les outils que vous venez d'essayer."
+                points={["Vue cabine en direct, veille concurrentielle, bilans de retour et rentabilité détaillée.", "Horaires par rame, alertes personnalisées, ordres de bourse et marché élargi."]}
+                action={{ label: "Garder le Premium", onClick: () => setView("parametres") }}
+              />
+            )}
+            {view === "accueil" && adsEnabled && !onboarding && <AdWatchCard onChange={loadAll} isPremium={company.isPremium || Boolean(company.adFree)} />}
             {view === "trains" && !!company.upkeepPerHour && (
               <FirstVisitHint
                 id="entretien"
@@ -1704,8 +1709,6 @@ export default function Dashboard() {
                 />
               </div>
             )}
-            {view === "trains" && vote?.enabled && !onboarding && <div className="mt-10"><VoteCard vote={vote} onClaimed={(v, paid) => { setVote(v); if (paid) loadAll(); }} /></div>}
-            {view === "trains" && referral && !onboarding && <div className={vote?.enabled ? "" : "mt-10"}><ReferralBanner referral={referral} /></div>}
             {shareMoment && referral && <ShareMoment grade={shareMoment} code={referral.code} onClose={() => setShareMoment(null)} />}
             {/* conseils de première visite : au-dessus du contenu, pas sous une page qu'on ne fait pas défiler */}
             {view === "lignes" && lines.length > 0 && (
@@ -1911,6 +1914,7 @@ export default function Dashboard() {
 }
 
 const PAGE_COPY = {
+  accueil: { title: "Accueil", subtitle: "Ce qui se passe sur votre réseau, et ce qui vous attend aujourd'hui." },
   trains: { title: "Votre flotte", subtitle: "Achetez, affectez et suivez chaque rame en circulation." },
   lignes: { title: "Vos lignes", subtitle: "Tracez les trajets que vos trains emprunteront." },
   fret: { title: "Fret", subtitle: "Contrats de marchandises au comptant, et ordres des donneurs d'ordre qui paient votre fidélité." },
@@ -1952,6 +1956,7 @@ const BANNER_VIEWS: string[] = ["classement", "historique", "rentabilite", "rapp
 /* 1.7 : l'en-tête de page est un panneau de gare. Le pictogramme de la
    rubrique dans son carré, le nom en grand, et l'exploitant sur le côté. */
 const PAGE_ICON: Partial<Record<DashboardView, (p: { size: number }) => JSX.Element>> = {
+  accueil: HomeMark,
   trains: TrainMark,
   lignes: TrackMark,
   carte: MapMark,

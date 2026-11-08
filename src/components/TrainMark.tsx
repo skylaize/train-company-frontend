@@ -323,3 +323,13 @@ export function EnergyMark({ size = 20, className = "" }: { size?: number; class
     </svg>
   );
 }
+
+/* Accueil : le tableau des départs, ses trois lignes et ses deux pieds */
+export function HomeMark({ size = 20, className = "" }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" className={className} xmlns="http://www.w3.org/2000/svg">
+      <rect x="3" y="4" width="18" height="12" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M6.5 8h6M6.5 12h4M15.5 8h2M15.5 12h2M8 16v4M16 16v4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
