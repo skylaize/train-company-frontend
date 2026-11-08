@@ -336,6 +336,16 @@ interface VoteInfo {
   streakCap?: number;
   nextReward?: number;
   resetInMs?: number;
+  // voteurs du mois
+  month?: {
+    month: string;
+    winners: number;
+    prizes?: number[];
+    top: { rank: number; companyId: string; name: string; liveryColor: string; emblem: string | null; votes: number; me: boolean }[];
+    votes: number;
+    rank: number | null;
+    endsInMs: number;
+  };
 }
 
 interface LeaderEntry {
@@ -1694,7 +1704,7 @@ export default function Dashboard() {
                 />
               </div>
             )}
-            {view === "trains" && vote?.enabled && !onboarding && <div className="mt-10"><VoteCard vote={vote} onClaimed={(v) => { setVote(v); loadAll(); }} /></div>}
+            {view === "trains" && vote?.enabled && !onboarding && <div className="mt-10"><VoteCard vote={vote} onClaimed={(v, paid) => { setVote(v); if (paid) loadAll(); }} /></div>}
             {view === "trains" && referral && !onboarding && <div className={vote?.enabled ? "" : "mt-10"}><ReferralBanner referral={referral} /></div>}
             {shareMoment && referral && <ShareMoment grade={shareMoment} code={referral.code} onClose={() => setShareMoment(null)} />}
             {/* conseils de première visite : au-dessus du contenu, pas sous une page qu'on ne fait pas défiler */}
@@ -4807,8 +4817,10 @@ function ReferralBanner({ referral }: { referral: ReferralInfo }) {
 }
 
 /* 2.6.1 : vote Top-Serveurs. Le pseudo à saisir sur la fiche est le code de
-   parrainage : unique, sans accent ni espace, et déjà connu du joueur. */
-function VoteCard({ vote, onClaimed }: { vote: VoteInfo; onClaimed: (v: VoteInfo) => void }) {
+   parrainage : unique, sans accent ni espace, et déjà connu du joueur.
+   Une prime par jour ; tous les votes (un toutes les 2 h) comptent pour les
+   voteurs du mois, dont les trois premiers gagnent l'emblème et le rôle. */
+function VoteCard({ vote, onClaimed }: { vote: VoteInfo; onClaimed: (v: VoteInfo, paid: boolean) => void }) {
   const { showToast } = useToast();
   const { copied, copy } = useCopy();
   const [busy, setBusy] = useState(false);
@@ -4816,14 +4828,23 @@ function VoteCard({ vote, onClaimed }: { vote: VoteInfo; onClaimed: (v: VoteInfo
   const streak = vote.streak ?? 0;
   const cap = vote.streakCap ?? 7;
   const done = !!vote.claimedToday;
+  const m = vote.month;
+  const daysLeft = m ? Math.max(1, Math.ceil(m.endsInMs / 86_400_000)) : 0;
+  const monthName = m ? new Date(`${m.month}-15T12:00:00Z`).toLocaleDateString("fr-FR", { month: "long" }) : "";
+  const meInTop = !!m?.top.some((r) => r.me);
 
   async function claim() {
     setBusy(true);
     setMsg(null);
     try {
       const { data } = await api.post("/vote/claim");
-      showToast(`Merci pour le vote ! +${data.amount} pi.${data.streak > 1 ? ` · ${data.streak} jours d'affilée` : ""}`);
-      onClaimed({ ...vote, claimedToday: true, streak: data.streak, nextReward: data.nextReward });
+      if (data.amount > 0) {
+        showToast(`Merci pour le vote ! +${data.amount} pi.${data.streak > 1 ? ` · ${data.streak} jours d'affilée` : ""}`);
+        onClaimed({ ...vote, claimedToday: true, streak: data.streak, nextReward: data.nextReward, month: data.month ?? vote.month }, true);
+      } else {
+        showToast(`Vote compté : ${data.monthVotes} ce mois-ci`);
+        onClaimed({ ...vote, month: data.month ?? vote.month }, false);
+      }
     } catch (err: any) {
       setMsg(err?.response?.data?.error ?? "Vérification impossible, réessayez dans un instant");
     } finally {
@@ -4832,62 +4853,101 @@ function VoteCard({ vote, onClaimed }: { vote: VoteInfo; onClaimed: (v: VoteInfo
   }
 
   return (
-    <div className="border border-line bg-navy-900/40 p-4 mb-6 rounded-card">
-      <div className="flex items-baseline gap-3 flex-wrap mb-3">
-        <h2 className="font-display text-lg">Votez pour Réseau</h2>
-        <span className="text-[11px] font-body text-slate2">
-          {done
-            ? `Prime du jour reçue. Demain : ${vote.nextReward} pi.`
-            : `${vote.nextReward} pi. aujourd'hui, un peu plus chaque jour d'affilée.`}
-        </span>
-      </div>
+    <div className="border border-line bg-navy-900/40 mb-6 rounded-card grid md:grid-cols-[1fr_300px] md:divide-x divide-line">
+      <div className="p-4">
+        <div className="flex items-baseline gap-3 flex-wrap mb-3">
+          <h2 className="font-display text-lg">Votez pour Réseau</h2>
+          <span className="text-[11px] font-body text-slate2">
+            {done ? `Prime du jour reçue. Demain : ${vote.nextReward} pi.` : `${vote.nextReward} pi. aujourd'hui, un peu plus chaque jour d'affilée.`}
+          </span>
+        </div>
 
-      <ol className="text-[12.5px] font-body text-slate2 space-y-1.5 mb-3 list-decimal list-inside">
-        <li>
-          Sur Top-Serveurs, saisissez ce pseudo :{" "}
-          <button
-            onClick={() => vote.pseudo && copy(vote.pseudo, "pseudo")}
-            className="font-mono2 text-amber tracking-[0.15em] border border-amber/30 px-2 py-0.5 rounded-control hover:bg-amber/10"
-            title="Copier le pseudo"
+        <ol className="text-[12.5px] font-body text-slate2 space-y-1.5 mb-3 list-decimal list-inside">
+          <li>
+            Sur Top-Serveurs, saisissez ce pseudo :{" "}
+            <button
+              onClick={() => vote.pseudo && copy(vote.pseudo, "pseudo")}
+              className="font-mono2 text-amber tracking-[0.15em] border border-amber/30 px-2 py-0.5 rounded-control hover:bg-amber/10"
+              title="Copier le pseudo"
+            >
+              {copied === "pseudo" ? "Copié !" : vote.pseudo}
+            </button>
+          </li>
+          <li>Revenez ici et faites valider votre vote.</li>
+        </ol>
+
+        <div className="flex items-center gap-3 flex-wrap">
+          <a
+            href={vote.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => vote.pseudo && navigator.clipboard?.writeText(vote.pseudo).catch(() => undefined)}
+            className="text-xs font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors font-medium rounded-control"
           >
-            {copied === "pseudo" ? "Copié !" : vote.pseudo}
+            Voter sur Top-Serveurs ↗
+          </a>
+          <button onClick={claim} disabled={busy} className="text-xs font-body bg-cobalt text-onaccent px-3 py-1.5 font-semibold rounded-control disabled:opacity-40">
+            {busy ? "Vérification…" : done ? "J'ai revoté, compter mon vote" : "J'ai voté, réclamer"}
           </button>
-        </li>
-        <li>Revenez ici et réclamez votre prime.</li>
-      </ol>
+        </div>
+        {done && <p className="text-[11.5px] font-body text-slate2 mt-2">On peut revoter toutes les 2 h : chaque vote compte pour les voteurs du mois.</p>}
 
-      <div className="flex items-center gap-3 flex-wrap">
-        <a
-          href={vote.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={() => vote.pseudo && navigator.clipboard?.writeText(vote.pseudo).catch(() => undefined)}
-          className="text-xs font-body text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 transition-colors font-medium rounded-control"
-        >
-          Voter sur Top-Serveurs ↗
-        </a>
-        <button
-          onClick={claim}
-          disabled={busy || done}
-          className="text-xs font-body bg-cobalt text-onaccent px-3 py-1.5 font-semibold rounded-control disabled:opacity-40"
-        >
-          {done ? "Prime reçue ✓" : busy ? "Vérification…" : "J'ai voté, réclamer"}
-        </button>
+        <div className="mt-4">
+          <div className="flex items-baseline justify-between text-[11px] font-body mb-1.5">
+            <span className="text-slate2">Série de votes</span>
+            <span className="font-mono2 text-slate2">
+              {Math.min(streak, cap)} / {cap} jours
+            </span>
+          </div>
+          <div className="flex gap-1">
+            {Array.from({ length: cap }, (_, i) => (
+              <div key={i} className={`h-1 flex-1 border border-line ${i < streak ? "bg-amber" : "bg-navy-950"}`} />
+            ))}
+          </div>
+        </div>
+
+        {msg && <p className="text-[12px] font-body text-amber mt-3">{msg}</p>}
       </div>
 
-      <div className="mt-4">
-        <div className="flex items-baseline justify-between text-[11px] font-body mb-1.5">
-          <span className="text-slate2">Série de votes</span>
-          <span className="font-mono2 text-slate2">{Math.min(streak, cap)} / {cap} jours</span>
+      {m && (
+        <div className="p-4 border-t md:border-t-0 border-line">
+          <div className="flex items-baseline justify-between gap-2 mb-2">
+            <h3 className="font-display text-[15px]">Voteurs de {monthName}</h3>
+            <span className="text-[11px] font-body text-slate2">
+              encore {daysLeft} jour{daysLeft > 1 ? "s" : ""}
+            </span>
+          </div>
+          {m.top.length === 0 ? (
+            <p className="text-[12.5px] font-body text-slate2">Personne n'a encore voté ce mois-ci. La première place est libre.</p>
+          ) : (
+            <ol className="space-y-1">
+              {m.top.map((r) => (
+                <li key={r.companyId} className={`flex items-center gap-2 text-[13px] font-body ${r.me ? "text-amber" : "text-offwhite"}`}>
+                  <span className="font-mono2 text-slate2 w-4 text-right">{r.rank}</span>
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: r.liveryColor }} />
+                  {r.emblem && <Emblem id={r.emblem} size={13} className="text-slate2" />}
+                  <span className="truncate flex-1">{r.name}</span>
+                  <span className="font-mono2 tabular-nums text-slate2">{r.votes}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+          {!meInTop && (
+            <div className="mt-2 pt-2 border-t border-line flex items-center gap-2 text-[13px] font-body text-amber">
+              <span className="font-mono2 text-slate2 w-4 text-right">{m.rank ?? "–"}</span>
+              <span className="flex-1">Vous</span>
+              <span className="font-mono2 tabular-nums text-slate2">{m.votes}</span>
+            </div>
+          )}
+          <div className="mt-3 flex items-start gap-2 text-[12px] font-body text-slate2">
+            <Emblem id="tampon" size={16} className="text-amber mt-0.5" />
+            <span>
+              {m.prizes?.length ? `${m.prizes.map((p) => `${p.toLocaleString("fr-FR")} pi.`).join(", ")} pour les ${m.winners} premiers, ` : `Les ${m.winners} premiers gagnent `}
+              l'emblème « Tampon de contrôle » et le rôle Voteur du mois sur le Discord. À égalité, le premier arrivé passe devant.
+            </span>
+          </div>
         </div>
-        <div className="flex gap-1">
-          {Array.from({ length: cap }, (_, i) => (
-            <div key={i} className={`h-1 flex-1 border border-line ${i < streak ? "bg-amber" : "bg-navy-950"}`} />
-          ))}
-        </div>
-      </div>
-
-      {msg && <p className="text-[12px] font-body text-amber mt-3">{msg}</p>}
+      )}
     </div>
   );
 }

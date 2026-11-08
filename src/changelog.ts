@@ -19,6 +19,7 @@ const ALL_ENTRIES: ChangelogEntry[] = [
     date: "Novembre 2026",
     changes: [
       { type: "nouveau", text: "Votez pour Réseau sur Top-Serveurs : une prime par jour, 60 pi. le premier jour puis 10 pi. de plus par jour d'affilée, jusqu'à 120 pi. au 7e. Le pseudo à saisir est votre code de parrainage" },
+      { type: "nouveau", text: "Voteurs du mois : chaque vote compte, même après la prime du jour (un toutes les 2 h). Les 3 premiers du mois gagnent 5 000, 3 000 et 1 500 pi., l'emblème « Tampon de contrôle » et le rôle Voteur du mois sur le Discord" },
       { type: "nouveau", text: "Après une promotion de grade, le jeu propose de la partager avec un message tout prêt et votre code de parrainage" },
       { type: "nouveau", text: "Cliquez sur votre réputation, en haut du jeu, pour voir d'où vient la note, les incidents de la semaine et comment la faire monter" },
       { type: "nouveau", text: "Nouveaux venus : un contrat de fret de bienvenue vous attend sur le marché, réservé 24 h et payé moitié plus, et votre première locomotive de fret arrive avec un wagon plat offert" },

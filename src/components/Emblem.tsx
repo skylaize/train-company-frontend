@@ -55,6 +55,8 @@ export const EMBLEM_LABELS: Record<string, string> = {
   cigogne: "Cigogne d'Alsace",
   lavande: "Lavande de Provence",
   volcan: "Volcan d'Auvergne",
+  // podium des voteurs du mois, jamais vendu
+  tampon: "Tampon de contrôle",
 };
 
 export function Emblem({ id, size = 14, className = "" }: { id: string; size?: number; className?: string }) {
@@ -366,6 +368,15 @@ export function Emblem({ id, size = 14, className = "" }: { id: string; size?: n
           <path d="M2.4 6.2H5L11 3v10L5 9.8H2.4z" />
           <path d="M5.4 10l1 3.4h1.4l-.6-3" />
           <path d="M12.9 6.4c.7.9.7 2.3 0 3.2M14.3 5.1c1.2 1.6 1.2 4.2 0 5.8" />
+        </svg>
+      );
+    // le tampon rond du contrôleur, une coche au milieu
+    case "tampon":
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="8" r="6.4" />
+          <circle cx="8" cy="8" r="4.4" strokeDasharray="1.2 1.1" />
+          <path d="M6 8.1l1.4 1.4L10.2 6.6" />
         </svg>
       );
     case "citrouille":
