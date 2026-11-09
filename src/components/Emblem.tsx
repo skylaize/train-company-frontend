@@ -57,6 +57,11 @@ export const EMBLEM_LABELS: Record<string, string> = {
   volcan: "Volcan d'Auvergne",
   // podium des voteurs du mois, jamais vendu
   tampon: "Tampon de contrôle",
+  // 2.7 : éruption solaire, 10 % d'une sous-station réparée
+  pylone: "Pylône de l'éruption",
+  // 2.7 : pass « Retour au vieux matériel »
+  bielle: "Bielle motrice",
+  manometre: "Manomètre de chaudière",
 };
 
 export function Emblem({ id, size = 14, className = "" }: { id: string; size?: number; className?: string }) {
@@ -377,6 +382,35 @@ export function Emblem({ id, size = 14, className = "" }: { id: string; size?: n
           <circle cx="8" cy="8" r="6.4" />
           <circle cx="8" cy="8" r="4.4" strokeDasharray="1.2 1.1" />
           <path d="M6 8.1l1.4 1.4L10.2 6.6" />
+        </svg>
+      );
+    // 2.7 : un pylône de ligne à haute tension, un éclair au pied
+    case "pylone":
+      return (
+        <svg {...common}>
+          <path d="M8 1.5 5 14.5M8 1.5l3 13M3.2 5h9.6M4.3 9h7.4M6.2 9 9.4 5M9.8 9 6.6 5" />
+        </svg>
+      );
+    // 2.7 : la bielle qui relie deux roues motrices
+    case "bielle":
+      return (
+        <svg {...common}>
+          <circle cx="4" cy="10" r="3" />
+          <circle cx="12" cy="10" r="3" />
+          <circle cx="4" cy="10" r="0.6" />
+          <circle cx="12" cy="10" r="0.6" />
+          <path d="M3 7.6h10" strokeWidth="2" />
+          <path d="M4.4 7.6 4.4 10M11.6 7.6 11.6 10" />
+        </svg>
+      );
+    // 2.7 : le manomètre d'une chaudière, l'aiguille dans le rouge
+    case "manometre":
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="8.6" r="5.6" />
+          <path d="M4.6 11.4a4 4 0 0 1 0-5.6M11.4 5.8a4 4 0 0 1 .9 2" />
+          <path d="M8 8.6 11 6.2" />
+          <path d="M8 1.4V3" />
         </svg>
       );
     case "citrouille":

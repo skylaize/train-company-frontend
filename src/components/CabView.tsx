@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { modelLabel, modelSpeed } from "../models";
 import { createPortal } from "react-dom";
 import { createCabScene } from "./cabScene";
+import { companySkinFor } from "./svgSkins";
 import { weatherAt, SCENE_KIND } from "../stationWeather";
 import { PremiumCTA, PremiumInfo } from "./PremiumCTA";
 import { api } from "../api/client";
@@ -36,6 +37,12 @@ export interface CabTrain {
   direction?: number;
   cars?: string[];
   plateStyle?: string | null; // 2.1
+}
+
+/* 2.7 : une rame d'une autre compagnie qui partage un tronçon de la ligne */
+export interface Rival extends CabTrain {
+  companyId: string;
+  company: { name: string; liveryColor: string };
 }
 
 /* 1.7 : l'itinéraire dans le sens de marche, découpé en tronçons et arrêts,
@@ -114,13 +121,16 @@ export function CabView({
   weatherType,
   livery,
   skin = null,
+  freightSkin = null,
   stationSkin = null,
   others = [],
   yards = [],
   company,
   onClose,
   preview = false,
+  companyName,
 }: {
+  companyName?: string; // 2.7 : pour la légende du mode photo
   stationSkin?: string | null;
   others?: CabTrain[]; // 2.1 : les autres rames de la compagnie, pour les croisements sur double voie
   yards?: string[]; // 2.1 : gares de triage
@@ -128,6 +138,7 @@ export function CabView({
   weatherType?: string;
   livery: string;
   skin?: string | null;
+  freightSkin?: string | null; // 2.7 : habillage des locomotives de fret
   company: PremiumInfo;
   onClose: () => void;
   preview?: boolean; // aperçu de boutique : ne compte pas pour le succès « En cabine »
@@ -135,7 +146,24 @@ export function CabView({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [locked, setLocked] = useState(false);
   const opened = useRef(Date.now());
-  const hud = useCabScene(canvasRef, train, { weatherType, livery, skin, premium: company.isPremium, stationSkin, others, yards }, () => {
+  /* 2.7 : les rames des autres compagnies sur la ligne, relues toutes les minutes */
+  const [rivals, setRivals] = useState<Rival[]>([]);
+  useEffect(() => {
+    if (preview || !train.line) return;
+    let alive = true;
+    const load = () =>
+      api
+        .get(`/trains/${train.id}/rivals`)
+        .then(({ data }) => alive && setRivals(data.rivals ?? []))
+        .catch(() => undefined);
+    load();
+    const id = setInterval(load, 60_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [train.id, train.line, preview]);
+  const hud = useCabScene(canvasRef, train, { weatherType, livery, skin, freightSkin, premium: company.isPremium, stationSkin, others, yards, rivals }, () => {
     if (!company.isPremium && Date.now() - opened.current > FREE_PREVIEW_S * 1000) setLocked(true);
   });
 
@@ -156,6 +184,47 @@ export function CabView({
   const arr = (back ? train.line?.departureStation : train.line?.arrivalStation) ?? "—";
   const broken = train.status === "MAINTENANCE";
 
+  /* 2.7 : le mode photo. L'image de la scène, avec une légende en bas (la
+     rame, la ligne, la compagnie, l'adresse du jeu), à partager ou à garder. */
+  const [shot, setShot] = useState<string | null>(null);
+  async function photo() {
+    const cv = canvasRef.current;
+    if (!cv) return;
+    const out = document.createElement("canvas");
+    out.width = cv.width;
+    out.height = cv.height;
+    const c = out.getContext("2d");
+    if (!c) return;
+    c.drawImage(cv, 0, 0);
+    const k = cv.width / 1000;
+    const band = 64 * k;
+    const g = c.createLinearGradient(0, cv.height - band * 1.6, 0, cv.height);
+    g.addColorStop(0, "rgba(11,15,25,0)");
+    g.addColorStop(1, "rgba(11,15,25,.85)");
+    c.fillStyle = g;
+    c.fillRect(0, cv.height - band * 1.6, cv.width, band * 1.6);
+    c.fillStyle = "#f3efe6";
+    c.textBaseline = "alphabetic";
+    c.font = `600 ${22 * k}px Bitter, Georgia, serif`;
+    c.fillText(train.name, 24 * k, cv.height - 34 * k);
+    c.font = `400 ${14 * k}px 'Work Sans', sans-serif`;
+    c.fillStyle = "#c9ccd3";
+    c.fillText(`${dep} → ${arr}${companyName ? ` · ${companyName}` : ""}`, 24 * k, cv.height - 14 * k);
+    c.textAlign = "right";
+    c.fillStyle = "#d39f18";
+    c.font = `700 ${13 * k}px 'Space Mono', monospace`;
+    c.fillText("RÉSEAU · compagnie.skhost.fr", cv.width - 24 * k, cv.height - 14 * k);
+    const blob: Blob | null = await new Promise((r) => out.toBlob(r, "image/png"));
+    if (!blob) return;
+    const file = new File([blob], `${train.name.replace(/[^\w-]+/g, "-")}.png`, { type: "image/png" });
+    const nav = navigator as Navigator & { canShare?: (d: { files: File[] }) => boolean };
+    if (nav.canShare?.({ files: [file] })) {
+      nav.share({ files: [file], title: train.name }).catch(() => undefined);
+      return;
+    }
+    setShot(URL.createObjectURL(blob));
+  }
+
   /* Rendue directement dans <body> : la page des trains est animée (transform),
      ce qui décalerait une fenêtre « fixed » placée à l'intérieur. */
   return createPortal(
@@ -168,8 +237,15 @@ export function CabView({
             {dep} → {arr}
           </span>
           <button
+            onClick={photo}
+            className="ml-auto font-mono2 text-[11px] uppercase border border-amber/50 px-2.5 py-1 text-amber hover:bg-amber/10 rounded-control"
+            title="Une image de la scène, avec la rame et la ligne, à partager"
+          >
+            Photo
+          </button>
+          <button
             onClick={onClose}
-            className="ml-auto font-mono2 text-[11px] uppercase border border-line px-2.5 py-1 text-slate2 hover:text-offwhite rounded-control"
+            className="font-mono2 text-[11px] uppercase border border-line px-2.5 py-1 text-slate2 hover:text-offwhite rounded-control"
           >
             Fermer
           </button>
@@ -198,6 +274,25 @@ export function CabView({
             );
           })()}
 
+          {shot && (
+            <div className="absolute inset-0 bg-navy-950/85 flex flex-col items-center justify-center gap-3 p-4">
+              <img src={shot} alt="Photo de la vue cabine" className="max-h-[70%] max-w-full border border-line rounded-card" />
+              <div className="flex gap-2">
+                <a href={shot} download={`${train.name}.png`} className="font-body text-[13px] bg-amber text-onaccent px-3 py-1.5 font-semibold rounded-control">
+                  Enregistrer l'image
+                </a>
+                <button onClick={() => setShot(null)} className="font-body text-[13px] border border-line px-3 py-1.5 text-slate2 hover:text-offwhite rounded-control">
+                  Revenir à la vue
+                </button>
+              </div>
+            </div>
+          )}
+          {/* 2.7 : les rames d'autres compagnies sur le tronçon */}
+          {hud.crossing > 0 && !shot && (
+            <span className="absolute bottom-3 left-3 font-body text-[11.5px] bg-navy-950/75 border border-line px-2 py-1 text-slate2 rounded-control">
+              {hud.crossing} rame{hud.crossing > 1 ? "s" : ""} d'autres compagnies en face sur ce tronçon
+            </span>
+          )}
           {locked && (
             <div className="absolute inset-0 backdrop-blur-sm bg-navy-950/60 flex items-center justify-center p-4">
               <div className="bg-navy-900 border border-line border-t-[3px] border-t-amber max-w-sm p-5 rounded-card">
@@ -237,18 +332,32 @@ export function CabView({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-line border-t border-line mt-3">
-          {[
-            { v: String(hud.kmh), l: "km/h", c: "text-offwhite" },
-            { v: hud.left, l: hud.marks.length ? `Terminus ${arr} dans` : "Arrivée dans", c: "text-offwhite" },
-            { v: modelLabel(train.model), l: "Matériel", c: "text-offwhite" },
-            { v: `${train.wear} %`, l: "Usure", c: train.wear >= 80 ? "text-rail-red" : train.wear >= 50 ? "text-amber" : "text-rail-green" },
-          ].map((c) => (
-            <div key={c.l} className="bg-navy-900 px-5 py-3">
-              <div className={`font-mono2 text-xl tabular-nums ${c.c}`}>{c.v}</div>
-              <div className="text-[10.5px] text-slate2 font-body uppercase tracking-[0.1em] mt-0.5">{c.l}</div>
-            </div>
-          ))}
+        {/* 2.7 : le tableau de bord — vitesse, prochain arrêt et son heure, terminus, voyageurs, usure */}
+        <div className={`grid grid-cols-2 ${hud.next && hud.next !== arr ? "md:grid-cols-5" : "md:grid-cols-4"} gap-px bg-line border-t border-line mt-3`}>
+          {(() => {
+            const seats = (train as { lastSeats?: number | null }).lastSeats ?? null;
+            const pax = (train as { lastPassengers?: number | null }).lastPassengers ?? null;
+            const stopsLeft = hud.marks.filter((m) => m.pct > hud.pct).length;
+            return [
+              { v: String(hud.kmh), l: "km/h", s: modelLabel(train.model), c: "text-offwhite" },
+              // le prochain arrêt, seulement s'il y en a un avant le terminus
+              ...(hud.next && hud.next !== arr ? [{ v: hud.nextIn, l: `Prochain arrêt : ${hud.next}`, s: hud.nextAt ? `à ${hud.nextAt}` : "", c: "text-offwhite" }] : []),
+              {
+                v: hud.endAt || hud.left,
+                l: `Arrivée à ${arr}`,
+                s: `${hud.left === "à quai" ? "à quai" : `dans ${hud.left}`}${stopsLeft ? ` · ${stopsLeft} arrêt${stopsLeft > 1 ? "s" : ""} avant` : ""}`,
+                c: "text-offwhite",
+              },
+              { v: seats ? `${pax ?? 0}` : "—", l: "Voyageurs à bord", s: seats ? `sur ${seats} places` : "après le premier trajet", c: "text-offwhite" },
+              { v: `${train.wear} %`, l: "Usure", s: train.wear >= 80 ? "révision conseillée" : "", c: train.wear >= 80 ? "text-rail-red" : train.wear >= 50 ? "text-amber" : "text-rail-green" },
+            ].map((c) => (
+              <div key={c.l} className="bg-navy-900 px-4 py-3 min-w-0">
+                <div className={`font-mono2 text-xl tabular-nums ${c.c}`}>{c.v}</div>
+                <div className="text-[10.5px] text-slate2 font-body uppercase tracking-[0.1em] mt-0.5 truncate">{c.l}</div>
+                {c.s && <div className="text-[11px] text-slate2/80 font-body mt-0.5 truncate">{c.s}</div>}
+              </div>
+            ));
+          })()}
         </div>
       </div>
     </div>,
@@ -265,13 +374,17 @@ export function useCabScene(
     weatherType,
     livery,
     skin,
+    freightSkin = null,
     premium = false,
     stationSkin = null,
     others = [],
     yards = [],
-  }: { weatherType?: string; livery: string; skin?: string | null; premium?: boolean; stationSkin?: string | null; others?: CabTrain[]; yards?: string[] },
+    rivals = [],
+  }: { weatherType?: string; livery: string; skin?: string | null; freightSkin?: string | null; premium?: boolean; stationSkin?: string | null; others?: CabTrain[]; yards?: string[]; rivals?: Rival[] },
   onTick?: () => void
 ) {
+  const rivalsRef = useRef(rivals);
+  rivalsRef.current = rivals;
   const trainRef = useRef(train);
   trainRef.current = train;
   const othersRef = useRef(others);
@@ -284,7 +397,7 @@ export function useCabScene(
   hauntRef.current = haunted;
   const onTickRef = useRef(onTick);
   onTickRef.current = onTick;
-  const [hud, setHud] = useState({ kmh: 0, left: "—", phase: "En route", pct: 0, next: "", marks: [] as { name: string; pct: number }[], wx: null as null | { place: string; kind: string; temp: number | null } });
+  const [hud, setHud] = useState({ kmh: 0, left: "—", phase: "En route", pct: 0, next: "", nextIn: "—", nextAt: "", endAt: "", crossing: 0, marks: [] as { name: string; pct: number }[], wx: null as null | { place: string; kind: string; temp: number | null } });
 
   useEffect(() => {
     const cv = canvasRef.current;
@@ -338,7 +451,7 @@ export function useCabScene(
       // 2.0 : une rame de collection garde sa livrée et son allure d'époque
       const her = (t as { heritage?: { skin?: string; livery?: string } | null }).heritage;
       sc.livery = her?.livery ?? livery;
-      sc.skin = her?.skin ?? skin ?? null;
+      sc.skin = her?.skin ?? companySkinFor(t.model, skin, freightSkin);
       sc.express = t.model === "EXPRESS";
       sc.sleeper = t.model === "COUCHETTES" || t.model === "NUIT_EUROPE";
       sc.model = t.model;
@@ -364,9 +477,36 @@ export function useCabScene(
               const eo = o.departedAt ? (Date.now() - new Date(o.departedAt).getTime()) / 1000 : (o.progress / 100) * p.duration;
               const fo = p.duration > 0 ? Math.min(1, Math.max(0, eo / p.duration)) : 0;
               const oh = (o as { heritage?: { skin?: string; livery?: string } | null }).heritage;
-              return { id: o.id, gap: (1 - fo - f) * cruise * duration * CROSS_SLOW, model: o.model, livery: oh?.livery ?? livery, skin: oh?.skin ?? skin ?? null, cars: o.cars ?? [], v: CRUISE[o.model] ?? 430 };
+              return { id: o.id, gap: (1 - fo - f) * cruise * duration * CROSS_SLOW, model: o.model, livery: oh?.livery ?? livery, skin: oh?.skin ?? companySkinFor(o.model, skin, freightSkin), cars: o.cars ?? [], v: CRUISE[o.model] ?? 430 };
             })
         : [];
+      /* 2.7 : les rames des autres compagnies qui roulent en sens inverse sur
+         le même tronçon, croisées sur la voie du fond, avec leur nom. Leur
+         position dans le tronçon vient de leur propre horaire. */
+      if (!dwelling) {
+        const segS = Math.max(1, ph.end - ph.start);
+        const fs = Math.min(1, Math.max(0, segElapsed / segS));
+        for (const r of rivalsRef.current) {
+          if (r.status !== "EN_ROUTE" || !r.line) continue;
+          const p = tripPlan(r);
+          const er = r.departedAt ? (Date.now() - new Date(r.departedAt).getTime()) / 1000 : (r.progress / 100) * p.duration;
+          const rp = p.phases.find((q) => q.kind !== "dwell" && q.from === ph.to && q.to === ph.from && er >= q.start && er < q.end);
+          if (!rp) continue;
+          const fo = (er - rp.start) / Math.max(1, rp.end - rp.start);
+          const rh = (r as { heritage?: { skin?: string; livery?: string } | null }).heritage;
+          sc.oncoming.push({
+            id: r.id,
+            gap: (1 - fo - fs) * cruise * segS * CROSS_SLOW,
+            model: r.model,
+            livery: rh?.livery ?? r.company.liveryColor,
+            skin: rh?.skin ?? null,
+            cars: r.cars ?? [],
+            v: CRUISE[r.model] ?? 430,
+            label: r.company.name,
+          });
+          if (sc.oncoming.length > 6) break;
+        }
+      }
       /* 2.1.1 : un tronçon qui passe une frontière a son poste-frontière, à mi-chemin */
       const fFrom = FOREIGN_COUNTRY[ph.from], fTo = FOREIGN_COUNTRY[ph.to];
       if (!dwelling && (fFrom?.code ?? "FR") !== (fTo?.code ?? "FR")) {
@@ -407,7 +547,23 @@ export function useCabScene(
           : "En route";
         const left = broken ? "à l'arrêt" : leftS <= 0 ? "à quai" : leftS >= 60 ? `${Math.ceil(leftS / 60)} min` : `${Math.ceil(leftS)} s`;
         const marks = plan.phases.filter((p) => p.kind === "dwell").map((p) => ({ name: p.from, pct: (p.start / duration) * 100 }));
-        setHud({ kmh: Math.round((v / cruise) * (KMH[t.model] ?? 220)), left, phase, pct, next: dwelling ? ph.from : ph.to, marks, wx: { place, kind: sc.weather, temp: real ? real.temp : null } });
+        // 2.7 : le prochain arrêt, dans combien de temps et à quelle heure ; l'heure d'arrivée au terminus
+        const clock = (sec: number) => new Date(Date.now() + sec * 1000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }).replace(":", " h ");
+        const nextSec = dwelling ? Math.max(0, ph.end - elapsed) : segLeft;
+        const nextIn = broken ? "—" : nextSec >= 60 ? `${Math.ceil(nextSec / 60)} min` : `${Math.ceil(nextSec)} s`;
+        setHud({
+          kmh: Math.round((v / cruise) * (KMH[t.model] ?? 220)),
+          left,
+          phase,
+          pct,
+          next: dwelling ? ph.from : ph.to,
+          nextIn,
+          nextAt: broken ? "" : clock(nextSec),
+          endAt: broken || leftS <= 0 ? "" : clock(leftS),
+          crossing: sc.oncoming.filter((o) => o.label).length,
+          marks,
+          wx: { place, kind: sc.weather, temp: real ? real.temp : null },
+        });
         onTickRef.current?.();
       }
       raf = requestAnimationFrame(loop);
@@ -418,7 +574,7 @@ export function useCabScene(
       cancelAnimationFrame(raf);
       window.removeEventListener("resize", resize);
     };
-  }, [canvasRef, weatherType, livery, skin, premium]);
+  }, [canvasRef, weatherType, livery, skin, freightSkin, premium]);
 
   return hud;
 }

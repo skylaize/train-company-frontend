@@ -33,6 +33,8 @@ export interface EnergyData {
   tank: { tanks: number; liters: number; capacity: number; tankCost: number; tankLiters: number; maxTanks: number };
   battery: { kwh: number; capacity: number; offPeak: boolean };
   offerPrice: number | null;
+  offerPct?: number | null; // 2.7 : prix automatique, x % sous le réseau
+  offerNow?: number | null;
   fuelBlocked: boolean;
   meters: Meter[];
   plants: Plant[];
@@ -315,6 +317,9 @@ function EnergyPanel({ data, balance, onDone }: { data: EnergyData; balance: num
   const { showToast } = useToast();
   const [busy, setBusy] = useState<string | null>(null);
   const [offer, setOffer] = useState(data.offerPrice !== null ? String(data.offerPrice).replace(".", ",") : "");
+  // 2.7 : le prix peut suivre le réseau tout seul
+  const [auto, setAuto] = useState(data.offerPct != null);
+  const [pct, setPct] = useState(String(data.offerPct ?? 10));
   const [site, setSite] = useState<Record<string, string>>({});
   const act = async (key: string, fn: () => Promise<unknown>, ok: string) => {
     setBusy(key);
@@ -530,29 +535,75 @@ function EnergyPanel({ data, balance, onDone }: { data: EnergyData; balance: num
           <div className="border border-line rounded-card bg-navy-900/40 p-4 space-y-3">
             <div className="font-body text-[13.5px]">Vendre votre surplus aux autres joueurs</div>
             <p className="font-body text-[13px] text-slate2">
-              Fixez votre prix au kWh. Il ne trouve preneur que s'il est moins cher que le réseau ({money(data.prices.power.now, 3)} pi./kWh en ce moment). Sans prix, le surplus part au réseau.
+              Votre prix ne trouve preneur que s'il est moins cher que le réseau ({money(data.prices.power.now, 3)} pi./kWh en ce moment). Sans prix, le surplus part au réseau.
             </p>
-            <div className="flex gap-2 items-center">
-              <input
-                inputMode="decimal"
-                value={offer}
-                onChange={(e) => setOffer(e.target.value)}
-                placeholder="ex. 0,18"
-                className="w-28 bg-navy-800 border border-line rounded-control px-2 py-1.5 font-mono2 text-[14px] tabular-nums"
-                aria-label="Prix de vente du kWh"
-              />
-              <span className="font-body text-[13px] text-slate2">pi./kWh</span>
-              <Btn
-                tone="ghost"
-                busy={busy === "offer"}
-                onClick={() => {
-                  const v = offer.trim() === "" ? null : Number(offer.replace(",", "."));
-                  act("offer", () => api.patch("/economy/settings", { offerPrice: v }), v === null ? "Le surplus part au réseau" : "Prix de vente enregistré");
-                }}
-              >
-                Enregistrer
-              </Btn>
+            <div className="flex gap-2" role="radiogroup" aria-label="Façon de fixer le prix">
+              {[
+                { v: false, label: "Prix fixe" },
+                { v: true, label: "Suivre le réseau" },
+              ].map((o) => (
+                <button
+                  key={o.label}
+                  role="radio"
+                  aria-checked={auto === o.v}
+                  onClick={() => setAuto(o.v)}
+                  className={`px-3 py-1.5 border font-body text-[12.5px] rounded-control ${auto === o.v ? "border-cobalt text-cobalt" : "border-line text-slate2 hover:border-slate2"}`}
+                >
+                  {o.label}
+                </button>
+              ))}
             </div>
+            {auto ? (
+              <>
+                <div className="flex gap-2 items-center flex-wrap">
+                  <input
+                    inputMode="numeric"
+                    value={pct}
+                    onChange={(e) => setPct(e.target.value.replace(/[^0-9]/g, ""))}
+                    className="w-16 bg-navy-800 border border-line rounded-control px-2 py-1.5 font-mono2 text-[14px] tabular-nums"
+                    aria-label="Pourcentage sous le prix du réseau"
+                  />
+                  <span className="font-body text-[13px] text-slate2">% moins cher que le réseau</span>
+                  <Btn
+                    tone="ghost"
+                    busy={busy === "offer"}
+                    onClick={() => {
+                      const n = Number(pct);
+                      if (!n || n < 1 || n > 50) return showToast("Entre 1 et 50 %", "error");
+                      act("offer", () => api.patch("/economy/settings", { offerPct: n }), "Le prix suivra le réseau chaque heure");
+                    }}
+                  >
+                    Enregistrer
+                  </Btn>
+                </div>
+                <p className="font-body text-[12.5px] text-slate2">
+                  Le prix est recalculé à chaque heure.
+                  {data.offerPct != null && data.offerNow != null && <> En ce moment, vous vendez à <span className="font-mono2 tabular-nums text-offwhite">{money(data.offerNow, 3)}</span> pi./kWh.</>}
+                </p>
+              </>
+            ) : (
+              <div className="flex gap-2 items-center">
+                <input
+                  inputMode="decimal"
+                  value={offer}
+                  onChange={(e) => setOffer(e.target.value)}
+                  placeholder="ex. 0,18"
+                  className="w-28 bg-navy-800 border border-line rounded-control px-2 py-1.5 font-mono2 text-[14px] tabular-nums"
+                  aria-label="Prix de vente du kWh"
+                />
+                <span className="font-body text-[13px] text-slate2">pi./kWh</span>
+                <Btn
+                  tone="ghost"
+                  busy={busy === "offer"}
+                  onClick={() => {
+                    const v = offer.trim() === "" ? null : Number(offer.replace(",", "."));
+                    act("offer", () => api.patch("/economy/settings", v === null ? { offerPrice: null, offerPct: null } : { offerPrice: v }), v === null ? "Le surplus part au réseau" : "Prix de vente enregistré");
+                  }}
+                >
+                  Enregistrer
+                </Btn>
+              </div>
+            )}
           </div>
         </div>
       </section>

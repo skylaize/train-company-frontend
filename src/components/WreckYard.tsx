@@ -43,6 +43,7 @@ export interface Wreck {
   progress: number;
   ready: boolean;
   organs: WreckOrgan[];
+  abandoned?: { by: string; at: string; decay: number } | null; // 2.7 : zone d'abandon
 }
 export interface WreckData {
   open: Wreck[];
@@ -247,14 +248,11 @@ export function WreckYard({ balance, onChange, onCommissioned }: { balance: numb
       })}
 
       {/* ---------- à l'abandon près des gares ---------- */}
-      <h3 className="font-display text-[18px] mt-6 mb-3">À l'abandon près des gares</h3>
-      {open.length === 0 ? (
-        <p className="text-[14px] font-body text-slate2 border border-dashed border-line px-4 py-5">
-          Aucune épave en vue pour l'instant. Il en apparaît de nouvelles au fil de la journée, la Gazette annonce les légendaires.
-        </p>
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          {open.map((w) => {
+      <h3 className="font-display text-[18px] mt-6 mb-3">Retrouvées près des gares</h3>
+      {(() => {
+        const fresh = open.filter((w) => !w.abandoned);
+        const dropped = open.filter((w) => w.abandoned);
+        const card = (w: Wreck) => {
             const left = minutesLeft(w.expiresAt);
             const reason = atLimit ? `Deux restaurations à la fois au plus` : depotFull ? "Dépôt plein : l'épave y prend une place" : w.price > balance ? "Trésorerie insuffisante" : null;
             return (
@@ -272,6 +270,11 @@ export function WreckYard({ balance, onChange, onCommissioned }: { balance: numb
                     {w.serial} · {w.year}
                   </div>
                   <p className="text-[13px] font-body text-slate2 mt-2 flex-1">{w.history}</p>
+                  {w.abandoned && (
+                    <div className="text-[12.5px] font-body text-slate2 mt-2">
+                      État : {Math.round(w.organs.reduce((t, o) => t + o.damage, 0) / Math.max(1, w.organs.length))} % de dégâts. Elle s'abîme de {w.abandoned.decay} points par jour tant que personne ne la rachète.
+                    </div>
+                  )}
                   <div className="text-[12.5px] font-body text-slate2 mt-2">Une fois restaurée : {prestigeLabel(w.prestige, w.serial)}</div>
                   <button
                     disabled={busy !== null || Boolean(reason)}
@@ -285,9 +288,29 @@ export function WreckYard({ balance, onChange, onCommissioned }: { balance: numb
                 </div>
               </article>
             );
-          })}
-        </div>
-      )}
+        };
+        return (
+          <>
+            {fresh.length === 0 ? (
+              <p className="text-[14px] font-body text-slate2 border border-dashed border-line px-4 py-5">
+                Aucune épave en vue pour l'instant. Il en apparaît de nouvelles au fil de la journée, la Gazette annonce les légendaires.
+              </p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{fresh.map(card)}</div>
+            )}
+            {/* 2.7 : les rames de collection revendues ou mises à la casse par les autres */}
+            {dropped.length > 0 && (
+              <>
+                <h3 className="font-display text-[18px] mt-6 mb-1">Zone d'abandon</h3>
+                <p className="text-[13.5px] font-body text-slate2 mb-3">
+                  Des rames de collection revendues ou mises à la casse par d'autres compagnies. Elles restent une semaine près de leur dernière gare, et s'abîment chaque jour un peu plus.
+                </p>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{dropped.map(card)}</div>
+              </>
+            )}
+          </>
+        );
+      })()}
 
       {/* ---------- ce que les autres ont trouvé ---------- */}
       {recent.length > 0 && (

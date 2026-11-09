@@ -24,6 +24,7 @@ export function LiveCab({
   isPremium,
   livery,
   skin,
+  freightSkin = null,
   weatherType,
   hintsSeen,
   onOpen,
@@ -33,6 +34,7 @@ export function LiveCab({
   isPremium: boolean;
   livery: string;
   skin: string | null;
+  freightSkin?: string | null;
   weatherType?: string;
   hintsSeen: string;
   onOpen: (id: string) => void;
@@ -71,7 +73,7 @@ export function LiveCab({
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <LiveCanvas key={train.id} train={train} livery={livery} skin={skin} weatherType={weatherType} blurred={!isPremium}>
+      <LiveCanvas key={train.id} train={train} livery={livery} skin={skin} freightSkin={freightSkin} weatherType={weatherType} blurred={!isPremium}>
         {(hud) => (
           <>
             {/* bandeau du haut, façon incrustation de chaîne d'info */}
@@ -151,6 +153,7 @@ function LiveCanvas({
   train,
   livery,
   skin,
+  freightSkin,
   weatherType,
   blurred,
   children,
@@ -158,12 +161,13 @@ function LiveCanvas({
   train: CabTrain;
   livery: string;
   skin: string | null;
+  freightSkin: string | null;
   weatherType?: string;
   blurred: boolean;
   children: (hud: ReturnType<typeof useCabScene>) => React.ReactNode;
 }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const hud = useCabScene(ref, train, { weatherType, livery, skin, premium: !blurred });
+  const hud = useCabScene(ref, train, { weatherType, livery, skin, freightSkin, premium: !blurred });
   return (
     <div className="relative">
       <canvas

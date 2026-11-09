@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { MaintenancePanel } from "./MaintenancePanel";
 import { VotersPanel } from "./VotersPanel";
+import { EruptionPanel } from "./EruptionPanel";
 import { Bars, Btn, Figure, Loading, PageHead, Panel, euros, nf, useAdminData } from "./ui";
 
 type OverviewData = {
@@ -38,6 +39,7 @@ export default function Overview() {
 
       <MaintenancePanel />
       <VotersPanel />
+      <EruptionPanel />
 
       <div className="grid gap-px bg-line border border-line grid-cols-2 lg:grid-cols-4 mb-6">
         {[

@@ -322,7 +322,7 @@ export function TrainSheet({
         <section className="px-5 py-4 border-b border-line">
           <h4 className="font-body font-semibold text-[15px] mb-2">Équipage</h4>
           {[
-            { role: "CONTROLEUR", label: "Contrôleur", current: controleur, effect: "+10 % de recette et de la réputation", hidden: train.model === "FRET_LOURD" },
+            { role: "CONTROLEUR", label: "Contrôleur", current: controleur, effect: "+10 % de recette et de la réputation", hidden: isFreightLoco(train.model) },
             { role: "CONDUCTEUR", label: "Conducteur", current: conducteur, effect: "moins de retards, d'incidents et d'usure", hidden: false },
           ]
             .filter((r) => !r.hidden)
@@ -401,7 +401,7 @@ export function TrainSheet({
         <section className="px-5 py-4">
           <h4 className="font-body font-semibold text-[15px]">Revente</h4>
           <p className="text-[13px] text-slate2 font-body mt-0.5">
-            Valeur de reprise aujourd'hui : <span className="font-mono2 text-offwhite">{fmt(train.resaleValue ?? 0)} pi.</span> {train.heritage ? "Une rame de collection ne perd rien avec l'âge : elle se reprend à 90 % de ce qu'elle a coûté, selon son état." : "Elle baisse avec l'âge et l'usure ; les voitures attelées sont reprises à moitié prix."}
+            Valeur de reprise aujourd'hui : <span className="font-mono2 text-offwhite">{fmt(train.resaleValue ?? 0)} pi.</span> {train.heritage ? "Une rame de collection ne perd rien avec l'âge : elle se reprend à 90 % de ce qu'elle a coûté, selon son état. Revendue ou mise à la casse, elle part dans la zone d'abandon, où une autre compagnie pourra la racheter." : "Elle baisse avec l'âge et l'usure ; les voitures attelées sont reprises à moitié prix."}
           </p>
           {/* 2.1.1 (Premium) : la cote, son historique et le meilleur jour pour revendre */}
           {isPremium && !train.heritage && <ResaleOutlook trainId={train.id} trainName={train.name} />}

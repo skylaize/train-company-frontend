@@ -53,6 +53,7 @@ import { adsEnabled, loadAds, showRewardedAd } from "../ads";
 import { AdBanner } from "../components/AdBanner";
 import { Plate } from "../components/Plate";
 import { HomeBoard, MiniRoute } from "../components/HomeBoard";
+import { EruptionCard, EruptionIntro, EruptionMapAnim, EruptionSection, eruptionSeen, eruptionStarted, markEruptionSeen, useEruption } from "../components/Eruption";
 import { SeasonSection, SeasonData, loadSeason, seasonLead, DIVISION_COLORS } from "../components/SeasonSection";
 import { NavRow, NavGroup, MobileTabBar, CompanyBadge } from "../components/AppNav";
 import { TrainStage, TrainArrival } from "../components/TrainStage";
@@ -240,6 +241,7 @@ interface Company {
   emblem?: string | null;
   title?: string | null;
   cabSkin?: string | null;
+  freightSkin?: string | null; // 2.7
   // 2.1 : sons de gare, habillage des gares, tenues du personnel
   soundPack?: string | null;
   stationSkin?: string | null;
@@ -278,6 +280,7 @@ interface Contract {
   // 2.3 : le conteneur scellé, et ce qu'on y a trouvé ("CODE|ce qu'il y avait")
   sealed?: boolean;
   reservedFor?: string | null; // 2.6.1 : contrat de bienvenue
+  electric?: boolean; // 2.7 : matériel électrique (éruption solaire)
   sealedOutcome?: string | null;
 }
 
@@ -406,6 +409,17 @@ export default function Dashboard() {
   const [teamWarning, setTeamWarning] = useState<{ message: string; at: string | null } | null>(null);
   const [reputationOpen, setReputationOpen] = useState(false);
   const closeReputation = useCallback(() => setReputationOpen(false), []);
+  // 2.7 : éruption solaire, l'alerte plein écran une fois, puis la carte
+  const eruption = useEruption(120_000);
+  const [eruptionIntro, setEruptionIntro] = useState(false);
+  const [eruptionMap, setEruptionMap] = useState(false);
+  useEffect(() => {
+    if (eruption && eruptionStarted(eruption) && !eruptionSeen("intro", eruption)) setEruptionIntro(true);
+  }, [eruption]);
+  const closeEruptionIntro = useCallback(() => {
+    if (eruption) markEruptionSeen("intro", eruption);
+    setEruptionIntro(false);
+  }, [eruption]);
   // 2.1.2 : le premier chargement a échoué (serveur lent, réseau coupé)
   const [loadFailed, setLoadFailed] = useState(false);
   // 2.1.2 : la fenêtre des 200 pionniers
@@ -1210,6 +1224,8 @@ export default function Dashboard() {
         { id: "trains", label: "Flotte", icon: <TrainMark size={16} />, count: trains.length, active: view === "trains", onClick: () => setView("trains") },
         { id: "lignes", label: "Lignes", icon: <TrackMark size={16} />, count: lines.length, active: view === "lignes", onClick: () => setView("lignes") },
         { id: "carte", label: "Carte", icon: <MapMark size={16} />, active: view === "carte", onClick: () => setView("carte"), dataTutorial: "nav-carte" },
+        // 2.7 : éruption solaire
+        ...(eruption && eruptionStarted(eruption) && eruption.active ? [{ id: "sousstations", label: "Sous-stations", icon: <EnergyMark size={16} />, count: eruption.points || undefined, alert: eruption.regions.some((r) => r.status === "coupee"), active: view === "sousstations", onClick: () => setView("sousstations") }] : []),
         ...(lines.length > 0 ? [{ id: "infrastructures", label: "Infrastructures", icon: <StationMark size={16} />, active: view === "infrastructures", onClick: () => setView("infrastructures") }] : []),
         // 2.4 : le vrai coût du rail
         ...(lines.length > 0 ? [{ id: "energie", label: "Énergie & entretien", icon: <EnergyMark size={16} />, alert: Boolean(company?.fuelBlocked), active: view === "energie", onClick: () => setView("energie") }] : []),
@@ -1254,6 +1270,16 @@ export default function Dashboard() {
       <RailSchematic className="fixed inset-0 w-full h-full opacity-[0.10] pointer-events-none" />
       {themeTrial && <ThemeTrialBanner trial={themeTrial} onEnd={() => setThemeTrial(null)} />}
       <UpdateBanner />
+      {eruptionIntro && (
+        <EruptionIntro
+          onClose={closeEruptionIntro}
+          onOpenMap={() => {
+            closeEruptionIntro();
+            setEruptionMap(true);
+            setView("carte");
+          }}
+        />
+      )}
       {teamWarning && <TeamWarning message={teamWarning.message} at={teamWarning.at} onDone={() => setTeamWarning(null)} />}
       {/* 2.0 : le menu. Sur ordinateur, une colonne calme : la compagnie, la
           saison, les rubriques sans cadres autour des icônes. Sur téléphone,
@@ -1424,8 +1450,9 @@ export default function Dashboard() {
           }}
         />
       )}
-      {showWhatsNew && !showTutorial && <WhatsNewModal onClose={dismissWhatsNew} />}
-      {!showWhatsNew && !showTutorial && <AbsenceReport onNavigate={setView} company={company} onChange={loadAll} nextStep={firstStepsNext(firstSteps)} />}
+      {/* 2.7 : l'alerte de l'éruption d'abord (et sa carte si le joueur y va), les notes de version ensuite */}
+      {showWhatsNew && !showTutorial && !eruptionIntro && !eruptionMap && <WhatsNewModal onClose={dismissWhatsNew} />}
+      {!showWhatsNew && !showTutorial && !eruptionIntro && <AbsenceReport onNavigate={setView} company={company} onChange={loadAll} nextStep={firstStepsNext(firstSteps)} />}
       {editingCompany && (
         <EditCompanyModal company={company} onClose={() => setEditingCompany(false)} onChange={loadAll} />
       )}
@@ -1609,6 +1636,7 @@ export default function Dashboard() {
             {view === "accueil" && onboarding && todaySummary && <TodaySummaryCard summary={todaySummary} />}
             {/* en ce moment : événements, campagne, compagnonnage (chaque carte se cache quand elle n'a rien à dire) */}
             {view === "accueil" && !onboarding && <h2 className="font-display text-xl mt-10 mb-3">En ce moment</h2>}
+            {view === "accueil" && <EruptionCard onOpen={() => setView("sousstations")} />}
             {/* 2.1.2 : les 200 pionniers */}
             {view === "accueil" && !onboarding && <PioneersBanner onOpen={() => setPioneersOpen(true)} />}
             {view === "accueil" && !onboarding && <HalloweenCard onShowMap={() => setView("carte")} />}
@@ -1878,6 +1906,20 @@ export default function Dashboard() {
             )}
             {view === "carte" && (
               <>
+                {eruption && eruptionStarted(eruption) && (eruptionMap || !eruptionSeen("carte", eruption)) && (
+                  <EruptionMapAnim
+                    data={eruption}
+                    onClose={() => {
+                      markEruptionSeen("carte", eruption);
+                      setEruptionMap(false);
+                    }}
+                    onOpenStations={() => {
+                      markEruptionSeen("carte", eruption);
+                      setEruptionMap(false);
+                      setView("sousstations");
+                    }}
+                  />
+                )}
                 <FirstVisitHint
                   id="carte"
                   seen={company.hintsSeen ?? ""}
@@ -1891,6 +1933,9 @@ export default function Dashboard() {
                 />
                 <NetworkMap lines={lines} trains={trains} contracts={myContracts} onChange={loadAll} network={network} livery={company.liveryColor} onOpenWrecks={() => { setView("trains"); window.setTimeout(() => document.getElementById("epaves")?.scrollIntoView({ behavior: "smooth", block: "start" }), 250); }} />
               </>
+            )}
+            {view === "sousstations" && (
+              <EruptionSection onReplayIntro={() => setEruptionIntro(true)} onReplayMap={() => { setEruptionMap(true); setView("carte"); }} onOpenFreight={() => setView("fret")} />
             )}
             {view === "personnel" && (
               <StaffSection staff={staff} gradeId={career?.currentRank.id ?? 0} onChange={loadAll} trains={trains} uniform={company.uniform ?? null} livery={company.liveryColor} />
@@ -1937,6 +1982,7 @@ const PAGE_COPY = {
   campagnes: { title: "Progression", subtitle: "Huit étapes par région, de la première gare à la région entière, et un titre au bout." },
   compagnonnage: { title: "Progression", subtitle: "Un tuteur pour les nouveaux venus, des apprentis pour les joueurs installés." },
   carte: { title: "Carte du réseau", subtitle: "Vos lignes et vos trains, positionnés en temps réel." },
+  sousstations: { title: "Sous-stations", subtitle: "L'éruption solaire a grillé le réseau électrique. Il se répare ensemble, point par point." },
   personnel: { title: "Personnel", subtitle: "Une équipe qui prend de l'expérience et doit suivre la taille de votre flotte." },
   parametres: { title: "Paramètres", subtitle: "Gérez votre compte." },
   // 2.0
@@ -1957,6 +2003,7 @@ const BANNER_VIEWS: string[] = ["classement", "historique", "rentabilite", "rapp
    rubrique dans son carré, le nom en grand, et l'exploitant sur le côté. */
 const PAGE_ICON: Partial<Record<DashboardView, (p: { size: number }) => JSX.Element>> = {
   accueil: HomeMark,
+  sousstations: EnergyMark,
   trains: TrainMark,
   lignes: TrackMark,
   carte: MapMark,
@@ -3645,10 +3692,12 @@ function TrainsSection({
           weatherType={weatherType}
           livery={adActive(cabTrain) ? cabTrain.adColor! : company.liveryColor}
           skin={company.cabSkin ?? null}
+          freightSkin={company.freightSkin ?? null}
           stationSkin={company.stationSkin ?? null}
           others={trains}
           yards={company.yards ?? []}
           company={company}
+          companyName={company.name}
           onClose={() => setCabId(null)}
         />
       )}
@@ -3679,6 +3728,7 @@ function TrainsSection({
         isPremium={company.isPremium}
         livery={company.liveryColor}
         skin={company.cabSkin ?? null}
+        freightSkin={company.freightSkin ?? null}
         weatherType={weatherType}
         hintsSeen={company.hintsSeen ?? ""}
         onOpen={(id) => setCabId(id)}
@@ -4189,10 +4239,16 @@ function FreightSection({
                       {c.cargoType}
                       {c.sealed && <span className="ml-1 text-[11.5px] font-normal text-amber rounded-full bg-amber/[0.12] px-2 py-0.5">contenu inconnu</span>}
                       {c.reservedFor && <span className="ml-1 text-[11.5px] font-normal text-rail-green rounded-full bg-rail-green/[0.12] px-2 py-0.5">contrat de bienvenue</span>}
+                      {c.electric && <span className="ml-1 text-[11.5px] font-normal text-amber rounded-full bg-amber/[0.12] px-2 py-0.5">+1 point de réparation</span>}
                     </div>
                     {c.reservedFor && (
                       <p className="text-[12.5px] text-slate2 font-body mt-0.5 leading-snug">
                         Réservé pour vous pendant 24 h et payé moitié plus. Il voyage sur un wagon plat : votre premier Locotracteur en reçoit un en cadeau.
+                      </p>
+                    )}
+                    {c.electric && (
+                      <p className="text-[12.5px] text-slate2 font-body mt-0.5 leading-snug">
+                        Du matériel pour les sous-stations grillées par l'éruption. Payé comme un conteneur, et chaque livraison vous donne un point à mettre dans la réparation de la région de votre choix.
                       </p>
                     )}
                     {c.sealed && (
@@ -7170,7 +7226,7 @@ function StaffSection({ staff, gradeId, onChange, trains = [], uniform = null, l
                             >
                               <option value="">Aucune rame</option>
                               {trains
-                                .filter((t) => m.role !== "CONTROLEUR" || t.model !== "FRET_LOURD")
+                                .filter((t) => m.role !== "CONTROLEUR" || !isFreightLoco(t.model))
                                 .map((t) => (
                                   <option key={t.id} value={t.id}>
                                     {t.name}

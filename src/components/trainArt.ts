@@ -1,5 +1,5 @@
 // @ts-nocheck — dessin sur canvas
-import { SVG_SKINS, svgImage, type SvgPart } from "./svgSkins";
+import { SVG_SKINS, skinFits, svgImage, type SvgPart } from "./svgSkins";
 /* ============================================================
    Le dessin des rames (2.0).
 
@@ -356,7 +356,16 @@ function svgPiece(c: Ctx, x: number, w: number, part: SvgPart, isHead: boolean, 
     ctx.fillStyle = "#1c232d";
     ctx.fillRect(x + 1 * u, bottom - 9 * u, w - 2 * u, 9 * u);
   }
-  if (img) ctx.drawImage(img, x, bottom - h, w, h);
+  if (img && part.sink) {
+    /* 2.7 : ce qui pend sous la caisse (marchepieds, tampons) est coupé au
+       ras du châssis : il passait devant les roues */
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x - 2 * u, bottom - h - 10 * u, w + 4 * u, h + 10 * u);
+    ctx.clip();
+    ctx.drawImage(img, x, bottom - h + part.sink * u, w, h);
+    ctx.restore();
+  } else if (img) ctx.drawImage(img, x, bottom - h, w, h);
   else coach(c, x, w, "SECONDE");
   for (const bx of part.bogies) bogie(ctx, x + bx * u, base, u, c.spin);
   const lamp = { x: x + w - 1 * u, y: bottom - 9 * u };
@@ -1616,7 +1625,8 @@ export function drawNameplate(ctx: CanvasRenderingContext2D, cx: number, cy: num
 type Piece = { w: number; draw: (x: number) => any };
 
 export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): ConsistBox {
-  const kind = o.skin || o.model || "STANDARD";
+  // 2.7 : un habillage qui ne va pas sur ce modèle (fret / voyageurs) est ignoré
+  const kind = (skinFits(o.skin, o.model) ? o.skin : null) || o.model || "STANDARD";
   const extra = [...(o.cars ?? [])].reverse();
   // 2.1 : les wagons de fret, de la queue à la tête ; chacun garde sa graine pour varier les chargements
   const wagons = extra.filter((k) => WAGON_KIND[k]).map((k, i) => ({ w: k === "W_PORTE_AUTOS" ? 190 : 165, kind: WAGON_KIND[k], arg: i + 1 }));
@@ -1638,6 +1648,11 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
   const plan: { w: number; kind: string; arg?: any }[] = (() => {
     // 2.6 : habillage de créateur, en SVG : ses voitures (ajoutées, puis d'origine) et sa motrice
     const svgSkin = SVG_SKINS[kind];
+    // 2.7 : une locomotive de fret dessinée : elle garde ses wagons (deux plats par défaut, comme la machine d'origine)
+    if (svgSkin?.models) {
+      const loose = wagons.length ? wagons : (o.cars ?? []).length ? [] : [{ w: 160, kind: "flat", arg: 1 }, { w: 160, kind: "flat", arg: 2 }];
+      return [...loose, { w: svgSkin.head.width, kind: "svgloco", arg: svgSkin.head }];
+    }
     if (svgSkin) {
       const partOf = (k: string) => svgSkin.cars[k] ?? svgSkin.cars[svgSkin.defaultCar];
       return [
@@ -1745,7 +1760,7 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
     pieces.push({ x, w, kind: p.kind });
     // pas de soufflet d'intercirculation entre des wagons de fret, ni vers une locomotive (de fret, ou la motrice d'un habillage de créateur)
     const WAGON_PIECES = ["flat", "hopper", "plate", "container", "autos", "tank", "boxcar", "reefer"];
-    const freightJoin = WAGON_PIECES.includes(p.kind) || (i > 0 && WAGON_PIECES.includes(plan[i - 1].kind)) || ["shunter", "modern", "svghead"].includes(p.kind) || svgJoin;
+    const freightJoin = WAGON_PIECES.includes(p.kind) || (i > 0 && WAGON_PIECES.includes(plan[i - 1].kind)) || ["shunter", "modern", "svghead", "svgloco"].includes(p.kind) || svgJoin;
     if (i > 0 && !["tender", "steam"].includes(p.kind) && !freightJoin) gangway(ctx, x - gapU * u, o.base - LIFT * u - CAR_H * u, o.base - LIFT * u, u);
     switch (p.kind) {
       case "coach": {
@@ -1760,6 +1775,12 @@ export function drawConsist(ctx: CanvasRenderingContext2D, o: ConsistOptions): C
       case "svgcar":
         svgPiece(c, x, w, p.arg as SvgPart, false, svgJoin);
         break;
+      // 2.7 : une locomotive de fret dessinée, attelée à ses wagons comme les autres machines
+      case "svgloco": {
+        const part = p.arg as SvgPart;
+        head = svgPiece(c, x, w, part, true, false);
+        break;
+      }
       case "svghead":
         head = svgPiece(c, x, w, p.arg as SvgPart, true, i > 0);
         break;

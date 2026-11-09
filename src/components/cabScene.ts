@@ -10,6 +10,7 @@
 
 import { drawConsist } from "./trainArt";
 import { createWeatherFx } from "./weatherFx";
+import { drawSkyline } from "./cabSkylines";
 
 export function createCabScene(ctx) {
   const sc = {
@@ -27,7 +28,7 @@ export function createCabScene(ctx) {
     plate: null as { style: string; text: string } | null, // 2.1 : plaque nominative de la rame
     doubleTrack: false, // 2.1 : la ligne est à double voie : une deuxième voie, derrière
     // 2.1 : rames de la compagnie qui viennent en sens inverse sur l'autre voie ; gap = distance (px) entre les deux têtes
-    oncoming: [] as { id: string; gap: number; model: string; livery: string; skin?: string | null; cars?: string[]; v: number }[],
+    oncoming: [] as { id: string; gap: number; model: string; livery: string; skin?: string | null; cars?: string[]; v: number; label?: string }[], // 2.7 : label = compagnie rivale
     yards: null as string[] | null, // 2.1 : gares de triage de la compagnie
     // 2.1.1 : poste-frontière sur le tronçon en cours ; dx = distance (px) devant la rame
     border: null as { dx: number; to: { code: string; name: string }; from: { code: string; name: string } } | null,
@@ -428,6 +429,20 @@ export function createCabScene(ctx) {
         smoke: [],
       });
       oncomingW.set(o.id, box.right - box.left);
+      /* 2.7 : une rame d'une autre compagnie porte son nom, au-dessus du toit */
+      if (o.label) {
+        ctx.save();
+        ctx.scale(-1, 1);
+        const lx = -(box.left + box.right) / 2, ly = box.top - 10;
+        ctx.font = "600 11px 'Work Sans', sans-serif";
+        const tw = ctx.measureText(o.label).width + 14;
+        ctx.fillStyle = "rgba(11,15,25,.72)";
+        ctx.fillRect(lx - tw / 2, ly - 9, tw, 17);
+        ctx.fillStyle = o.livery; ctx.fillRect(lx - tw / 2, ly - 9, 3, 17);
+        ctx.fillStyle = "#e8edf5"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+        ctx.fillText(o.label, lx + 1.5, ly);
+        ctx.restore();
+      }
       // son phare, de nuit, éclaire la voie devant elle
       if (pal.lamps ?? pal.light) {
         const lx = box.lamp.x, ly = box.lamp.y;
@@ -674,11 +689,26 @@ export function createCabScene(ctx) {
           { k: 0.06, base: groundY - H * 0.26, amp: H * 0.08, f: 0.004, seed: 1, c: pal.far },
           { k: 0.18, base: groundY - H * 0.12, amp: H * 0.06, f: 0.007, seed: 4, c: pal.mid },
         ];
-    for (const L of layers) {
+    layers.forEach((L, li) => {
       ctx.fillStyle = L.c; ctx.beginPath(); ctx.moveTo(0, groundY);
       for (let x = 0; x <= W + 8; x += 8) ctx.lineTo(x, L.base - Math.abs(hill(x + s * L.k, L.seed, L.amp, L.f)));
       ctx.lineTo(W, groundY); ctx.closePath(); ctx.fill();
-    }
+      /* 2.7 : la ville se lève à l'horizon, derrière les collines proches. Elle
+         défile lentement (elle est loin) : celle d'arrivée entre par la droite
+         et se pose derrière la gare quand la rame s'arrête. */
+      if (li === 0) {
+        const tx = W * 0.46, kk = Math.min(1.15, Math.max(0.55, W / 1100));
+        // un gris bleuté, plus soutenu que les collines lointaines : la ville se détache sans crier
+        const col = night(mix(mix("#4d5a6b", bot, 0.22), land.far, 0.15));
+        const sy = groundY - H * 0.1;
+        // la ville paraît pendant les deux dernières minutes environ (soixante écrans de voie), et reste en vue autant après le départ
+        const reach = W * 60, slide = W * 0.8;
+        const ax = tx + 150 * kk + Math.min(1.3, sc.arrDist / reach) * slide;
+        if (sc.arr && ax < W + 260 * kk) drawSkyline(ctx, sc.arr, ax, sy, kk, col, !!pal.light);
+        const dx = tx + 150 * kk - Math.min(1.3, sc.depDist / reach) * slide;
+        if (sc.dep && dx > -260 * kk && sc.depDist < 1e8) drawSkyline(ctx, sc.dep, dx, sy, kk, col, !!pal.light);
+      }
+    });
     /* 2.3 : le viaduc du Vecchio, pierre et arches, qui passe au loin tous les
        quelques kilomètres de voie. Il défile au rythme des collines. */
     if (sc.corsica) {
@@ -774,7 +804,8 @@ export function createCabScene(ctx) {
     }
 
     // 2.1 : la double voie
-    const farY = sc.doubleTrack ? drawFarTrack(groundY, pal, land, night) : null;
+    // 2.7 : une voie du fond aussi quand des rames d'autres compagnies partagent le tronçon
+    const farY = sc.doubleTrack || sc.oncoming.some((o) => o.label) ? drawFarTrack(groundY, pal, land, night) : null;
 
     // poteaux de caténaire, au même plan que la voie
     const pk = 1, pstep = 150, po = (s * pk) % pstep;

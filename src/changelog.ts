@@ -1,5 +1,5 @@
 
-export const CURRENT_VERSION = "2.6.1";
+export const CURRENT_VERSION = "2.7.0";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -14,6 +14,23 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.7.0",
+    date: "Novembre 2026",
+    changes: [
+      { type: "nouveau", text: "Éruption solaire : les sous-stations tombent une région après l'autre. D'abord le courant faiblit et les rames électriques roulent à moitié de leur vitesse ; à la coupure, elles finissent leur trajet et restent à quai. Le diesel et la vapeur roulent" },
+      { type: "nouveau", text: "Le réseau électrique se répare ensemble : chaque conteneur de matériel électrique livré donne un point, à mettre dans la sous-station de votre choix. La page Sous-stations montre qui a donné quoi. Une sous-station oubliée se répare toute seule au bout de 12 jours" },
+      { type: "nouveau", text: "Apportez au moins 10 % des points d'une sous-station pour débloquer l'emblème « Pylône de l'éruption »" },
+      { type: "nouveau", text: "Saison « Retour au vieux matériel » : un pass aux couleurs d'époque (Vert wagon, Rouge autorail, Orange Corail… jusqu'au Rouge Capitole), deux emblèmes, de nouveaux titres et des habillages de rame et de gare dessinés par N0RCAM : l'Intercités à vos couleurs et la Gare d'époque. Le parcours gratuit donne le titre « Adepte du diesel » et la rame RER C" },
+      { type: "nouveau", text: "Quête de fin de saison : cinq paliers à partir de la mi-saison. Au bout, le titre « Héros de l'électrification » pour tout le monde, et pour qui a le pass la BB 69200 en messagerie rapide" },
+      { type: "nouveau", text: "Les locomotives de fret s'habillent à part, dans la boutique (Mes objets) : la BB 69200 ne va que sur la messagerie rapide, l'habillage de vos rames de voyageurs reste le même" },
+      { type: "nouveau", text: "Boutique : l'Intercités de N0RCAM passe en livrée carmillon. Ceux qui l'ont déjà acheté gardent la version à leurs couleurs, et gagnent la carmillon en plus" },
+      { type: "nouveau", text: "Zone d'abandon : une rame de collection revendue ou mise à la casse redevient une épave près de sa dernière gare. Une autre compagnie peut la racheter pendant une semaine, mais elle s'abîme chaque jour un peu plus" },
+      { type: "nouveau", text: "Électricité : le surplus peut se vendre à un pourcentage sous le prix du réseau, recalculé chaque heure, au lieu d'un prix fixe" },
+      { type: "nouveau", text: "Vue cabine : les villes ont leur silhouette à l'horizon, les rames des autres compagnies croisent la vôtre avec leur nom, un vrai tableau de bord (vitesse, prochain arrêt, voyageurs) et un mode photo pour garder la vue" },
+      { type: "corrige", text: "Personnel : le jeu proposait de placer un contrôleur sur le locotracteur, la messagerie rapide et l'électrique longue distance, et le serveur refusait. Il n'est plus proposé sur aucune machine de fret" },
+    ],
+  },
   {
     version: "2.6.1",
     date: "Novembre 2026",

@@ -242,12 +242,12 @@ function StationClock({ now }: { now: Date }) {
 }
 
 /* 2.4 : les nouveautés, sur la section du haut */
-/* 2.6 : l'avis de la version en cours. La 2.5 tient en une ligne au pied de l'avis. */
-const NOUVEAU_26 = [
-  { k: "Commerces", t: "Une boutique dans n'importe quelle gare", b: "Chaque gare a des emplacements : seize à Paris, quatre à Chartres. Vous en louez un, même si la gare appartient à un autre joueur, et vous touchez votre part de ce que dépensent les voyageurs. Trois par compagnie au plus." },
-  { k: "Gares", t: "Fini la course au clic", b: "Quand la protection d'une gare se termine, tous ceux qui la surveillent sont prévenus au même moment, dix minutes avant. Et son prix de rachat ne grimpe plus à chaque revente." },
-  { k: "Trésorerie", t: "Ce qui reste vraiment dans la caisse", b: "Chaque soir à minuit, le jeu note votre solde. Vous voyez jour par jour ce que vous avez gagné, salaires et taxe carbone compris." },
-  { k: "Série Créateurs", t: "Un Intercités dessiné par un joueur", b: "N0RCAM a dessiné la motrice et ses trois voitures. L'habillage est en boutique, et une part de chaque vente lui revient." },
+/* 2.7 : l'avis de la version en cours. La 2.6 tient en une ligne au pied de l'avis. */
+const NOUVEAU_27 = [
+  { k: "Éruption solaire", t: "Les sous-stations tombent une à une", b: "D'abord le courant faiblit et les rames électriques ralentissent. Puis il coupe : elles finissent leur trajet et restent à quai. Le diesel et la vapeur, eux, roulent toujours." },
+  { k: "Réparations", t: "Le réseau se répare à plusieurs", b: "Chaque conteneur de matériel électrique livré rapporte un point, à donner à la sous-station de votre choix. Apportez-en un dixième, et l'emblème du pylône est à vous." },
+  { k: "Saison", t: "Retour au vieux matériel", b: "Un pass aux couleurs d'époque, l'Intercités à vos couleurs, une rame RER C sur le parcours gratuit, et une quête de fin de saison pour décrocher la BB 69200." },
+  { k: "Vue cabine", t: "La ligne, vue de la cabine", b: "Les villes se découpent à l'horizon, les rames des autres compagnies vous croisent avec leur nom, et un mode photo garde la vue." },
 ];
 
 export default function LandingPage() {
@@ -410,17 +410,17 @@ export default function LandingPage() {
         <div className="lp-wrap">
           <article className="lp-avis">
             <header className="lp-avis-hd">
-              <span>Avis aux exploitants · n° 2.6</span>
+              <span>Avis aux exploitants · n° 2.7</span>
               <span>Novembre 2026</span>
             </header>
             <div className="lp-avis-top">
-              <h2 className="lp-h2">Un commerce sur le quai.</h2>
+              <h2 className="lp-h2">Le courant est coupé.</h2>
               <p className="lp-sub">
-                Les grandes gares appartiennent à quelques compagnies. Depuis la 2.6, tout le monde peut quand même y ouvrir une boutique.
+                Une éruption solaire frappe le réseau électrique. Depuis la 2.7, le vieux matériel reprend du service, le temps de tout réparer ensemble.
               </p>
             </div>
             <ol className="lp-avis-list">
-              {NOUVEAU_26.map((n, i) => (
+              {NOUVEAU_27.map((n, i) => (
                 <li key={n.t}>
                   <span className="lp-avis-n">{String(i + 1).padStart(2, "0")}</span>
                   <div>
@@ -432,13 +432,13 @@ export default function LandingPage() {
               ))}
             </ol>
             <div className="lp-avis-train" aria-hidden="true">
-              <TrainPicture skin="intercites" livery="#e36a12" cars={[]} height={70} align="center" label="L'Intercités de N0RCAM" />
+              <TrainPicture model="FRET_RAPIDE" skin="bb69200" livery="#e36a12" cars={["W_FRIGO", "W_CAPITONNE", "W_CONTENEUR"]} height={70} align="center" label="La BB 69200 de N0RCAM" />
             </div>
             <footer className="lp-avis-ft">
               <button className="lp-btn" onClick={register}>
                 Monter à bord
               </button>
-              <span>Applicable à compter de la version 2.6. Depuis la 2.5 : les campagnes régionales, le compagnonnage et la voiture-couchettes.</span>
+              <span>Applicable à compter de la version 2.7. Depuis la 2.6 : les commerces en gare, la trésorerie jour par jour et l'écran d'accueil.</span>
             </footer>
           </article>
         </div>

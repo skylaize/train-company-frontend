@@ -15,6 +15,7 @@ import { POSTER_LABELS } from "./PosterArt";
 import { playPack, SoundPack } from "../sfx";
 import { CreatorSpotlight } from "./CreatorSpotlight";
 import { Plate, PLATE_LABELS } from "./Plate";
+import { isFreightSkin } from "./svgSkins";
 
 /* ============================================================
    Boutique.
@@ -61,7 +62,7 @@ interface ShopData {
   enabled: boolean;
   items: ShopItem[];
   rotation?: { day: string; featured: string[]; daily: string[]; refreshAt: string };
-  equipped: { emblem: string | null; title: string | null; theme: string; livery: string; cabSkin?: string | null; plate?: string | null; soundPack?: string | null; stationSkin?: string | null; uniform?: string | null };
+  equipped: { emblem: string | null; title: string | null; theme: string; livery: string; cabSkin?: string | null; freightSkin?: string | null; plate?: string | null; soundPack?: string | null; stationSkin?: string | null; uniform?: string | null };
   unlocked: {
     emblems: string[]; titles: string[]; themes: string[]; liveries: string[]; cabSkins?: string[]; plates?: string[];
     // 2.1
@@ -82,7 +83,11 @@ export const CAB_SKIN_LABELS: Record<string, string> = {
   duplex: "Rame à deux niveaux",
   "grande-vitesse": "Rame à grande vitesse",
   // 2.6 : Série Créateurs
-  intercites: "Intercités (N0RCAM)",
+  intercites: "Intercités à vos couleurs (N0RCAM)",
+  // 2.7 : pass « Retour au vieux matériel » et boutique
+  "intercites-carmillon": "Intercités carmillon (N0RCAM)",
+  "rer-c": "RER C (N0RCAM)",
+  bb69200: "BB 69200, fret rapide (N0RCAM)",
 };
 
 /* Petite silhouette du matériel de collection, pour voir ce qu'on achète. */
@@ -521,7 +526,7 @@ export function ShopSection({
             </div>
           )}
 
-          {(data.unlocked.cabSkins?.length ?? 0) > 0 && (
+          {(data.unlocked.cabSkins ?? []).filter((c) => !isFreightSkin(c)).length > 0 && (
             <div className="mb-6">
               <h3 className="font-body text-[12px] text-slate2 mb-2 font-medium">Matériel en vue cabine</h3>
               <div className="flex flex-wrap gap-2">
@@ -533,12 +538,41 @@ export function ShopSection({
                 >
                   Vos rames
                 </button>
-                {data.unlocked.cabSkins!.map((c) => (
+                {(data.unlocked.cabSkins ?? []).filter((c) => !isFreightSkin(c)).map((c) => (
                   <button
                     key={c}
                     onClick={() => equip({ cabSkin: c }, `${CAB_SKIN_LABELS[c] ?? c} en vue cabine`)}
                     className={`px-3 py-1.5 border flex items-center gap-2 font-body text-[12.5px] rounded-control ${
                       data.equipped.cabSkin === c ? "border-cobalt text-cobalt" : "border-line hover:border-slate2"
+                    }`}
+                  >
+                    <CabSkinPreview id={c} />
+                    {CAB_SKIN_LABELS[c] ?? c}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 2.7 : les locomotives de fret s'habillent à part */}
+          {(data.unlocked.cabSkins ?? []).filter(isFreightSkin).length > 0 && (
+            <div className="mb-6">
+              <h3 className="font-body text-[12px] text-slate2 mb-2 font-medium">Locomotives de fret en vue cabine</h3>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => equip({ freightSkin: null }, "Vos locomotives reprennent leur allure")}
+                  className={`px-3 py-2 border font-body text-[12px] font-medium rounded-control ${
+                    !data.equipped.freightSkin ? "border-cobalt text-cobalt" : "border-line text-slate2"
+                  }`}
+                >
+                  Vos locomotives
+                </button>
+                {(data.unlocked.cabSkins ?? []).filter(isFreightSkin).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => equip({ freightSkin: c }, `${CAB_SKIN_LABELS[c] ?? c} en vue cabine`)}
+                    className={`px-3 py-1.5 border flex items-center gap-2 font-body text-[12.5px] rounded-control ${
+                      data.equipped.freightSkin === c ? "border-cobalt text-cobalt" : "border-line hover:border-slate2"
                     }`}
                   >
                     <CabSkinPreview id={c} />

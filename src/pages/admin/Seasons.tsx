@@ -11,6 +11,8 @@ type SeasonsData = {
   } | null;
   history: { id: string; number: number; name: string; startsAt: string; endsAt: string; endedAt: string | null }[];
   world: { id: string; name: string; target: number; progress: number; startedAt: string; completedAt: string | null; contributors: { name: string; amount: number }[] } | null;
+  nextTheme?: string | null; // 2.7
+  themes?: { key: string; name: string }[];
 };
 
 /* datetime-local attend l'heure locale, sans fuseau */
@@ -47,6 +49,27 @@ export default function Seasons() {
   return (
     <>
       <PageHead title="Saisons et Grand Chantier" intro="La saison en cours, son classement, et l'avancement du tunnel du Mont-Blanc." />
+
+      {/* 2.7 : le thème de la prochaine saison */}
+      <Panel title="Prochaine saison" className="mb-6">
+        <div className="flex flex-wrap items-end gap-3 font-body text-[13.5px]">
+          <Field label="Thème" hint="« Retour au vieux matériel » ouvre aussi l'éruption solaire au début de la saison.">
+            <select
+              value={data.nextTheme ?? ""}
+              disabled={busy}
+              onChange={(e) => run(() => api.post("/admin/seasons/next-theme", { key: e.target.value || null }), "Thème enregistré", reload)}
+              className={inputCls}
+            >
+              <option value="">Selon le calendrier</option>
+              {(data.themes ?? []).map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </Panel>
 
       {s ? (
         <div className="grid gap-4 lg:grid-cols-[1fr_340px] mb-6">
