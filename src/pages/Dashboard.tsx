@@ -4070,6 +4070,13 @@ function TrainsSection({
    On choisit la locomotive, puis on compose sa tournée : un contrat par
    type de wagon attelé. Chaque ligne du marché dit si la locomotive
    choisie peut le prendre, avec quelle charge, et ce qu'il rapportera. */
+/* 2.7 : bonus des veilleurs, de 23 h à 8 h (heure de Paris), comme le serveur */
+function nightOwlNow() {
+  // en français l'heure sort « 23 h » : on lit seulement le nombre
+  const h = Number(new Intl.DateTimeFormat("fr-FR", { timeZone: "Europe/Paris", hour: "numeric", hourCycle: "h23" }).formatToParts(new Date()).find((p) => p.type === "hour")?.value ?? 12);
+  return h >= 23 || h < 8;
+}
+
 function FreightSection({
   market,
   myContracts,
@@ -4282,7 +4289,11 @@ function FreightSection({
                       {c.cargoType}
                       {c.sealed && <span className="ml-1 text-[11.5px] font-normal text-amber rounded-full bg-amber/[0.12] px-2 py-0.5">contenu inconnu</span>}
                       {c.reservedFor && <span className="ml-1 text-[11.5px] font-normal text-rail-green rounded-full bg-rail-green/[0.12] px-2 py-0.5">contrat de bienvenue</span>}
-                      {c.electric && <span className="ml-1 text-[11.5px] font-normal text-amber rounded-full bg-amber/[0.12] px-2 py-0.5">+1 point de réparation</span>}
+                      {c.electric && (
+                        <span className="ml-1 text-[11.5px] font-normal text-amber rounded-full bg-amber/[0.12] px-2 py-0.5" title="Compté à la livraison : 2 points si elle arrive entre 23 h et 8 h, livrée à la main (1 point par le fret automatique)">
+                          {nightOwlNow() ? "+2 points de réparation (nuit)" : "+1 point de réparation"}
+                        </span>
+                      )}
                     </div>
                     {c.reservedFor && (
                       <p className="text-[12.5px] text-slate2 font-body mt-0.5 leading-snug">
