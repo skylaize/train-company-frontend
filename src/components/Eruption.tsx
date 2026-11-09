@@ -600,7 +600,7 @@ export function EruptionSection({ onReplayIntro, onReplayMap, onOpenFreight }: {
             <div className="font-body text-[12px] text-slate2">Vos points de réparation</div>
             <div className="font-mono2 text-4xl text-amber tabular-nums mt-1">{data.points}</div>
             <p className="font-body text-[12.5px] text-slate2 mt-2">
-              Un point par conteneur de matériel électrique livré. Ils se trouvent au marché du fret et voyagent sur un wagon porte-conteneurs.
+              Un point par conteneur de matériel électrique livré, deux la nuit (23 h – 8 h) s'il est livré à la main. Ils se trouvent au marché du fret et voyagent sur un wagon porte-conteneurs.
             </p>
             <button onClick={onOpenFreight} className="mt-3 text-[12.5px] font-body border border-amber/50 text-amber px-3 py-1.5 rounded-control hover:bg-amber/10">
               Aller au fret

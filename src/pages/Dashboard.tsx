@@ -91,7 +91,7 @@ import { FirstSteps, firstStepsActive, firstStepsProgress, firstStepsDone, first
 import { Decision, DecisionBanner, DecisionModal } from "../components/Decisions";
 import { NewsTicker, NewsItem } from "../components/NewsTicker";
 import { applyTheme, readLocalTheme, THEMES, ThemeId } from "../theme";
-import { CURRENT_VERSION } from "../changelog";
+import { CURRENT_VERSION, NOTES_REVISION } from "../changelog";
 import { setStationWeather } from "../stationWeather";
 import { PurchaseReveal, Reveal, fetchReveals, markSeen } from "../components/PurchaseReveal";
 import { WreckYard, loadWrecks, RARITY_COLOR, type Wreck as WreckInfo } from "../components/WreckYard";
@@ -124,6 +124,7 @@ interface Train {
   crew?: { id: string; name: string; role: string; level: number }[];
   // 2.0 : rame de collection restaurée depuis une épave
   heritage?: { kind?: string; label: string; serial: string; rarity: string; skin: string; livery: string; prestige: number; year: number; history: string } | null;
+  autoFreight?: boolean; // 2.7 : fret automatique (joueurs absents)
   // 2.3 : rame publicitaire
   adBrand?: string | null;
   adColor?: string | null;
@@ -1019,7 +1020,7 @@ export default function Dashboard() {
     if (company) {
       try {
         // un nouveau joueur n'a connu aucune version précédente : on le considère à jour d'emblée
-        await api.patch("/company", { tutorialSeen: true, lastSeenVersion: CURRENT_VERSION });
+        await api.patch("/company", { tutorialSeen: true, lastSeenVersion: NOTES_REVISION });
         loadAll();
       } catch {
         // pas grave si ça échoue ponctuellement, le tutoriel réapparaîtra simplement à la prochaine visite
@@ -1032,16 +1033,16 @@ export default function Dashboard() {
     /* Le bulletin est mémorisé sur le compte, pas dans le navigateur : sinon il
        réapparaît dès que le joueur change d'appareil, et il reste invisible sur
        le second appareil de celui qui l'a déjà lu. */
-    if (company.tutorialSeen && company.lastSeenVersion !== CURRENT_VERSION) {
+    if (company.tutorialSeen && company.lastSeenVersion !== NOTES_REVISION) {
       setShowWhatsNew(true);
     }
   }, [company]);
 
   async function dismissWhatsNew() {
     setShowWhatsNew(false);
-    setCompany((prev) => (prev ? { ...prev, lastSeenVersion: CURRENT_VERSION } : prev));
+    setCompany((prev) => (prev ? { ...prev, lastSeenVersion: NOTES_REVISION } : prev));
     try {
-      await api.patch("/company", { lastSeenVersion: CURRENT_VERSION });
+      await api.patch("/company", { lastSeenVersion: NOTES_REVISION });
     } catch {
       // sans enregistrement, le bulletin se represente à la prochaine visite : sans gravité
     }
@@ -4214,6 +4215,32 @@ function FreightSection({
                   >
                     {tc.length ? "Changer les wagons" : "Atteler des wagons"}
                   </button>
+                  {/* 2.7 : fret automatique, pour les joueurs absents */}
+                  <label
+                    onClick={(e) => e.stopPropagation()}
+                    className="mt-2 flex items-start gap-2 text-[12.5px] font-body text-slate2 cursor-pointer"
+                    title="Quand vous n'êtes pas là : la locomotive part seule dès qu'elle est libre, avec le meilleur contrat pour chacun de ses wagons. Payé 80 %, tournées moitié plus longues, 4 livraisons par heure au plus, et seulement des contrats restés 5 min sans preneur."
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={Boolean(t.autoFreight)}
+                      onChange={async (e) => {
+                        const on = e.target.checked;
+                        try {
+                          await api.patch(`/trains/${t.id}/auto-freight`, { on });
+                          showToast(on ? `${t.name} partira seule quand elle est libre` : `${t.name} attend vos ordres`);
+                          onChange();
+                        } catch (err: any) {
+                          showToast(err?.response?.data?.error || "Erreur", "error");
+                        }
+                      }}
+                    />
+                    <span>
+                      Fret automatique
+                      <span className="block text-[11.5px]">payé 80 % · plus lent · 4 livraisons par heure</span>
+                    </span>
+                  </label>
                 </div>
               );
             })}

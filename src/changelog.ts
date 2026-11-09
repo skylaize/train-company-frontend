@@ -1,5 +1,8 @@
 
 export const CURRENT_VERSION = "2.7.0";
+/* Le bulletin vu par le joueur. Le changer (sans changer de version)
+   remontre les notes à tout le monde, après une mise à jour du bulletin. */
+export const NOTES_REVISION = "2.7.0-2";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -18,8 +21,10 @@ const ALL_ENTRIES: ChangelogEntry[] = [
     version: "2.7.0",
     date: "Novembre 2026",
     changes: [
-      { type: "nouveau", text: "Éruption solaire : les sous-stations tombent une région après l'autre. D'abord le courant faiblit et les rames électriques roulent à moitié de leur vitesse ; à la coupure, elles finissent leur trajet et restent à quai. Le diesel et la vapeur roulent" },
-      { type: "nouveau", text: "Le réseau électrique se répare ensemble : chaque conteneur de matériel électrique livré donne un point, à mettre dans la sous-station de votre choix. La page Sous-stations montre qui a donné quoi. Une sous-station oubliée se répare toute seule au bout de 12 jours" },
+      { type: "nouveau", text: "Éruption solaire : les sous-stations tombent une région après l'autre, une toutes les 40 minutes. D'abord le courant faiblit (40 minutes) et les rames électriques roulent à moitié de leur vitesse ; à la coupure, elles finissent leur trajet et restent à quai. Le diesel et la vapeur roulent" },
+      { type: "nouveau", text: "Électrique ou diesel : la Flotte l'indique sur chaque rame. Une rame de voyageurs est électrique sur une ligne électrifiée ; côté fret, seule l'Électrique longue distance l'est. La vapeur et la Micheline restent thermiques, même sous la caténaire" },
+      { type: "nouveau", text: "Fret automatique, pour quand vous n'êtes pas là : cochez la case sur une locomotive de fret, elle part seule dès qu'elle est libre avec le meilleur contrat pour ses wagons. Payé 80 %, tournées moitié plus longues, 4 livraisons par heure au plus, et seulement les contrats restés 5 minutes sans preneur" },
+      { type: "nouveau", text: "Le réseau électrique se répare ensemble : chaque conteneur de matériel électrique livré donne un point (deux la nuit, de 23 h à 8 h, s'il est livré à la main), à mettre dans la sous-station de votre choix. La page Sous-stations montre qui a donné quoi. Une sous-station oubliée se répare toute seule au bout de 12 jours" },
       { type: "nouveau", text: "Apportez au moins 10 % des points d'une sous-station pour débloquer l'emblème « Pylône de l'éruption »" },
       { type: "nouveau", text: "Saison « Retour au vieux matériel » : un pass aux couleurs d'époque (Vert wagon, Rouge autorail, Orange Corail… jusqu'au Rouge Capitole), deux emblèmes, de nouveaux titres et des habillages de rame et de gare dessinés par N0RCAM : l'Intercités à vos couleurs et la Gare d'époque. Le parcours gratuit donne le titre « Adepte du diesel » et la rame RER C" },
       { type: "nouveau", text: "Quête de fin de saison : cinq paliers à partir de la mi-saison. Au bout, le titre « Héros de l'électrification » pour tout le monde, et pour qui a le pass la BB 69200 en messagerie rapide" },
@@ -28,6 +33,7 @@ const ALL_ENTRIES: ChangelogEntry[] = [
       { type: "nouveau", text: "Zone d'abandon : une rame de collection revendue ou mise à la casse redevient une épave près de sa dernière gare. Une autre compagnie peut la racheter pendant une semaine, mais elle s'abîme chaque jour un peu plus" },
       { type: "nouveau", text: "Électricité : le surplus peut se vendre à un pourcentage sous le prix du réseau, recalculé chaque heure, au lieu d'un prix fixe" },
       { type: "nouveau", text: "Vue cabine : les villes ont leur silhouette à l'horizon, les rames des autres compagnies croisent la vôtre avec leur nom, un vrai tableau de bord (vitesse, prochain arrêt, voyageurs) et un mode photo pour garder la vue" },
+      { type: "corrige", text: "Éruption : une locomotive de fret électrique ne reste plus bloquée pendant une coupure. Elle finit sa tournée à moitié vitesse, et ne peut plus partir vers une région coupée" },
       { type: "corrige", text: "Personnel : le jeu proposait de placer un contrôleur sur le locotracteur, la messagerie rapide et l'électrique longue distance, et le serveur refusait. Il n'est plus proposé sur aucune machine de fret" },
     ],
   },
