@@ -261,6 +261,8 @@ export function MaintenanceBanner() {
   // dans les dix dernières minutes, le bandeau revient même s'il a été fermé
   if ((hidden === key || stored) && left > 10) return null;
   const end = valid(notice.endsAt);
+  // 2.7.1 : finie, elle ne s'affiche plus (même si la réponse d'avant la portait encore)
+  if (end && end.getTime() <= Date.now()) return null;
   const minutes = end ? Math.round((end.getTime() - start.getTime()) / 60_000) : null;
 
   function hide() {
@@ -277,7 +279,7 @@ export function MaintenanceBanner() {
       <span className="mt-1 w-2 h-2 shrink-0 rounded-full bg-amber animate-pulse" aria-hidden />
       <div className="flex-1 min-w-0 font-body text-[13px]">
         <div className="text-offwhite">
-          Maintenance {left <= 0 ? "imminente" : left <= 60 ? `dans ${left} min` : when(start)}
+          Maintenance {left <= 0 ? "en cours" : left <= 60 ? `dans ${left} min` : when(start)}
           {minutes ? <span className="text-slate2"> · environ {minutes} min</span> : null}
         </div>
         {notice.message && <div className="text-slate2 mt-0.5 break-words">{notice.message}</div>}

@@ -413,45 +413,48 @@ export function EruptionMapAnim({ data, onClose, onOpenStations }: { data: Erupt
           ×
         </button>
       </div>
-      <div className="relative grid md:grid-cols-[1fr_280px]">
-        <div className="relative">
-          <RegionMap states={states} highlight={current?.id ?? null} className="w-full h-auto max-h-[440px] p-4" />
+      {/* 2.7.1 : la carte à gauche, à sa taille ; le texte prend le reste de la largeur.
+          Avant, la carte flottait au milieu d'un grand cadre noir sur les écrans larges. */}
+      <div className="grid md:grid-cols-[380px_1fr]">
+        <div className="flex items-center justify-center p-3 md:border-r border-line">
+          <RegionMap states={states} highlight={current?.id ?? null} className="w-full h-auto max-h-[340px]" />
         </div>
-        <div className="border-t md:border-t-0 md:border-l border-line p-4 flex flex-col">
-          {current ? (
-            <div key={current.id + current.shown} style={{ animation: "eruption-in .25s ease-out" }}>
-              <div className={`font-body text-[12px] ${current.shown === "reparee" ? "text-rail-green" : current.shown === "coupee" ? "text-[#ff9a8a]" : "text-amber"}`}>
-                {current.shown === "reparee" ? "Courant rétabli" : current.shown === "coupee" ? "Coupure" : "Courant faible"}
+        <div className="border-t md:border-t-0 border-line p-5 flex flex-col gap-4 min-w-0">
+          <div className="min-h-[64px]">
+            {current ? (
+              <div key={current.id + current.shown} style={{ animation: "eruption-in .25s ease-out" }}>
+                <div className={`font-body text-[12.5px] ${current.shown === "reparee" ? "text-rail-green" : current.shown === "coupee" ? "text-[#ff9a8a]" : "text-amber"}`}>
+                  {current.shown === "reparee" ? "Courant rétabli" : current.shown === "coupee" ? "Coupure" : "Courant faible"}
+                </div>
+                <div className="font-display text-[24px] leading-tight mt-0.5">{current.name}</div>
               </div>
-              <div className="font-display text-[22px] leading-tight mt-0.5">{current.name}</div>
-            </div>
-          ) : done ? (
-            <div style={{ animation: calm ? undefined : "eruption-in .3s ease-out" }}>
-              <div className="font-display text-[20px] leading-tight">En ce moment</div>
-              <ul className="mt-2 space-y-1 font-body text-[13.5px]">
-                {(["coupee", "reduite", "alerte", "reparee"] as RegionState[])
-                  .filter((k) => counts[k])
-                  .map((k) => (
-                    <li key={k} className="flex justify-between">
-                      <span className="text-slate2">{STATUS[k].label}</span>
-                      <span className="font-mono2">{counts[k]}</span>
-                    </li>
-                  ))}
-              </ul>
-            </div>
-          ) : (
-            <div className="font-body text-[13.5px] text-slate2">L'éruption atteint le réseau…</div>
-          )}
-          <div className="mt-auto pt-4 space-y-3">
-            <Legend />
-            <div className="flex flex-wrap gap-2">
-              <button onClick={onOpenStations} className="text-[12.5px] font-body bg-amber text-onaccent px-3 py-1.5 font-semibold rounded-control">
-                Réparer les sous-stations
-              </button>
-              <button onClick={() => setRun((n) => n + 1)} className="text-[12.5px] font-body border border-line px-3 py-1.5 rounded-control text-slate2 hover:text-offwhite">
-                Rejouer
-              </button>
-            </div>
+            ) : done ? (
+              <div style={{ animation: calm ? undefined : "eruption-in .3s ease-out" }}>
+                <div className="font-display text-[22px] leading-tight">En ce moment</div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(["coupee", "reduite", "alerte", "reparee", "normal"] as RegionState[])
+                    .filter((k) => counts[k])
+                    .map((k) => (
+                      <span key={k} className="inline-flex items-center gap-2 border border-line rounded-control px-2.5 py-1 font-body text-[13px]">
+                        <span className="w-2.5 h-2.5 rounded-[2px] border" style={{ background: STATUS[k].fill, borderColor: STATUS[k].stroke }} />
+                        <span className="text-slate2">{STATUS[k].label}</span>
+                        <span className="font-mono2 text-offwhite">{counts[k]}</span>
+                      </span>
+                    ))}
+                </div>
+              </div>
+            ) : (
+              <div className="font-body text-[14px] text-slate2">L'éruption atteint le réseau…</div>
+            )}
+          </div>
+          <Legend detail />
+          <div className="flex flex-wrap gap-2">
+            <button onClick={onOpenStations} className="text-[13px] font-body bg-amber text-onaccent px-3 py-1.5 font-semibold rounded-control">
+              Réparer les sous-stations
+            </button>
+            <button onClick={() => setRun((n) => n + 1)} className="text-[13px] font-body border border-line px-3 py-1.5 rounded-control text-slate2 hover:text-offwhite">
+              Rejouer
+            </button>
           </div>
         </div>
       </div>

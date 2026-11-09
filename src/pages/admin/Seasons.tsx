@@ -118,13 +118,13 @@ export default function Seasons() {
                 if (changed.endsAt && end.getTime() <= Date.now()) {
                   const r = await confirm({
                     title: "Clôturer la saison maintenant ?",
-                    body: "Le classement final est figé, les récompenses distribuées et la saison suivante démarre au prochain tour de simulation (30 secondes).",
+                    body: `Le classement final est figé, les récompenses distribuées et la saison suivante démarre tout de suite${data?.nextTheme ? `, sur le thème « ${data.themes?.find((t) => t.key === data.nextTheme)?.name ?? data.nextTheme} »` : ""}.`,
                     confirm: "Clôturer",
                     danger: true,
                   });
                   if (!r.ok) return;
                 }
-                await run(() => api.patch(`/admin/seasons/${s.id}`, changed), "Saison modifiée", reload);
+                await run(() => api.patch(`/admin/seasons/${s.id}`, changed), changed.endsAt && end.getTime() <= Date.now() ? "Saison close, la suivante est ouverte" : "Saison modifiée", reload);
               }}
             >
               <Field label="Nom">

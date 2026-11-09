@@ -19,6 +19,7 @@ export function EruptionPanel() {
   const confirm = useConfirm();
   const [at, setAt] = useState<string | null>(null);
   const [edit, setEdit] = useState<Record<string, string>>({});
+  const [pace, setPace] = useState<{ step?: string; reduced?: string }>({});
   if (!data) return null;
   const cfg = data.config;
   const startValue = at ?? local(data.nextSeasonAt ? new Date(data.nextSeasonAt) : new Date(Date.now() + 3_600_000));
@@ -49,6 +50,30 @@ export function EruptionPanel() {
           <p className="text-slate2 mb-3">
             Début {dateTime(cfg.startsAt)} · une région toutes les {cfg.stepMinutes} min · courant faible {cfg.reducedMinutes} min · réparation automatique après {cfg.autoRepairDays} jours · {cfg.containersOpen} conteneurs au marché.
           </p>
+          {/* 2.7.1 : le rythme se règle en cours de route */}
+          <div className="flex flex-wrap items-end gap-3 mb-4">
+            <Field label="Une région toutes les (min)">
+              <input value={pace.step ?? String(cfg.stepMinutes)} onChange={(e) => setPace((x) => ({ ...x, step: e.target.value }))} inputMode="numeric" className={`${inputCls} w-24`} />
+            </Field>
+            <Field label="Courant faible avant la coupure (min)">
+              <input value={pace.reduced ?? String(cfg.reducedMinutes)} onChange={(e) => setPace((x) => ({ ...x, reduced: e.target.value }))} inputMode="numeric" className={`${inputCls} w-24`} />
+            </Field>
+            <Btn
+              disabled={busy || (pace.step === undefined && pace.reduced === undefined)}
+              onClick={() =>
+                run(
+                  () => api.patch("/admin/eruption", { ...(pace.step !== undefined ? { stepMinutes: Number(pace.step) } : {}), ...(pace.reduced !== undefined ? { reducedMinutes: Number(pace.reduced) } : {}) }),
+                  "Rythme enregistré (les régions dont l'heure est passée tombent tout de suite)",
+                  () => {
+                    setPace({});
+                    return reload();
+                  }
+                )
+              }
+            >
+              Enregistrer le rythme
+            </Btn>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-[13px]">
               <thead className="text-slate2 text-left">
