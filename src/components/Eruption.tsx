@@ -606,6 +606,17 @@ export function EruptionSection({ onReplayIntro, onReplayMap, onOpenFreight }: {
               Aller au fret
             </button>
           </div>
+          {/* 2.7 : quelles rames sont touchées */}
+          <div className="border border-line rounded-card p-4 font-body text-[13px] text-slate2 space-y-1.5">
+            <div className="text-offwhite">Quelles rames sont touchées ?</div>
+            <p>
+              <span className="text-amber">Électriques</span> : toute rame sur une ligne électrifiée, le TGV, et la locomotive de fret « Électrique longue distance ».
+            </p>
+            <p>
+              <span className="text-offwhite">Diesel ou vapeur</span>, elles roulent : les rames sur une ligne non électrifiée, la vapeur, la Micheline, le locotracteur, le fret lourd et la messagerie rapide.
+            </p>
+            <p>La Flotte indique pour chaque rame si elle est électrique ou diesel.</p>
+          </div>
           <div className="border border-line rounded-card p-4 font-body text-[13px] text-slate2 space-y-2">
             <div className="flex items-center gap-2 text-offwhite">
               <Emblem id="pylone" size={16} className="text-amber" />

@@ -28,6 +28,7 @@ import { HalloweenCard, HalloweenMapLayer } from "../components/Halloween";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
 import { JournalBell } from "../components/Journal";
+import { tractionOf, tractionHint, TRACTION_LABEL } from "../traction";
 import { WAGON_TYPES, FREIGHT_CATALOG, isFreightLoco, wagonForCargo, freightModel, loadFor, tourMinutes, fmtLoad } from "../freight";
 import { FreightComposition } from "../components/FreightComposition";
 import { MarketSection, ConstructionPanel } from "../components/MarketSection";
@@ -3850,6 +3851,16 @@ function TrainsSection({
                     <span className={t.model === "STANDARD" ? "" : "text-amber"}>{modelLabel(t.model)}</span>
                   )}
                   <AdBadge t={t} />
+                  {/* 2.7 : électrique ou thermique, pour l'éruption solaire */}
+                  {(() => {
+                    const tr = tractionOf(t);
+                    return (
+                      <span title={tractionHint(t, tr)} className={`inline-flex items-center gap-1 whitespace-nowrap ${tr === "electrique" ? "text-amber" : ""}`}>
+                        {tr === "electrique" ? <EnergyMark size={11} /> : null}
+                        {TRACTION_LABEL[tr]}
+                      </span>
+                    );
+                  })()}
                   {t.model === "COUCHETTES" && (
                     <span className={`inline-flex items-center gap-1 ${isParisNight() ? "text-cobalt" : ""}`} title="Recette ×3 de 22 h à 6 h (heure de Paris), ×0,8 le jour">
                       <MoonMark size={11} />
@@ -4187,6 +4198,11 @@ function FreightSection({
                     </span>
                   </div>
                   <div className="text-[12.5px] text-slate2 font-body mt-0.5 min-h-[18px]">
+                    {/* 2.7 : électrique ou diesel, pour l'éruption solaire */}
+                    <span title={tractionHint(t, tractionOf(t))} className={t.model === "FRET_ELECTRIQUE" ? "text-amber" : ""}>
+                      {t.model === "FRET_ELECTRIQUE" ? "Électrique" : "Diesel"}
+                    </span>
+                    {" · "}
                     {groups.length ? groups.map((g) => `${g.w.short}${g.n > 1 ? ` ×${g.n}` : ""}`).join(", ") : `${modelLabel(t.model)}, jusqu'à ${freightModel(t.model)?.maxWagons ?? 0} wagons`}
                   </div>
                   <button
