@@ -119,6 +119,45 @@ interface MarketStation {
   protectedUntil: string | null;
   shops?: ShopInfo; // 2.6
   watched?: boolean;
+  auction?: { endsAt: string; minPrice: number; bestBid: number | null; mine: boolean; nextMin: number } | null; // 2.7
+}
+
+/* 2.7 : les enchères d'une gare dont la protection vient de tomber */
+function AuctionCell({ station, a, balance, busy, now, onBid }: { station: string; a: NonNullable<MarketStation["auction"]>; balance: number; busy: boolean; now: number; onBid: (amount: number) => void }) {
+  const [amount, setAmount] = useState(String(a.nextMin));
+  useEffect(() => setAmount(String(a.nextMin)), [a.nextMin]);
+  const left = Math.max(0, new Date(a.endsAt).getTime() - now);
+  const clock = `${Math.floor(left / 60_000)}:${String(Math.floor((left % 60_000) / 1000)).padStart(2, "0")}`;
+  const n = Math.round(Number(amount.replace(/\s/g, "")));
+  return (
+    <div className="flex flex-col items-end gap-1 min-w-[150px]">
+      <span className="font-body text-[11.5px] text-amber">
+        Enchères · {clock}
+      </span>
+      <span className="font-body text-[11.5px] text-slate2">
+        {a.bestBid ? (a.mine ? <span className="text-rail-green">Vous menez · {fmt(a.bestBid)}</span> : <>Meilleure offre {fmt(a.bestBid)}</>) : <>Départ {fmt(a.minPrice)}</>}
+      </span>
+      {!a.mine && (
+        <span className="flex items-center gap-1">
+          <input
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            inputMode="numeric"
+            aria-label={`Votre enchère pour ${station}`}
+            className="w-[86px] bg-navy-950 border border-line px-1.5 py-0.5 text-right font-mono2 text-[12px] rounded-control"
+          />
+          <button
+            onClick={() => onBid(n)}
+            disabled={busy || !(n >= a.nextMin) || n > balance}
+            title={n > balance ? "Trésorerie insuffisante" : n < a.nextMin ? `Au moins ${fmt(a.nextMin)}` : "La somme est bloquée, et rendue si quelqu'un fait mieux"}
+            className="text-[12px] font-body border px-2 py-0.5 text-amber border-amber/40 hover:bg-amber/10 disabled:opacity-40 font-medium rounded-control"
+          >
+            Enchérir
+          </button>
+        </span>
+      )}
+    </div>
+  );
 }
 
 interface InfraData {
@@ -190,6 +229,14 @@ export function InfrastructureSection({
     };
   }, []);
 
+  // 2.7 : pendant des enchères, la page se recharge toutes les 8 s pour voir les offres arriver
+  const auctionOpen = Boolean(data?.market.some((m) => m.auction));
+  useEffect(() => {
+    if (!auctionOpen) return;
+    const t = setInterval(load, 8_000);
+    return () => clearInterval(t);
+  }, [auctionOpen]);
+
   async function act(key: string, url: string, body: object, done: string) {
     if (busy) return;
     setBusy(key);
@@ -240,7 +287,8 @@ export function InfrastructureSection({
           {pct(rules.platformFee)} de la recette des autres compagnies. Vos propres trajets qui la desservent rapportent +{pct(rules.homeBonusStep)} (jusqu'à +
           {pct(rules.homeBonusCap)}). Un concurrent peut vous la racheter après {rules.protectionHours} h, {String(rules.buyoutCost).replace(".", ",")} fois sa valeur (prix de base et
           agrandissements) : vous touchez alors {String(rules.buyoutPayout).replace(".", ",")} fois cette valeur. Le prix ne monte plus d'un rachat à l'autre ;
-          une gare achetée avant la 2.6 vous rapporte toujours {String(rules.buyoutPayout).replace(".", ",")} fois ce que vous l'avez payée.
+          une gare achetée avant la 2.6 vous rapporte toujours {String(rules.buyoutPayout).replace(".", ",")} fois ce que vous l'avez payée.{" "}
+          À la fin de la protection, la gare part 10 minutes aux enchères : la meilleure offre l'emporte, et votre dédommagement monte avec elle.
           {rules.nextStationCap && (
             <>
               {" "}
@@ -354,7 +402,7 @@ export function InfrastructureSection({
                       <button
                         onClick={() => watch(m.station)}
                         disabled={!!busy}
-                        title={m.watched ? "Ne plus surveiller" : "Être prévenu 10 min avant la fin de sa protection, en même temps que tous ceux qui la surveillent"}
+                        title={m.watched ? "Ne plus surveiller" : `Être prévenu ${rules.isPremium ? "30" : "10"} min avant la fin de sa protection, puis à l'ouverture des enchères (10 min, la meilleure offre l'emporte)`}
                         className={`text-[11.5px] font-body px-1.5 py-0.5 border rounded-control whitespace-nowrap ${m.watched ? "text-amber border-amber/50" : "text-slate2 border-line hover:text-offwhite"}`}
                       >
                         {m.watched ? "◉ surveillée" : "○ surveiller"}
@@ -373,14 +421,25 @@ export function InfrastructureSection({
                   )}
                 </div>
                 <span className="text-right font-mono2 text-[12.5px] tabular-nums">{fmt(m.traffic24h)}</span>
+                {m.auction ? (
+                  <AuctionCell
+                    station={m.station}
+                    a={m.auction}
+                    balance={balance}
+                    busy={!!busy}
+                    now={now}
+                    onBid={(amount) => act("bid" + m.station, "/infrastructure/stations/bid", { station: m.station, amount }, `Enchère de ${fmt(amount)} pi. sur ${m.station}`)}
+                  />
+                ) : (
                 <button
                   onClick={() => act("buy" + m.station, "/infrastructure/stations/buy", { station: m.station }, m.owner ? `Gare de ${m.station} rachetée` : `Gare de ${m.station} achetée`)}
                   disabled={!!busy || full || locked || balance < m.price}
                   title={full ? `${rules.maxStations} gares au plus` : locked ? `Protégée jusqu'à ${when(m.protectedUntil!)}` : balance < m.price ? "Trésorerie insuffisante" : undefined}
                   className={`text-[12px] font-body border px-2 py-1 disabled:opacity-40 whitespace-nowrap font-medium rounded-control ${m.owner ? "text-amber border-amber/40 hover:bg-amber/10" : "text-cobalt border-cobalt/40 hover:bg-cobalt/10"}`}
                 >
-                  {locked ? (countdown ? `libre dans ${countdown}` : "protégée") : m.owner ? "Racheter" : "Acheter"} · {fmt(m.price)}
+                  {locked ? (countdown ? `enchères dans ${countdown}` : "protégée") : m.owner ? "Racheter" : "Acheter"} · {fmt(m.price)}
                 </button>
+                )}
               </div>
             );
           })}

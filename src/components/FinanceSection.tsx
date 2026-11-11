@@ -49,6 +49,8 @@ interface Report {
   trips: number;
   incidents: number;
   lines: { lineId: string; name: string; revenue: number; trips: number }[];
+  elements?: { kind: string; name: string; amount: number }[] | null; // 2.7 (Premium)
+  elementsLocked?: boolean;
 }
 
 export function WeeklyReportSection({ isPremium }: { isPremium: boolean }) {
@@ -124,6 +126,30 @@ export function WeeklyReportSection({ isPremium }: { isPremium: boolean }) {
           </div>
         ))}
       </div>
+
+      {/* 2.7 : ce que rapporte chaque gare, commerce et voie (Premium) */}
+      {data.elements && data.elements.length > 0 ? (
+        <div>
+          <div className="font-body text-[12px] text-slate2 border-b border-line pb-1.5 mb-2 font-medium">Recettes par gare, commerce et voie</div>
+          {data.elements.map((e, i) => (
+            <div key={e.kind + e.name} className="grid grid-cols-[1.5rem_1fr_auto] md:grid-cols-[1.5rem_14rem_1fr_auto] items-center gap-3 py-1.5">
+              <span className="font-mono2 text-[11px] text-slate2">{String(i + 1).padStart(2, "0")}</span>
+              <span className="font-body text-[13px] truncate">
+                <span className="text-slate2">{e.kind} · </span>
+                {e.name}
+              </span>
+              <div className="hidden md:block h-2 bg-navy-900">
+                <div className="h-full bg-amber" style={{ width: `${(e.amount / Math.max(1, data.elements![0].amount)) * 100}%` }} />
+              </div>
+              <span className="font-mono2 text-[12.5px] tabular-nums text-right">{fmt(e.amount)}</span>
+            </div>
+          ))}
+        </div>
+      ) : data.elementsLocked ? (
+        <p className="text-[12.5px] text-slate2 font-body border border-dashed border-line px-3 py-2 rounded-card">
+          Premium : le détail de ce que rapporte chaque gare, chaque commerce et chaque voie, semaine par semaine.
+        </p>
+      ) : null}
 
       <MonthStrip isPremium={isPremium} />
 

@@ -96,6 +96,9 @@ export function pointOnCurve(from: { x: number; y: number }, c: { cx: number; cy
 }
 
 export const LINE_PALETTE = ["#4f7fa3", "#c99a3e", "#5c8a68", "#a8483a", "#8a6ba3", "#c97a3e"];
+/* 2.7 (Premium) : une ligne peut avoir sa couleur ; sinon, celle de la palette */
+export const LINE_COLORS = ["#4f7fa3", "#c99a3e", "#5c8a68", "#a8483a", "#8a6ba3", "#c97a3e", "#2f9e9e", "#d4579a", "#7a8f2a", "#e0b44a", "#6c7a89", "#e8edf5"];
+export const lineColor = (l: { color?: string | null } | undefined, i: number) => (l?.color && /^#[0-9a-f]{6}$/i.test(l.color) ? l.color : LINE_PALETTE[i % LINE_PALETTE.length]);
 
 /* Projection inverse de STATION_COORDS : on remonte aux degrés pour calculer une
    vraie distance. Les constantes sont celles qui ont servi à placer les gares. */

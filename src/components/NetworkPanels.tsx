@@ -366,7 +366,7 @@ export function RivalsDetail({
                 {premium && (
                   <>
                     <th className="px-3 py-1.5 font-normal text-right">Réputation</th>
-                    <th className="px-3 py-1.5 font-normal text-right">Express</th>
+                    <th className="px-3 py-1.5 font-normal text-right" title="Part de rames rapides : Express et TGV">Rapides</th>
                     <th className="px-3 py-1.5 font-normal text-right">État</th>
                   </>
                 )}

@@ -1,8 +1,8 @@
 
-export const CURRENT_VERSION = "2.7.0";
+export const CURRENT_VERSION = "2.7.1";
 /* Le bulletin vu par le joueur. Le changer (sans changer de version)
    remontre les notes à tout le monde, après une mise à jour du bulletin. */
-export const NOTES_REVISION = "2.7.0-2";
+export const NOTES_REVISION = "2.7.1";
 
 export type ChangeType = "nouveau" | "ameliore" | "corrige";
 
@@ -17,6 +17,25 @@ export interface ChangelogEntry {
 // regroupant tout ce qui a été construit avant la mise en ligne).
 // CURRENT_VERSION doit toujours correspondre au numéro de la première entrée.
 const ALL_ENTRIES: ChangelogEntry[] = [
+  {
+    version: "2.7.1",
+    date: "Novembre 2026",
+    changes: [
+      { type: "nouveau", text: "Enchères de gares : à la fin de sa protection, une gare part 10 minutes aux enchères au lieu d'aller au premier clic. Chaque offre dépasse la précédente d'au moins 5 %, la somme est bloquée et rendue si quelqu'un fait mieux, et une offre dans la dernière minute prolonge d'une minute. Le propriétaire touche un dédommagement qui monte avec l'enchère" },
+      { type: "ameliore", text: "La flotte grandit plus loin : après 8 places, une place de dépôt ne coûte plus que 1,2 fois la précédente (la 15e passe d'environ 200 000 à 17 000 pi.), et l'entretien d'une grande flotte coûte presque deux fois moins" },
+      { type: "ameliore", text: "Finances : une ligne par source de revenu (gares, commerces, péages de vos voies, électricité vendue, dividendes, énergie, taxe carbone…), au lieu de tout mêler dans « Divers »" },
+      { type: "nouveau", text: "Premium : ce que rapporte chaque gare, chaque commerce et chaque voie, semaine par semaine" },
+      { type: "nouveau", text: "Premium : le chef d'exploitation repère les rames mal placées (une ligne qui laisse des voyageurs à quai, une autre à moitié vide) et les déplace en un clic" },
+      { type: "nouveau", text: "Premium : une couleur au choix pour chaque ligne sur la carte, et l'alerte d'une gare surveillée 30 minutes avant la fin de sa protection (10 sans Premium)" },
+      { type: "nouveau", text: "Pass de saison : les rames à gagner sont en vitrine, et un clic les montre en grand, à vos couleurs, de jour ou de nuit" },
+      { type: "ameliore", text: "Points de saison : un trajet rapporte selon sa durée (une grande ligne vaut plus que plusieurs petites navettes), son remplissage, les grandes villes qu'il relie et les arrêts desservis. Avant, un aller-retour de 4 minutes valait autant qu'une grande ligne" },
+      { type: "corrige", text: "Saisons : un groupe de moins de six compagnies ne faisait jamais monter personne (trois compagnies seules en Or restaient bloquées). Le premier d'un petit groupe monte maintenant, et personne n'en descend" },
+      { type: "corrige", text: "Pass de saison : la petite rame se plaçait un palier trop loin sur la ligne" },
+      { type: "corrige", text: "Bourse : quand une compagnie quittait le jeu, ses actionnaires perdaient leurs actions. Ils sont maintenant remboursés au cours du jour" },
+      { type: "corrige", text: "Lignes : le nom donné à une ligne s'affiche, et le formulaire de modification s'ouvre sous vos yeux au lieu d'en haut de la page" },
+      { type: "corrige", text: "Concurrence : le TGV n'était pas compté comme une rame rapide (ni dans l'attrait de la ligne, ni dans la colonne Express, devenue Rapides)" },
+    ],
+  },
   {
     version: "2.7.0",
     date: "Novembre 2026",

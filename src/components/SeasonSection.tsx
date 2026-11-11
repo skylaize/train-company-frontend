@@ -25,6 +25,7 @@ export interface SeasonData {
   me?: { division: number; divisionName: string; groupNo: number; points: number; rank: number; groupSize: number };
   group?: { rank: number; companyId: string; name: string; liveryColor: string; points: number; trend: number; isMe: boolean }[];
   movers?: number;
+  down?: number; // 2.7 : ceux qui descendent (0 dans un petit groupe)
   divisions?: { id: number; name: string; count: number }[];
   objectives?: { kind: string; label: string; target: number; points: number; progress: number; done: boolean }[];
   reward?: { title: string; livery: string; liveryName: string; cut: number };
@@ -47,11 +48,12 @@ export function countdown(iso: string, now = Date.now()) {
 export function seasonLead(data: SeasonData | null) {
   if (!data?.season || !data.me) return null;
   const { me, movers = 0, divisions = [] } = data;
+  const down = data.down ?? movers;
   const top = me.division === 3;
   const next = divisions[me.division + 1]?.name;
   if (me.points === 0) return `Saison ouverte : chaque trajet vous rapporte des points dans votre groupe ${me.divisionName}.`;
-  if (movers && me.rank <= movers && next) return `Vous êtes ${me.rank}${me.rank === 1 ? "er" : "e"} de votre groupe ${me.divisionName} : restez sur le podium et vous montez en ${next}.`;
-  if (movers && me.rank > me.groupSize - movers && me.division > 0) return `Vous êtes ${me.rank}e sur ${me.groupSize} : attention, les trois derniers redescendent.`;
+  if (movers && me.rank <= movers && next) return `Vous êtes ${me.rank}${me.rank === 1 ? "er" : "e"} de votre groupe ${me.divisionName} : ${movers === 1 ? "gardez la tête" : "restez sur le podium"} et vous montez en ${next}.`;
+  if (down && me.rank > me.groupSize - down && me.division > 0) return `Vous êtes ${me.rank}e sur ${me.groupSize} : attention, les ${down} derniers redescendent.`;
   if (top) return `Vous êtes ${me.rank}${me.rank === 1 ? "er" : "e"} de votre groupe Platine, la plus haute division.`;
   return `Vous êtes ${me.rank}e de votre groupe ${me.divisionName}, avec ${fmt(me.points)} points.`;
 }
@@ -71,6 +73,7 @@ export function SeasonSection({ data, world, onReload, companyName = "Votre comp
   if (!data) return <p className="text-slate2 font-body text-sm">Chargement de la saison…</p>;
   if (!data.season || !data.me) return <p className="text-slate2 font-body text-sm">La première saison n'a pas encore commencé : elle ouvre avec la 2.0, revenez très vite.</p>;
   const { season, me, group = [], movers = 0, divisions = [], objectives = [], reward, scoring = [], last } = data;
+  const downN = data.down ?? movers;
 
   return (
     <div className="flex flex-col gap-8">
@@ -119,11 +122,11 @@ export function SeasonSection({ data, world, onReload, companyName = "Votre comp
           <div className="flex flex-col">
             {group.map((g) => {
               const up = movers && g.rank <= movers && me.division < 3;
-              const down = movers && g.rank > group.length - movers && me.division > 0;
+              const down = downN && g.rank > group.length - downN && me.division > 0;
               return (
                 <div key={g.companyId}>
-                  {movers > 0 && g.rank === movers + 1 && me.division < 3 && <Divider tone="text-rail-green" bar="bg-rail-green/40" text={`les ${movers} premiers montent en ${divisions[me.division + 1]?.name}`} />}
-                  {movers > 0 && g.rank === group.length - movers + 1 && me.division > 0 && <Divider tone="text-rail-red" bar="bg-rail-red/40" text={`les ${movers} derniers redescendent en ${divisions[me.division - 1]?.name}`} />}
+                  {movers > 0 && g.rank === movers + 1 && me.division < 3 && <Divider tone="text-rail-green" bar="bg-rail-green/40" text={movers === 1 ? `le premier monte en ${divisions[me.division + 1]?.name}` : `les ${movers} premiers montent en ${divisions[me.division + 1]?.name}`} />}
+                  {downN > 0 && g.rank === group.length - downN + 1 && me.division > 0 && <Divider tone="text-rail-red" bar="bg-rail-red/40" text={`les ${downN} derniers redescendent en ${divisions[me.division - 1]?.name}`} />}
                   <div className={`grid grid-cols-[4px_30px_minmax(0,1fr)_42px_72px] items-center gap-3 py-2 pl-1.5 pr-3 rounded-control ${g.isMe ? "bg-cobalt/[0.08] shadow-[inset_0_0_0_1px_rgb(var(--c-cobalt)/0.5)]" : ""}`}>
                     <span className={`self-stretch my-1 rounded-full ${up ? "bg-rail-green" : down ? "bg-rail-red" : ""}`} />
                     <span className={`font-mono2 text-[14px] text-right ${g.isMe ? "text-offwhite" : "text-slate2"}`}>{g.rank}</span>
@@ -141,7 +144,7 @@ export function SeasonSection({ data, world, onReload, companyName = "Votre comp
               );
             })}
           </div>
-          {movers === 0 && <p className="text-[12.5px] text-slate2 font-body mt-2">Moins de six compagnies dans ce groupe : personne ne monte ni ne descend cette saison.</p>}
+          {group.length < 6 && group.length >= 2 && <p className="text-[12.5px] text-slate2 font-body mt-2">Petit groupe (moins de six compagnies) : le premier monte, personne ne descend.</p>}
         </section>
 
         {/* la semaine et ce que rapporte la saison */}

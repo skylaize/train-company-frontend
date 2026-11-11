@@ -62,6 +62,50 @@ export async function loadPass(): Promise<PassData | null> {
   }
 }
 
+/* 2.7 : l'aperçu d'un habillage du pass, en grand (suggestion de N0RCAM) */
+type SkinReward = { type: "HABILLAGE"; id: string; label: string };
+let openSkinPreview: ((r: SkinReward, where: string) => void) | null = null;
+
+const PREVIEW_COLORS = ["#2f6fb0", "#a3202a", "#3b5e3f", "#d9772b", "#222428"];
+
+function SkinPreview({ r, where, onClose }: { r: SkinReward; where: string; onClose: () => void }) {
+  const [color, setColor] = useState(PREVIEW_COLORS[0]);
+  const [night, setNight] = useState(false);
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", k);
+    return () => window.removeEventListener("keydown", k);
+  }, [onClose]);
+  const name = r.label.replace(/^[^«]*«\s*/, "").replace(/\s*».*$/, "");
+  return (
+    <div className="fixed inset-0 z-[90] bg-black/70 flex items-center justify-center p-4" onClick={onClose} role="dialog" aria-label={`Aperçu : ${name}`}>
+      <div className="w-full max-w-[860px] bg-navy-900 border border-line rounded-card overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-3 px-5 pt-4">
+          <div>
+            <div className="font-display text-[22px] leading-tight">{name}</div>
+            <div className="font-body text-[13px] text-slate2 mt-0.5">{r.label}{where ? ` · ${where}` : ""}</div>
+          </div>
+          <button onClick={onClose} className="text-slate2 hover:text-offwhite text-xl leading-none px-1" aria-label="Fermer">×</button>
+        </div>
+        <div className={`mt-3 px-4 pt-6 pb-2 ${night ? "bg-[#070b14]" : "bg-[#cfe0ee]"}`}>
+          <TrainPicture skin={r.id} livery={color} lit={night} height={140} track fit label={name} />
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
+          <div className="flex items-center gap-2 font-body text-[12.5px] text-slate2">
+            Couleur de votre compagnie :
+            {PREVIEW_COLORS.map((c) => (
+              <button key={c} onClick={() => setColor(c)} aria-label={`Livrée ${c}`} className={`w-6 h-6 rounded-full border-2 ${c === color ? "border-offwhite" : "border-transparent"}`} style={{ background: c }} />
+            ))}
+          </div>
+          <button onClick={() => setNight((n) => !n)} className="font-body text-[12.5px] border border-line px-3 py-1.5 rounded-control text-slate2 hover:text-offwhite">
+            {night ? "Voir de jour" : "Voir de nuit"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function RewardChip({ r, unlocked, companyName }: { r: Reward; unlocked: boolean; companyName: string }) {
   if (r.type === "LIVREE")
     return (
@@ -81,9 +125,9 @@ function RewardChip({ r, unlocked, companyName }: { r: Reward; unlocked: boolean
     return (
       <span className="flex flex-col items-center gap-0.5" title={r.label}>
         {r.type === "HABILLAGE" ? (
-          <span className="block w-[70px]">
+          <button onClick={() => openSkinPreview?.(r, "")} className="block w-[70px] hover:scale-105 transition-transform" aria-label={`Voir ${name} en grand`}>
             <TrainPicture skin={r.id} livery="#9aa3ad" height={22} track={false} fit={false} align="right" label={r.label} />
-          </span>
+          </button>
         ) : (
           <StationMark size={22} className={unlocked ? "text-white" : "text-white/70"} />
         )}
@@ -111,6 +155,13 @@ export function SeasonPass({ companyName, compact = false, onChange }: { company
   const [busy, setBusy] = useState<string | null>(null);
   const { showToast, showComposter } = useToast();
   const scroller = useRef<HTMLDivElement>(null);
+  const [preview, setPreview] = useState<{ r: SkinReward; where: string } | null>(null);
+  useEffect(() => {
+    openSkinPreview = (r, where) => setPreview({ r, where });
+    return () => {
+      openSkinPreview = null;
+    };
+  }, []);
 
   useEffect(() => {
     void loadPass().then(setData);
@@ -152,7 +203,9 @@ export function SeasonPass({ companyName, compact = false, onChange }: { company
   // position de la rame sur la ligne : entre le dernier palier franchi et le suivant
   const prevNeed = reached > 0 ? tiers[reached - 1].need : 0;
   const frac = next ? Math.min(1, (points - prevNeed) / (next - prevNeed)) : 0;
-  const trainX = (reached + frac) * COL;
+  /* 2.7 : la gare du palier n est dans la colonne n-1. La rame se plaçait
+     une colonne trop loin (au palier 15 avec 14 paliers franchis). */
+  const trainX = (reached - 1 + frac) * COL;
   const claimable = tiers.filter((t) => t.reached && t.free && !t.free.claimed).length;
   const unlockedCount = tiers.filter((t) => t.reached && t.pass).length;
 
@@ -184,6 +237,34 @@ export function SeasonPass({ companyName, compact = false, onChange }: { company
         </div>
       </div>
 
+      {preview && <SkinPreview r={preview.r} where={preview.where} onClose={() => setPreview(null)} />}
+
+      {/* 2.7 : les rames de ce pass, en vitrine et cliquables */}
+      {!compact && (() => {
+        const skins: { r: SkinReward; where: string }[] = [];
+        for (const t of tiers) {
+          if (t.pass?.type === "HABILLAGE") skins.push({ r: t.pass as SkinReward, where: `palier ${t.tier}, avec le pass` });
+          if (t.freeReward?.type === "HABILLAGE") skins.push({ r: t.freeReward as SkinReward, where: `palier ${t.tier}, gratuit` });
+        }
+        for (const q of data.quest?.rewards.all ?? []) if (q.type === "HABILLAGE") skins.push({ r: q as SkinReward, where: "quête de fin de saison" });
+        for (const q of data.quest?.rewards.pass ?? []) if (q.type === "HABILLAGE") skins.push({ r: q as SkinReward, where: "quête de fin de saison, avec le pass" });
+        if (!skins.length) return null;
+        return (
+          <div className="border-t border-line px-4 py-3">
+            <div className="font-body text-[12.5px] text-slate2 mb-2">Les rames de ce pass, dessinées par N0RCAM : cliquez pour les voir en grand</div>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {skins.map(({ r, where }) => (
+                <button key={r.id + where} onClick={() => setPreview({ r, where })} className="text-left border border-line hover:border-amber/60 rounded-card p-2.5 bg-navy-950/40 transition-colors">
+                  <TrainPicture skin={r.id} livery="#2f6fb0" height={44} track={false} fit label={r.label} />
+                  <div className="font-body text-[13px] mt-1.5 truncate">{r.label.replace(/^[^«]*«\s*/, "").replace(/\s*».*$/, "")}</div>
+                  <div className={`font-body text-[11.5px] ${where.includes("gratuit") ? "text-rail-green" : "text-amber"}`}>{where.charAt(0).toUpperCase() + where.slice(1)}</div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {!compact && (
         <div ref={scroller} className="overflow-x-auto border-t border-line">
           <div className="relative" style={{ width: COL * 30 + 80, height: tiers.some((t) => t.freeReward) ? 262 : 214 }}>
@@ -194,10 +275,10 @@ export function SeasonPass({ companyName, compact = false, onChange }: { company
             </div>
             {/* la voie */}
             <div className="absolute left-[56px] right-5 top-[106px] h-[6px] bg-[#3a2f25]" />
-            <div className="absolute left-[56px] top-[106px] h-[6px] bg-amber transition-all duration-700" style={{ width: Math.min(COL * 30, trainX + COL / 2) }} />
+            <div className="absolute left-[56px] top-[106px] h-[6px] bg-amber transition-all duration-700" style={{ width: Math.max(0, Math.min(COL * 30, trainX + COL / 2)) }} />
             <div className="absolute left-[56px] right-5 top-[104px] h-[2px] bg-[#9aa3ad]/70" />
             {/* votre rame */}
-            <div className="absolute top-[82px] transition-all duration-700" style={{ left: 56 + trainX + COL / 2 - 34 }} aria-label={`Votre position : ${fmt(points)} points`}>
+            <div className="absolute top-[82px] transition-all duration-700" style={{ left: Math.max(0, 56 + trainX + COL / 2 - 34) }} aria-label={`Votre position : ${fmt(points)} points`}>
               <span className="block w-[68px]">
                 <TrainPicture model="STANDARD" livery="#f59e0b" height={24} track={false} fit={false} align="right" />
               </span>

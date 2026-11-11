@@ -7,7 +7,7 @@ import { COUNTRIES, COUNTRY_LABELS, SEA_LABELS } from "../components/europeMap";
 import { RIVERS, RELIEF, RELIEF_LABELS, GRATICULE } from "../components/mapDecor";
 import { useMapCamera } from "../components/useMapCamera";
 import { MOUNTAIN_STATIONS, hasMountain, CORSICA_STATIONS, hasCorsica, setDlcOwnership } from "../geo";
-import { stationVisible, setTunnelOpen, STATION_COORDS, lineCurve, pointOnCurve, LINE_PALETTE, distanceKm, durationFromKm, lengthYieldPct, routeStations, routeMinutes, routeKm, positionOnRoute, routePath, MAX_STOPS } from "../geo";
+import { stationVisible, setTunnelOpen, STATION_COORDS, lineCurve, pointOnCurve, LINE_PALETTE, distanceKm, durationFromKm, lengthYieldPct, routeStations, routeMinutes, routeKm, positionOnRoute, routePath, MAX_STOPS, lineColor, LINE_COLORS } from "../geo";
 
 import { UpdateBanner } from "../components/UpdateBanner";
 import { TeamWarning } from "../components/TeamWarning";
@@ -211,6 +211,7 @@ interface Incident {
 interface Line {
   id: string;
   name: string;
+  color?: string | null; // 2.7 (Premium) : couleur choisie sur la carte
   departureStation: string;
   arrivalStation: string;
   durationMinutes: number;
@@ -1815,7 +1816,7 @@ export default function Dashboard() {
               />
             )}
             {view === "appels" && <TendersSection company={company} onChange={loadAll} onOpenLines={() => setView("lignes")} />}
-            {view === "lignes" && <LinesSection lines={lines} onChange={loadAll} network={network} company={company} onOpenShop={() => setView("boutique")} />}
+            {view === "lignes" && <LinesSection lines={lines} trains={trains} onChange={loadAll} network={network} company={company} onOpenShop={() => setView("boutique")} />}
             {view === "fret" && (
               <FirstVisitHint
                 id="fret"
@@ -2777,13 +2778,120 @@ function StationPicker({
   );
 }
 
+/* 2.7 (Premium) : le chef d'exploitation. Il repère les lignes qui laissent
+   des voyageurs à quai et celles où les rames roulent à moitié vides, et
+   propose de déplacer une rame de l'une vers l'autre, en un clic. */
+function OperationsChief({ lines, trains, network, premium, onChange }: { lines: Line[]; trains: Train[]; network: NetworkData | null; premium: boolean; onChange: () => void }) {
+  const { showToast } = useToast();
+  const [busy, setBusy] = useState<string | null>(null);
+  const byLine = (id: string) => network?.lines.find((x) => x.lineId === id)?.ridership;
+  const onLine = (id: string) => trains.filter((t) => t.line?.id === id && t.status !== "MAINTENANCE");
+  const full = lines.filter((l) => (byLine(l.id)?.left ?? 0) > 0).sort((a, b) => (byLine(b.id)!.left ?? 0) - (byLine(a.id)!.left ?? 0));
+  const low = lines
+    .filter((l) => {
+      const r = byLine(l.id);
+      return r && !r.estimated && r.fill < 45 && onLine(l.id).length >= 2;
+    })
+    .sort((a, b) => byLine(a.id)!.fill - byLine(b.id)!.fill);
+  const moves: { from: Line; to: Line; train: Train }[] = [];
+  const used = new Set<string>();
+  for (const to of full) {
+    const from = low.find((l) => l.id !== to.id && !used.has(l.id));
+    if (!from) break;
+    const pool = onLine(from.id).sort((a, b) => Number(b.status === "IDLE") - Number(a.status === "IDLE"));
+    const train = pool[0];
+    if (!train) continue;
+    used.add(from.id);
+    moves.push({ from, to, train });
+    if (moves.length >= 3) break;
+  }
+  if (!moves.length) return null;
+  const name = (l: Line) => (l.name && l.name !== `${l.departureStation} — ${l.arrivalStation}` ? l.name : `${l.departureStation} – ${l.arrivalStation}`);
+  if (!premium)
+    return (
+      <p className="mb-4 text-[12.5px] text-slate2 font-body border border-dashed border-line px-3 py-2 rounded-card">
+        Premium : le chef d'exploitation repère {moves.length > 1 ? `${moves.length} rames mal placées` : "une rame mal placée"} (une ligne pleine, une autre à moitié vide) et la déplace en un clic.
+      </p>
+    );
+  async function move(m: (typeof moves)[number]) {
+    setBusy(m.train.id);
+    try {
+      if (m.train.status !== "IDLE") await api.post("/trains/release", { trainId: m.train.id });
+      await api.post("/trains/assign", { trainId: m.train.id, lineId: m.to.id });
+      showToast(`${m.train.name} passe sur ${name(m.to)}`);
+      onChange();
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || "Déplacement impossible", "error");
+      onChange();
+    } finally {
+      setBusy(null);
+    }
+  }
+  return (
+    <div className="mb-4 border border-amber/40 bg-amber/[0.05] rounded-card px-4 py-3">
+      <div className="font-body text-[13.5px] text-offwhite">Le chef d'exploitation propose</div>
+      <ul className="mt-2 space-y-2">
+        {moves.map((m) => (
+          <li key={m.train.id} className="flex flex-wrap items-center justify-between gap-2 font-body text-[13px]">
+            <span className="text-slate2 min-w-0">
+              <span className="text-offwhite">{m.train.name}</span> : de {name(m.from)} ({byLine(m.from.id)?.fill} % rempli) vers {name(m.to)} ({byLine(m.to.id)?.left} voyageurs restés à quai)
+            </span>
+            <button
+              onClick={() => move(m)}
+              disabled={busy !== null}
+              title={m.train.status !== "IDLE" ? "La rame quitte son trajet en cours" : undefined}
+              className="text-[12.5px] font-semibold bg-amber text-onaccent px-3 py-1.5 rounded-control disabled:opacity-50"
+            >
+              {busy === m.train.id ? "Un instant…" : "Déplacer"}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/* 2.7 (Premium) : la couleur d'une ligne sur la carte */
+function LineColorPicker({ line, index, premium, onChange }: { line: Line; index: number; premium: boolean; onChange: () => void }) {
+  const { showToast } = useToast();
+  const [open, setOpen] = useState(false);
+  if (!premium) return null;
+  async function pick(color: string | null) {
+    try {
+      await api.patch("/lines", { lineId: line.id, color });
+      setOpen(false);
+      onChange();
+    } catch (err: any) {
+      showToast(err?.response?.data?.error || "Erreur", "error");
+    }
+  }
+  return (
+    <span className="relative">
+      <button onClick={() => setOpen((o) => !o)} title="Couleur de la ligne sur la carte" className="flex items-center gap-1.5 text-[12.5px] text-slate2 border border-line px-2.5 py-1.5 hover:text-offwhite font-body rounded-control">
+        <span className="w-3 h-3 rounded-full" style={{ background: lineColor(line, index) }} />
+        Couleur
+      </button>
+      {open && (
+        <span className="absolute right-0 top-full mt-1 z-20 grid grid-cols-6 gap-1.5 p-2 bg-navy-900 border border-line rounded-card shadow-2xl w-[176px]">
+          {LINE_COLORS.map((c) => (
+            <button key={c} onClick={() => pick(c)} aria-label={`Couleur ${c}`} className={`w-5 h-5 rounded-full border-2 ${line.color === c ? "border-offwhite" : "border-transparent"}`} style={{ background: c }} />
+          ))}
+          <button onClick={() => pick(null)} className="col-span-6 text-[11.5px] text-slate2 hover:text-offwhite font-body mt-1">Couleur d'origine</button>
+        </span>
+      )}
+    </span>
+  );
+}
+
 function LinesSection({
   lines,
+  trains,
   onChange,
   network,
   company,
   onOpenShop,
 }: {
+  trains: Train[];
   lines: Line[];
   onChange: () => void;
   network: NetworkData | null;
@@ -2816,6 +2924,7 @@ function LinesSection({
       : null;
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [loadLine, setLoadLine] = useState<Line | null>(null);
+  const lineFormRef = useRef<HTMLFormElement>(null);
   const { showToast } = useToast();
 
   function startCreate() {
@@ -2831,6 +2940,9 @@ function LinesSection({
     setArrival(line.arrivalStation);
     setStops(line.stops ?? []);
     setOpen(true);
+    /* 2.7 : le formulaire s'ouvre en haut de la liste ; on y descend, sinon
+       on modifiait une ligne du bas sans voir le formulaire s'ouvrir */
+    setTimeout(() => lineFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -2888,7 +3000,7 @@ function LinesSection({
       </div>
 
       {open && (
-        <form onSubmit={handleSubmit} className="border border-line border-t-2 border-t-cobalt p-5 mb-5 space-y-4 rounded-card bg-navy-900/40">
+        <form ref={lineFormRef} onSubmit={handleSubmit} className="border border-line border-t-2 border-t-cobalt p-5 mb-5 space-y-4 rounded-card bg-navy-900/40 scroll-mt-24">
           <div>
             <label className="block text-[12px] text-slate2 mb-1.5 font-body">
               Nom de la ligne <span className="normal-case tracking-normal text-slate2/70">(facultatif)</span>
@@ -3057,6 +3169,7 @@ function LinesSection({
       )}
       {/* 2.0 : une ligne se lit comme une phrase. Son tracé et son état d'abord,
           puis ce qu'on règle : le billet, et la place face aux concurrents. */}
+      {lines.length > 0 && <OperationsChief lines={lines} trains={trains} network={network} premium={company.isPremium} onChange={onChange} />}
       {lines.length > 0 && (
         <ul className="border-t border-line">
           {lines.map((l, i) => {
@@ -3068,9 +3181,17 @@ function LinesSection({
             return (
               <li key={l.id} className="py-4 border-b border-line grid gap-x-6 gap-y-3 lg:grid-cols-[minmax(0,1.3fr)_150px_minmax(0,1fr)_auto] items-start">
                 <div className="flex gap-3.5 min-w-0">
-                  <div className="pt-1"><MiniRoute stations={route} color={LINE_PALETTE[i % LINE_PALETTE.length]} width={56} /></div>
+                  <div className="pt-1"><MiniRoute stations={route} color={lineColor(l, i)} width={56} /></div>
                   <div className="min-w-0">
-                    <div className="text-[15.5px] font-semibold font-body">{route.join(", ")}</div>
+                    {/* 2.7 : le nom choisi par le joueur, s'il en a donné un */}
+                    {l.name && l.name !== `${l.departureStation} — ${l.arrivalStation}` ? (
+                      <>
+                        <div className="text-[15.5px] font-semibold font-body">{l.name}</div>
+                        <div className="text-[12.5px] text-offwhite/80 font-body">{route.join(", ")}</div>
+                      </>
+                    ) : (
+                      <div className="text-[15.5px] font-semibold font-body">{route.join(", ")}</div>
+                    )}
                     <div className="text-[12.5px] text-slate2 font-body mt-0.5">
                       <span>
                         {l.durationMinutes} min, {nTrains} rame{nTrains > 1 ? "s" : ""}
@@ -3108,6 +3229,7 @@ function LinesSection({
                   ) : (
                     <>
                       <button onClick={() => startEdit(l)} className="text-[13px] text-cobalt border border-cobalt/40 px-3 py-1.5 hover:bg-cobalt/10 font-body rounded-control">Modifier</button>
+                      <LineColorPicker line={l} index={i} premium={company.isPremium} onChange={onChange} />
                       <button onClick={() => setConfirmDeleteId(l.id)} className="text-[13px] text-slate2 hover:text-rail-red font-body">Supprimer</button>
                     </>
                   )}
@@ -6342,7 +6464,7 @@ function NetworkMap({
     const direction = t.direction ?? 0;
     const p = positionOnRoute(route, lineIndex, direction, ratio);
     if (!p) continue;
-    trainPos.set(t.id, { x: p.x, y: p.y, angle: p.angle, ratio, color: LINE_PALETTE[lineIndex % LINE_PALETTE.length], lineIndex, route, direction, stoppedAt: p.stoppedAt, next: p.to });
+    trainPos.set(t.id, { x: p.x, y: p.y, angle: p.angle, ratio, color: lineColor(lines[lineIndex], lineIndex), lineIndex, route, direction, stoppedAt: p.stoppedAt, next: p.to });
   }
 
   // suivi d'une rame : la caméra reste sur elle
@@ -6482,7 +6604,7 @@ function NetworkMap({
             const b = STATION_COORDS[l.arrivalStation];
             if (!a || !b) return null;
             const running = trains.some((t) => t.line?.id === l.id && t.status === "EN_ROUTE");
-            const color = LINE_PALETTE[i % LINE_PALETTE.length];
+            const color = lineColor(l, i);
             // 1.7 : un arc par tronçon, arrêts compris
             const path = routePath(routeStations(l), i);
             return (
@@ -6750,7 +6872,7 @@ function NetworkMap({
                     onClick={() => a && b && camera.flyTo((a.x + b.x) / 2, (a.y + b.y) / 2, Math.max(cam.zoom, 2.2))}
                     className="w-full text-left flex items-start gap-2 px-3 py-1.5 hover:bg-navy-950/60"
                   >
-                    <span className="w-3 h-[3px] mt-[7px] rounded-full shrink-0" style={{ background: LINE_PALETTE[i % LINE_PALETTE.length] }} />
+                    <span className="w-3 h-[3px] mt-[7px] rounded-full shrink-0" style={{ background: lineColor(l, i) }} />
                     <span className="min-w-0">
                       <span className="block truncate text-[12px] font-body text-offwhite">{l.name}</span>
                       <span className={`text-[10.5px] font-mono2 ${running.length ? "text-rail-green" : "text-slate2"}`}>
