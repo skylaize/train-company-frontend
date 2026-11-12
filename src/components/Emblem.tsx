@@ -59,6 +59,7 @@ export const EMBLEM_LABELS: Record<string, string> = {
   tampon: "Tampon de contrôle",
   // 2.7 : éruption solaire, 10 % d'une sous-station réparée
   pylone: "Pylône de l'éruption",
+  cerveau: "Cerveau du rail", // 2.8 : premier du quiz du jour sur Discord, sur un mois
   // 2.7 : pass « Retour au vieux matériel »
   bielle: "Bielle motrice",
   manometre: "Manomètre de chaudière",
@@ -382,6 +383,14 @@ export function Emblem({ id, size = 14, className = "" }: { id: string; size?: n
           <circle cx="8" cy="8" r="6.4" />
           <circle cx="8" cy="8" r="4.4" strokeDasharray="1.2 1.1" />
           <path d="M6 8.1l1.4 1.4L10.2 6.6" />
+        </svg>
+      );
+    // 2.8 : une ampoule, un rail en guise de filament (quiz du jour sur Discord)
+    case "cerveau":
+      return (
+        <svg {...common}>
+          <path d="M5.6 11.2c0-1.6-2.1-2.6-2.1-5A4.5 4.5 0 0 1 8 1.7a4.5 4.5 0 0 1 4.5 4.5c0 2.4-2.1 3.4-2.1 5z" />
+          <path d="M5.9 13h4.2M6.6 14.6h2.8M6.4 5.6h3.2M6.4 7.6h3.2M7.2 5.6v2M8.8 5.6v2" />
         </svg>
       );
     // 2.7 : un pylône de ligne à haute tension, un éclair au pied
