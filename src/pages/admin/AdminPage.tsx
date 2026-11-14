@@ -12,6 +12,7 @@ import Giveaways from "./Giveaways";
 import Announcements from "./Announcements";
 import Logs from "./Logs";
 import Economy from "./Economy";
+import DiscordForum from "./DiscordForum";
 
 /* ============================================================
    Panneau d'administration de Réseau (2.2).
@@ -28,6 +29,7 @@ const SECTIONS = [
   { to: "economie", label: "Économie" },
   { to: "alliances", label: "Alliances" },
   { to: "boutique", label: "Boutique" },
+  { to: "discord", label: "Bugs et suggestions" },
   { to: "journal", label: "Journal" },
 ];
 
@@ -126,6 +128,7 @@ export default function AdminPage() {
               <Route path="economie" element={<Economy />} />
               <Route path="alliances" element={<Alliances />} />
               <Route path="boutique" element={<Shop />} />
+              <Route path="discord" element={<DiscordForum />} />
               <Route path="journal" element={<Logs />} />
               <Route path="*" element={<Overview />} />
             </Routes>
