@@ -30,13 +30,40 @@ function postText(p: Post, kind: Kind, thread?: Msg[]) {
   return [...head, ...body.filter(Boolean), p.url].join("\n");
 }
 
+/* Le presse-papiers refuse souvent une copie lancée après un chargement
+   (Safari surtout) : on tente l'API, puis l'ancienne méthode. */
 async function copy(text: string) {
   try {
     await navigator.clipboard.writeText(text);
     return true;
   } catch {
-    return false;
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch {
+      return false;
+    }
   }
+}
+
+function download(text: string, name: string) {
+  const url = URL.createObjectURL(new Blob([text], { type: "text/plain;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export default function DiscordForum() {
@@ -77,6 +104,28 @@ export default function DiscordForum() {
 
   // la liste copiée contient toute la discussion de chaque post (lue au besoin, trois à la fois)
   const [copying, setCopying] = useState(false);
+  // le texte prêt : affiché dans un cadre, à copier d'un clic (le clic garde le droit de copier) ou à télécharger
+  const [ready, setReady] = useState<string | null>(null);
+  // le .zip : liste.txt et les captures, téléchargées par le serveur
+  const [zipping, setZipping] = useState(false);
+  async function downloadZip() {
+    setZipping(true);
+    try {
+      const { data } = await api.get(`/admin/discord-forum-export?kind=${kind}${onlyOpen ? "&open=1" : ""}`, { responseType: "blob", timeout: 180_000 });
+      const url = URL.createObjectURL(data as Blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${kind === "BUGS" ? "bugs" : "suggestions"}-discord.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    } catch (err) {
+      showToast(errorText(err), "error");
+    } finally {
+      setZipping(false);
+    }
+  }
   async function copyAll() {
     setCopying(true);
     const threads = new Map<string, Msg[]>();
@@ -93,23 +142,25 @@ export default function DiscordForum() {
       })
     );
     const text = [`# ${kind === "BUGS" ? "Bugs" : "Suggestions"} Discord (${posts.length})`, ...posts.map((p) => postText(p, kind, threads.get(p.id)))].join("\n\n");
-    const ok = await copy(text);
     setCopying(false);
-    showToast(ok ? `${posts.length} posts copiés` : "Copie refusée par le navigateur", ok ? "success" : "error");
+    setReady(text);
   }
 
   return (
     <>
       <PageHead
         title="Bugs et suggestions"
-        intro="Les posts des forums Discord, lus par le bot. Ouvrez un post pour voir toute la discussion. « Copier » donne la liste en texte, prête à coller."
+        intro="Les posts des forums Discord, lus par le bot. Ouvrez un post pour voir toute la discussion. « Télécharger avec les photos » donne un .zip (la liste en texte et toutes les captures) à joindre tel quel dans une conversation."
         actions={
           <>
             <Btn onClick={() => setFresh((n) => n + 1)} disabled={loading}>
               {loading ? "Lecture…" : "Relire Discord"}
             </Btn>
-            <Btn tone="primary" onClick={copyAll} disabled={!posts.length || copying}>
-              {copying ? "Lecture des discussions…" : "Copier la liste"}
+            <Btn tone="primary" onClick={downloadZip} disabled={!posts.length || zipping} title="liste.txt et les captures, dans un .zip à m'envoyer">
+              {zipping ? "Préparation du .zip…" : "Télécharger avec les photos"}
+            </Btn>
+            <Btn onClick={copyAll} disabled={!posts.length || copying}>
+              {copying ? "Lecture des discussions…" : "Préparer la liste"}
             </Btn>
           </>
         }
@@ -133,6 +184,23 @@ export default function DiscordForum() {
         </label>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Chercher…" className={`${inputCls} max-w-[220px] ml-auto`} />
       </div>
+
+      {ready != null && (
+        <div className="border border-amber/50 bg-navy-900/60 p-3 mb-4 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-body text-[13.5px] text-offwhite mr-auto">Liste prête ({ready.length.toLocaleString("fr-FR")} caractères)</span>
+            <Btn tone="primary" onClick={async () => {
+                const ok = await copy(ready);
+                showToast(ok ? "Liste copiée" : "Copie refusée : sélectionnez le texte ci-dessous, ou téléchargez-le", ok ? "success" : "error");
+              }}>
+              Copier
+            </Btn>
+            <Btn onClick={() => download(ready, `${kind === "BUGS" ? "bugs" : "suggestions"}-discord.txt`)}>Télécharger .txt</Btn>
+            <Btn onClick={() => setReady(null)}>Fermer</Btn>
+          </div>
+          <textarea readOnly value={ready} onFocus={(e) => e.currentTarget.select()} className={`${inputCls} w-full h-48 font-mono2 text-[12px]`} />
+        </div>
+      )}
 
       {!data ? (
         <Loading error={error} onRetry={reload} />
